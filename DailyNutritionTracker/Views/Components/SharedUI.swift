@@ -97,65 +97,6 @@ struct GlassButton: View {
     }
 }
 
-/// Swipe left to reveal a compact Delete action (tap Delete to confirm).
-struct SwipeToDeleteRow<Content: View>: View {
-    let onDelete: () -> Void
-    @ViewBuilder var content: Content
-
-    @State private var offset: CGFloat = 0
-    private let deleteWidth: CGFloat = 76
-    private let rowCorner: CGFloat = 10
-
-    var body: some View {
-        content
-            .padding(.vertical, 10)
-            .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground))
-            .offset(x: offset)
-            .background(alignment: .trailing) {
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                        offset = 0
-                    }
-                    onDelete()
-                } label: {
-                    Image(systemName: "trash.fill")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: deleteWidth)
-                        .frame(maxHeight: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: rowCorner, style: .continuous)
-                                .fill(Color.red.gradient)
-                        )
-                }
-                .padding(.vertical, 2)
-                .opacity(offset < -4 ? 1 : 0)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: rowCorner, style: .continuous))
-            .contentShape(Rectangle())
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 16, coordinateSpace: .local)
-                    .onChanged { value in
-                        let dx = value.translation.width
-                        if dx < 0 {
-                            offset = max(dx, -deleteWidth)
-                        } else if offset < 0 {
-                            offset = min(0, -deleteWidth + dx)
-                        }
-                    }
-                    .onEnded { value in
-                        let shouldOpen = value.translation.width < -deleteWidth * 0.35
-                            || value.predictedEndTranslation.width < -deleteWidth
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                            offset = shouldOpen ? -deleteWidth : 0
-                        }
-                    }
-            )
-    }
-}
-
 struct SuggestionChipRow: View {
     let items: [SuggestionItem]
     let onTap: (SuggestionItem) -> Void

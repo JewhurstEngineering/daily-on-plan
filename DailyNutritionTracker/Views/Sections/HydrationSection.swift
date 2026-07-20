@@ -5,10 +5,12 @@ struct HydrationSection: View {
     @Bindable var log: DailyLog
     @Bindable var settings: AppSettings
     let date: Date
+    var onOpenSettings: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
 
     @State private var showBottleMenu = false
+    @State private var showConfig = false
 
     private var bottleOz: Double { max(settings.defaultBottleOz, 1) }
 
@@ -24,7 +26,6 @@ struct HydrationSection: View {
 
     private var nextBottleLabel: String { formatOz(bottleOz) }
 
-    /// Fixed target grid from daily goal ÷ bottle size (paper sheet style).
     private var targetSlotCount: Int {
         max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottleOz)))
     }
@@ -36,7 +37,18 @@ struct HydrationSection: View {
     }
 
     var body: some View {
-        SectionCard(title: "Hydration", systemImage: "drop.fill") {
+        SectionCard(
+            title: "Hydration",
+            systemImage: "drop.fill",
+            trailing: {
+                Button {
+                    showConfig = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                }
+                .accessibilityLabel("Configure hydration goals")
+            }
+        ) {
             Text("\(log.waterOz) oz · target \(settings.hydrationTargetOz) oz")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -79,7 +91,6 @@ struct HydrationSection: View {
                         if index < log.waterSlots.count || filled {
                             log.toggleWaterSlot(at: index, fillOz: bottleOz)
                         } else {
-                            // Ensure base grid exists, then fill this index
                             log.ensureWaterSlotCount(targetSlotCount)
                             log.toggleWaterSlot(at: index, fillOz: bottleOz)
                         }
@@ -101,6 +112,14 @@ struct HydrationSection: View {
                 .buttonStyle(.bordered)
             }
         }
+        .sheet(isPresented: $showConfig) {
+            HydrationConfigSheet(settings: settings, onOpenFullSettings: {
+                showConfig = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    onOpenSettings?()
+                }
+            })
+        }
         .onAppear {
             if log.waterSlots.count < targetSlotCount {
                 log.ensureWaterSlotCount(targetSlotCount)
@@ -120,6 +139,80 @@ struct HydrationSection: View {
         try? modelContext.save()
         Task {
             await healthKit.writeWater(ounces: log.waterOz, on: date)
+        }
+    }
+}
+
+struct HydrationConfigSheet: View {
+    @Bindable var settings: AppSettings
+    var onOpenFullSettings: (() -> Void)? = nil
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    private var bottleOptions: [(label: String, value: Double)] {
+        [
+            ("8 oz glass", 8),
+            ("12 oz", 12),
+            ("16.9 oz bottle", 16.9),
+            ("20 oz", 20),
+            ("24 oz", 24)
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Set your daily water target and default drink size. The bottle grid updates from these values.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Daily goal") {
+                    Stepper(
+                        "\(settings.hydrationTargetOz) oz",
+                        value: Binding(
+                            get: { settings.hydrationTargetOz },
+                            set: {
+                                settings.hydrationTargetOz = $0
+                                try? modelContext.save()
+                            }
+                        ),
+                        in: 32...200,
+                        step: 8
+                    )
+                }
+
+                Section("Default drink size") {
+                    Picker("Bottle", selection: Binding(
+                        get: { settings.defaultBottleOz },
+                        set: {
+                            settings.defaultBottleOz = $0
+                            try? modelContext.save()
+                        }
+                    )) {
+                        ForEach(bottleOptions, id: \.value) { option in
+                            Text(option.label).tag(option.value)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                if onOpenFullSettings != nil {
+                    Section {
+                        Button("Open full Settings…") {
+                            onOpenFullSettings?()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Hydration Goals")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -56,7 +56,12 @@ struct DayView: View {
                     .id("checklist")
                     WorkoutSection(log: log)
                         .id("workouts")
-                    HydrationSection(log: log, settings: settings, date: selectedDate)
+                    HydrationSection(
+                        log: log,
+                        settings: settings,
+                        date: selectedDate,
+                        onOpenSettings: onOpenSettings
+                    )
                         .id("hydration")
                     if settings.showSupplementsSection {
                         SupplementsSection(log: log, settings: settings)
