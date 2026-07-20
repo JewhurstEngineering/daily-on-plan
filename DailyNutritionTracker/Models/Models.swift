@@ -238,6 +238,7 @@ final class AppSettings {
     var defaultBottleOzStored: Double?
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
+    var accentThemeRaw: String?
 
     init() {
         self.id = UUID()
@@ -254,6 +255,7 @@ final class AppSettings {
         self.defaultBottleOzStored = AppLimits.defaultBottleOz
         self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
         self.showSupplementsSectionStored = true
+        self.accentThemeRaw = AccentTheme.green.rawValue
     }
 
     var phase: ProgramPhase {
@@ -308,5 +310,10 @@ final class AppSettings {
     var showSupplementsSection: Bool {
         get { showSupplementsSectionStored ?? true }
         set { showSupplementsSectionStored = newValue }
+    }
+
+    var accentTheme: AccentTheme {
+        get { AccentTheme(rawValue: accentThemeRaw ?? "") ?? .green }
+        set { accentThemeRaw = newValue.rawValue }
     }
 }

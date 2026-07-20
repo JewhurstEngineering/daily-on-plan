@@ -22,6 +22,7 @@
 		8D44BF1AF9CF7089E6BC9807 /* WorkbookExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADCE192BF88F21CE5B7A9B9 /* WorkbookExportService.swift */; };
 		97F5FBCE23BEFCA14EB70C41 /* ReportAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCD1447EB3E5701976303E0 /* ReportAggregator.swift */; };
 		9DD9994450AB9EA84E0247EE /* ProteinSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBBDEBB6F446A4F9D228238 /* ProteinSection.swift */; };
+		9F3DEC709267BE3FE1E1C934 /* AccentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9404E363233D17C7176FE55 /* AccentTheme.swift */; };
 		A45372651BF6F0123DEAB68C /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF414489D39547964B6FCC9 /* DataStore.swift */; };
 		A9733E086ED0983CE62DC1E2 /* ChecklistSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF3304F60A5829DD9B6F7AB /* ChecklistSection.swift */; };
 		ACB078D429D7DF1C29ABDB4B /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9001E43297951747E222BE7E /* Models.swift */; };
@@ -69,6 +70,7 @@
 		C87AC6E4A2CADE79058D49D0 /* FeelingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeelingsSection.swift; sourceTree = "<group>"; };
 		CE2FE3A0B8C602B365506287 /* FoodCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCatalog.swift; sourceTree = "<group>"; };
 		D5CFB8A8E9E26FE5D1DA6553 /* DailyNutritionTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DailyNutritionTracker.entitlements; sourceTree = "<group>"; };
+		D9404E363233D17C7176FE55 /* AccentTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentTheme.swift; sourceTree = "<group>"; };
 		DA53067FFB9065A5683AB7DE /* DayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayView.swift; sourceTree = "<group>"; };
 		EC8D23ACB7DE87B7A8F49469 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		FCBBDEBB6F446A4F9D228238 /* ProteinSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProteinSection.swift; sourceTree = "<group>"; };
@@ -217,6 +219,7 @@
 		E7E6D9265561A1E91E3A497E /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				D9404E363233D17C7176FE55 /* AccentTheme.swift */,
 				B414128D519FF31BB6A349A6 /* Enums.swift */,
 				9001E43297951747E222BE7E /* Models.swift */,
 			);
@@ -295,6 +298,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F3DEC709267BE3FE1E1C934 /* AccentTheme.swift in Sources */,
 				4D450A165D43670E9BCDA52F /* AddProteinSheet.swift in Sources */,
 				A9733E086ED0983CE62DC1E2 /* ChecklistSection.swift in Sources */,
 				B1485F05B4210916BE7D8328 /* ContentView.swift in Sources */,

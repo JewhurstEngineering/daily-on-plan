@@ -63,13 +63,13 @@ struct DayHeaderSection: View {
                         Text("Ketosis")
                             .font(.subheadline.weight(.medium))
                     }
-                    .tint(.green)
+                    .tint(Color.accentColor)
 
                     Toggle(isOn: $log.followedPlan) {
                         Text("Followed Plan")
                             .font(.subheadline.weight(.medium))
                     }
-                    .tint(.green)
+                    .tint(Color.accentColor)
                 }
             }
 

@@ -14,6 +14,35 @@ struct SettingsView: View {
             Group {
                 if let settings {
                     Form {
+                        Section("Appearance") {
+                            Text("Accent color")
+                                .font(.subheadline)
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
+                                ForEach(AccentTheme.allCases) { theme in
+                                    Button {
+                                        settings.accentTheme = theme
+                                        save(settings)
+                                    } label: {
+                                        ZStack {
+                                            Circle()
+                                                .fill(theme.color)
+                                                .frame(width: 36, height: 36)
+                                            if settings.accentTheme == theme {
+                                                Image(systemName: "checkmark")
+                                                    .font(.caption.weight(.bold))
+                                                    .foregroundStyle(.white)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(theme.title)
+                                }
+                            }
+                            Text(settings.accentTheme.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Section("Program") {
                             Picker("Phase", selection: Binding(
                                 get: { settings.phase },

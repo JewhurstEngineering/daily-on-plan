@@ -56,7 +56,7 @@ struct CalorieRingView: View {
                 .stroke(Color(.systemGray5), lineWidth: 12)
             Circle()
                 .trim(from: 0, to: min(progress, 1))
-                .stroke(isOver ? Color.orange : Color.green, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                .stroke(isOver ? Color.orange : Color.accentColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.3), value: current)
             VStack(spacing: 2) {

@@ -4,10 +4,15 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
+    @Query private var settingsList: [AppSettings]
     @State private var selectedDate = Date()
     @State private var showSettings = false
     @State private var showExport = false
     @State private var showReports = false
+
+    private var accent: Color {
+        (settingsList.first?.accentTheme ?? .green).color
+    }
 
     var body: some View {
         NavigationStack {
@@ -42,18 +47,23 @@ struct ContentView: View {
                 }
                 .sheet(isPresented: $showSettings) {
                     SettingsView()
+                        .tint(accent)
                 }
                 .sheet(isPresented: $showExport) {
                     ExportSheetView(selectedDate: selectedDate)
+                        .tint(accent)
                 }
                 .sheet(isPresented: $showReports) {
                     ReportsView()
+                        .tint(accent)
                 }
                 .task {
+                    _ = DataStore.settings(in: modelContext)
                     await healthKit.requestAuthorization()
                     let settings = DataStore.settings(in: modelContext)
                     await NotificationService.shared.reschedule(using: settings)
                 }
         }
+        .tint(accent)
     }
 }
