@@ -1,0 +1,217 @@
+import Foundation
+import SwiftData
+
+@Model
+final class DailyLog {
+    var id: UUID
+    var date: Date
+    var proteinGoal: Int
+    var ketosis: Bool
+    var followedPlan: Bool
+    var notes: String
+    var waterOz: Int
+    @Relationship(deleteRule: .cascade) var proteinEntries: [ProteinEntry]
+    @Relationship(deleteRule: .cascade) var workoutEntries: [WorkoutEntry]
+    @Relationship(deleteRule: .cascade) var feelingEntries: [FeelingEntry]
+    var checkedFatsAndVeggies: [String]
+    var checkedMiscItems: [String]
+    var checkedFruits: [String]
+    var completedSupplements: [String]
+
+    init(date: Date = Date(), proteinGoal: Int = 500) {
+        self.id = UUID()
+        self.date = Calendar.current.startOfDay(for: date)
+        self.proteinGoal = proteinGoal
+        self.ketosis = true
+        self.followedPlan = true
+        self.notes = ""
+        self.waterOz = 0
+        self.proteinEntries = []
+        self.workoutEntries = []
+        self.feelingEntries = []
+        self.checkedFatsAndVeggies = []
+        self.checkedMiscItems = []
+        self.checkedFruits = []
+        self.completedSupplements = []
+    }
+
+    var totalProteinCalories: Int {
+        proteinEntries.reduce(0) { $0 + $1.calories }
+    }
+
+    var sortedFeelings: [FeelingEntry] {
+        feelingEntries.sorted { $0.timeLogged < $1.timeLogged }
+    }
+
+    var sortedProteins: [ProteinEntry] {
+        proteinEntries.sorted { $0.time < $1.time }
+    }
+
+    var sortedWorkouts: [WorkoutEntry] {
+        workoutEntries.sorted { $0.timeLogged < $1.timeLogged }
+    }
+}
+
+@Model
+final class FeelingEntry {
+    var id: UUID
+    var type: String
+    var timeLogged: Date
+    var note: String
+
+    init(type: String, note: String = "", timeLogged: Date = Date()) {
+        self.id = UUID()
+        self.type = type
+        self.note = note
+        self.timeLogged = timeLogged
+    }
+}
+
+@Model
+final class ProteinEntry {
+    var id: UUID
+    var name: String
+    var time: Date
+    var servingSize: String
+    var calories: Int
+    var hungerBefore: Int
+    var hungerAfter: Int
+    var proteinCategory: String
+    var servings: Double
+
+    init(
+        name: String,
+        time: Date = Date(),
+        servingSize: String,
+        calories: Int,
+        hungerBefore: Int = 4,
+        hungerAfter: Int = 6,
+        proteinCategory: String = "other",
+        servings: Double = 1
+    ) {
+        self.id = UUID()
+        self.name = name
+        self.time = time
+        self.servingSize = servingSize
+        self.calories = calories
+        self.hungerBefore = hungerBefore
+        self.hungerAfter = hungerAfter
+        self.proteinCategory = proteinCategory
+        self.servings = servings
+    }
+}
+
+@Model
+final class WorkoutEntry {
+    var id: UUID
+    var activityName: String
+    var durationMinutes: Int
+    var timeLogged: Date
+
+    init(activityName: String, durationMinutes: Int, timeLogged: Date = Date()) {
+        self.id = UUID()
+        self.activityName = activityName
+        self.durationMinutes = durationMinutes
+        self.timeLogged = timeLogged
+    }
+}
+
+@Model
+final class WeightEntry {
+    var id: UUID
+    var date: Date
+    var weightLbs: Double
+    var timeLogged: Date
+
+    init(date: Date = Date(), weightLbs: Double, timeLogged: Date = Date()) {
+        self.id = UUID()
+        self.date = Calendar.current.startOfDay(for: date)
+        self.weightLbs = weightLbs
+        self.timeLogged = timeLogged
+    }
+}
+
+@Model
+final class CustomFoodPreset {
+    var id: UUID
+    var name: String
+    var servingLabel: String
+    var calories: Int
+    var category: String
+    var proteinCategory: String
+    var servingsPerUnit: Double
+
+    init(
+        name: String,
+        servingLabel: String,
+        calories: Int,
+        category: String = "protein",
+        proteinCategory: String = "other",
+        servingsPerUnit: Double = 1
+    ) {
+        self.id = UUID()
+        self.name = name
+        self.servingLabel = servingLabel
+        self.calories = calories
+        self.category = category
+        self.proteinCategory = proteinCategory
+        self.servingsPerUnit = servingsPerUnit
+    }
+}
+
+@Model
+final class AppSettings {
+    var id: UUID
+    var programPhase: String
+    var heightInches: Double
+    var usesMetricWeight: Bool
+    var defaultProteinGoal: Int
+    var waterReminderEnabled: Bool
+    var waterReminderIntervalHours: Int
+    var eveningCheckInEnabled: Bool
+    var eveningCheckInHour: Int
+    var eveningCheckInMinute: Int
+    var supplementDefinitionsJSON: String
+
+    init() {
+        self.id = UUID()
+        self.programPhase = ProgramPhase.week1.rawValue
+        self.heightInches = 0
+        self.usesMetricWeight = false
+        self.defaultProteinGoal = 500
+        self.waterReminderEnabled = true
+        self.waterReminderIntervalHours = 2
+        self.eveningCheckInEnabled = true
+        self.eveningCheckInHour = 20
+        self.eveningCheckInMinute = 0
+        self.supplementDefinitionsJSON = SupplementDefinition.defaultJSON
+    }
+
+    var phase: ProgramPhase {
+        get { ProgramPhase(rawValue: programPhase) ?? .week1 }
+        set { programPhase = newValue.rawValue }
+    }
+
+    var supplements: [SupplementDefinition] {
+        get {
+            guard let data = supplementDefinitionsJSON.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([SupplementDefinition].self, from: data) else {
+                return SupplementDefinition.defaults
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                supplementDefinitionsJSON = string
+            }
+        }
+    }
+
+    var heightMeters: Double? {
+        guard heightInches > 0 else { return nil }
+        return heightInches * 0.0254
+    }
+
+    var hasHeight: Bool { heightInches > 0 }
+}
