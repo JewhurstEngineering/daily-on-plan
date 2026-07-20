@@ -22,7 +22,7 @@ struct SupplementsSection: View {
         ) {
             let visible = settings.visibleSupplements
             if visible.isEmpty {
-                Text("No supplements visible. Tap the gear to enable some.")
+                Text("No supplements visible. Tap the gear to enable some, or turn the section off in Settings.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -84,24 +84,42 @@ struct SupplementConfigSheet: View {
         NavigationStack {
             List {
                 Section {
-                    Text("Show or hide supplements without deleting them. Adjust doses per day as needed.")
+                    Text("Show or hide items without deleting them. Use Disable all to clear the daily checklist.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Button("Disable all") {
+                        var list = settings.supplements
+                        for i in list.indices { list[i].isEnabled = false }
+                        settings.supplements = list
+                        try? modelContext.save()
+                    }
+                    Button("Enable all") {
+                        var list = settings.supplements
+                        for i in list.indices { list[i].isEnabled = true }
+                        settings.supplements = list
+                        try? modelContext.save()
+                    }
                 }
+
                 ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle(supplement.name, isOn: Binding(
-                            get: { settings.supplements[index].isEnabled },
-                            set: { newValue in
-                                var list = settings.supplements
-                                list[index].isEnabled = newValue
-                                settings.supplements = list
-                                try? modelContext.save()
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(supplement.name)
+                                .font(.body)
+                            if settings.supplements[index].isEnabled {
+                                Text("\(settings.supplements[index].dosesPerDay) doses/day")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("Hidden")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                        ))
+                        }
+                        Spacer(minLength: 8)
                         if settings.supplements[index].isEnabled {
                             Stepper(
-                                "\(settings.supplements[index].dosesPerDay) doses/day",
+                                "",
                                 value: Binding(
                                     get: { settings.supplements[index].dosesPerDay },
                                     set: { newValue in
@@ -113,9 +131,27 @@ struct SupplementConfigSheet: View {
                                 ),
                                 in: 1...6
                             )
-                            .font(.caption)
+                            .labelsHidden()
+                            .fixedSize()
                         }
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { settings.supplements[index].isEnabled },
+                                set: { newValue in
+                                    var list = settings.supplements
+                                    list[index].isEnabled = newValue
+                                    settings.supplements = list
+                                    try? modelContext.save()
+                                }
+                            )
+                        )
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .scaleEffect(0.85)
+                        .fixedSize()
                     }
+                    .padding(.vertical, 2)
                 }
             }
             .navigationTitle("Configure Supplements")

@@ -10,6 +10,8 @@ final class DailyLog {
     var followedPlan: Bool
     var notes: String
     var waterOz: Int
+    /// JSON array of individual drink sizes in oz, e.g. `[16.9, 24.0]`.
+    var waterDrinksJSON: String?
     @Relationship(deleteRule: .cascade) var proteinEntries: [ProteinEntry]
     @Relationship(deleteRule: .cascade) var workoutEntries: [WorkoutEntry]
     @Relationship(deleteRule: .cascade) var feelingEntries: [FeelingEntry]
@@ -49,6 +51,44 @@ final class DailyLog {
 
     var sortedWorkouts: [WorkoutEntry] {
         workoutEntries.sorted { $0.timeLogged < $1.timeLogged }
+    }
+
+    var waterDrinks: [Double] {
+        get {
+            if let data = waterDrinksJSON?.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode([Double].self, from: data) {
+                return decoded
+            }
+            // Legacy: only a total was stored — keep as a single drink so data isn't lost.
+            if waterOz > 0 { return [Double(waterOz)] }
+            return []
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                waterDrinksJSON = string
+            } else {
+                waterDrinksJSON = "[]"
+            }
+            waterOz = Int(newValue.reduce(0, +).rounded())
+        }
+    }
+
+    func addWaterDrink(oz: Double) {
+        var drinks = waterDrinks
+        drinks.append(oz)
+        waterDrinks = drinks
+    }
+
+    func removeWaterDrink(at index: Int) {
+        var drinks = waterDrinks
+        guard drinks.indices.contains(index) else { return }
+        drinks.remove(at: index)
+        waterDrinks = drinks
+    }
+
+    func clearWaterDrinks() {
+        waterDrinks = []
     }
 }
 
@@ -174,6 +214,7 @@ final class AppSettings {
     var supplementDefinitionsJSON: String
     var defaultBottleOzStored: Double?
     var hydrationTargetOzStored: Int?
+    var showSupplementsSectionStored: Bool?
 
     init() {
         self.id = UUID()
@@ -189,6 +230,7 @@ final class AppSettings {
         self.supplementDefinitionsJSON = SupplementDefinition.defaultJSON
         self.defaultBottleOzStored = AppLimits.defaultBottleOz
         self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
+        self.showSupplementsSectionStored = true
     }
 
     var phase: ProgramPhase {
@@ -238,5 +280,10 @@ final class AppSettings {
     var hydrationTargetOz: Int {
         get { hydrationTargetOzStored ?? AppLimits.hydrationTargetOz }
         set { hydrationTargetOzStored = newValue }
+    }
+
+    var showSupplementsSection: Bool {
+        get { showSupplementsSectionStored ?? true }
+        set { showSupplementsSectionStored = newValue }
     }
 }

@@ -157,20 +157,35 @@ struct SettingsView: View {
                         }
 
                         Section("Supplements") {
-                            Text("Use the gear on the Supplements card to show/hide items and set doses.")
+                            Toggle("Show supplements section", isOn: Binding(
+                                get: { settings.showSupplementsSection },
+                                set: {
+                                    settings.showSupplementsSection = $0
+                                    save(settings)
+                                }
+                            ))
+                            Text("Or hide individual items from the gear on the Supplements card.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                                Toggle(isOn: Binding(
-                                    get: { settings.supplements[index].isEnabled },
-                                    set: { newValue in
-                                        var list = settings.supplements
-                                        list[index].isEnabled = newValue
-                                        settings.supplements = list
-                                        save(settings)
+                            if settings.showSupplementsSection {
+                                Button("Disable all items") {
+                                    var list = settings.supplements
+                                    for i in list.indices { list[i].isEnabled = false }
+                                    settings.supplements = list
+                                    save(settings)
+                                }
+                                ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
+                                    Toggle(isOn: Binding(
+                                        get: { settings.supplements[index].isEnabled },
+                                        set: { newValue in
+                                            var list = settings.supplements
+                                            list[index].isEnabled = newValue
+                                            settings.supplements = list
+                                            save(settings)
+                                        }
+                                    )) {
+                                        Text(supplement.name)
                                     }
-                                )) {
-                                    Text(supplement.name)
                                 }
                             }
                         }

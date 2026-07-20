@@ -4,6 +4,8 @@ import SwiftData
 struct ChecklistSection: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
+    var scrollAnchor: String = "checklist"
+    var onWillPresentSheet: ((String) -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @State private var pickerCategory: FoodCategory?
     @State private var editingRaw: String?
@@ -63,11 +65,14 @@ struct ChecklistSection: View {
                 ForEach(log.checkedMiscItems, id: \.self) { item in
                     loggedRow(item, category: .misc)
                 }
-                Button("Add misc item") { pickerCategory = .misc }
+                Button("Add misc item") {
+                    onWillPresentSheet?(scrollAnchor)
+                    pickerCategory = .misc
+                }
                     .disabled(log.checkedMiscItems.count >= AppLimits.miscDailyLimit)
             }
         }
-        .sheet(item: $pickerCategory) { category in
+        .sheet(item: $pickerCategory, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { category in
             FoodChecklistPicker(
                 category: category,
                 phase: settings.phase,
@@ -81,8 +86,14 @@ struct ChecklistSection: View {
             set: { if !$0 { editingRaw = nil } }
         )) {
             TextField("Amount (e.g. 1/2 cup)", text: $editingAmount)
-            Button("Save") { saveEditedAmount() }
-            Button("Cancel", role: .cancel) { editingRaw = nil }
+            Button("Save") {
+                saveEditedAmount()
+                onWillPresentSheet?(scrollAnchor)
+            }
+            Button("Cancel", role: .cancel) {
+                editingRaw = nil
+                onWillPresentSheet?(scrollAnchor)
+            }
         }
         .onAppear { refreshChips() }
     }
@@ -99,7 +110,10 @@ struct ChecklistSection: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Button("Add") { pickerCategory = category }
+                Button("Add") {
+                    onWillPresentSheet?(scrollAnchor)
+                    pickerCategory = category
+                }
                     .font(.caption)
             }
             if !chips.isEmpty {
@@ -140,6 +154,7 @@ struct ChecklistSection: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
+            onWillPresentSheet?(scrollAnchor)
             editingCategory = category
             editingRaw = raw
             editingAmount = ChecklistStorage.parse(raw).amount

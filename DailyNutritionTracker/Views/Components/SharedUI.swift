@@ -72,12 +72,9 @@ struct CalorieRingView: View {
 }
 
 struct GlassButton: View {
-    let index: Int
-    let filledCount: Int
+    let isFilled: Bool
     let label: String
     let action: () -> Void
-
-    private var isFilled: Bool { index < filledCount }
 
     var body: some View {
         Button(action: action) {
@@ -97,6 +94,58 @@ struct GlassButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Swipe left to reveal a Delete button (requires a second tap to confirm delete).
+struct SwipeToDeleteRow<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder var content: Content
+
+    @State private var offset: CGFloat = 0
+    private let deleteWidth: CGFloat = 72
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            HStack {
+                Spacer(minLength: 0)
+                Button(role: .destructive) {
+                    withAnimation(.easeOut(duration: 0.2)) { offset = 0 }
+                    onDelete()
+                } label: {
+                    Text("Delete")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: deleteWidth)
+                        .frame(maxHeight: .infinity)
+                        .background(Color.red)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+
+            content
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground))
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onChanged { value in
+                            let translation = value.translation.width
+                            if translation < 0 {
+                                offset = max(translation, -deleteWidth)
+                            } else if offset < 0 {
+                                offset = min(0, -deleteWidth + translation)
+                            }
+                        }
+                        .onEnded { value in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                offset = value.translation.width < -deleteWidth / 2 ? -deleteWidth : 0
+                            }
+                        }
+                )
+        }
+        .clipped()
     }
 }
 

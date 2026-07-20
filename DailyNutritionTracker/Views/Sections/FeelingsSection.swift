@@ -11,7 +11,7 @@ struct FeelingsSection: View {
 
     var body: some View {
         SectionCard(title: "Feelings & Cravings", systemImage: "heart.text.square") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 ForEach(FeelingType.allCases) { type in
                     Button {
                         quickLog(type.rawValue)
@@ -32,28 +32,25 @@ struct FeelingsSection: View {
                         }
                     }
                 }
-
-                Button {
-                    customFeeling = ""
-                    showCustom = true
-                } label: {
-                    Label("Something else", systemImage: "plus.bubble")
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color(.tertiarySystemFill))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-                .buttonStyle(.plain)
             }
+
+            Button {
+                customFeeling = ""
+                showCustom = true
+            } label: {
+                Label("Something else…", systemImage: "plus.bubble")
+                    .font(.caption.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.bordered)
 
             if log.sortedFeelings.isEmpty {
                 Text("Tap a feeling to log it with the current time.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(log.sortedFeelings, id: \.id) { feeling in
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -75,7 +72,7 @@ struct FeelingsSection: View {
                                     .font(.caption)
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                         Divider()
                     }
                 }

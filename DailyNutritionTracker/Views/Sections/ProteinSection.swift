@@ -4,6 +4,9 @@ import SwiftData
 struct ProteinSection: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
+    var scrollAnchor: String = "protein"
+    var onWillPresentSheet: ((String) -> Void)? = nil
+
     @Environment(\.modelContext) private var modelContext
     @State private var showAdd = false
     @State private var editingEntry: ProteinEntry?
@@ -37,6 +40,7 @@ struct ProteinSection: View {
             }
 
             Button {
+                onWillPresentSheet?(scrollAnchor)
                 showAdd = true
             } label: {
                 Label("Add protein", systemImage: "plus.circle.fill")
@@ -48,48 +52,54 @@ struct ProteinSection: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(log.sortedProteins, id: \.id) { entry in
-                    Button {
-                        editingEntry = entry
-                        editMultiplier = max(entry.servings, 1)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(entry.name)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Text("\(entry.calories) kcal")
-                                    .font(.subheadline.monospacedDigit())
-                                    .foregroundStyle(.primary)
+                VStack(spacing: 0) {
+                    ForEach(log.sortedProteins, id: \.id) { entry in
+                        SwipeToDeleteRow {
+                            delete(entry)
+                        } content: {
+                            Button {
+                                onWillPresentSheet?(scrollAnchor)
+                                editingEntry = entry
+                                editMultiplier = max(entry.servings, 1)
+                            } label: {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(entry.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                        Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text("Tap to edit amount · swipe left to delete")
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                    Spacer()
+                                    Text("\(entry.calories) kcal")
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(.primary)
+                                    Button(role: .destructive) {
+                                        delete(entry)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.caption)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Tap to change amount")
-                                .font(.caption2)
-                                .foregroundStyle(Color.accentColor)
+                            .buttonStyle(.plain)
                         }
+                        Divider()
                     }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button("Delete", role: .destructive) {
-                            log.proteinEntries.removeAll { $0.id == entry.id }
-                            modelContext.delete(entry)
-                            try? modelContext.save()
-                            refreshChips()
-                        }
-                    }
-                    Divider()
                 }
             }
         }
-        .sheet(isPresented: $showAdd) {
+        .sheet(isPresented: $showAdd, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
             AddProteinSheet(log: log, settings: settings) {
                 refreshChips()
             }
         }
-        .sheet(item: $editingEntry) { entry in
+        .sheet(item: $editingEntry, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { entry in
             NavigationStack {
                 Form {
                     Section("\(entry.name)") {
@@ -110,6 +120,12 @@ struct ProteinSection: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { editingEntry = nil }
+                    }
+                    ToolbarItem(placement: .destructiveAction) {
+                        Button("Delete", role: .destructive) {
+                            delete(entry)
+                            editingEntry = nil
+                        }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
@@ -133,6 +149,13 @@ struct ProteinSection: View {
         suggestionChips = UsageSuggestions.proteinChips(in: modelContext)
     }
 
+    private func delete(_ entry: ProteinEntry) {
+        log.proteinEntries.removeAll { $0.id == entry.id }
+        modelContext.delete(entry)
+        try? modelContext.save()
+        refreshChips()
+    }
+
     private func unitCalories(for entry: ProteinEntry) -> Int {
         if entry.servings > 0 {
             return max(1, Int((Double(entry.calories) / entry.servings).rounded()))
@@ -148,7 +171,6 @@ struct ProteinSection: View {
         entry.servings = multiplier
         entry.calories = Int((Double(unit) * multiplier).rounded())
         if abs(multiplier - 1) < 0.01 {
-            // keep existing serving label if 1x and it doesn't already look like a multiplier
             if entry.servingSize.contains("×") {
                 entry.servingSize = "1 serving"
             }

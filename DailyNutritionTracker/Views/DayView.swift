@@ -9,35 +9,72 @@ struct DayView: View {
 
     @State private var recentWeights: [WeightEntry] = []
     @State private var didSyncHealth = false
+    @State private var scrollTarget: String?
+    @State private var scrollToken = UUID()
+
+    private func requestScroll(to anchor: String) {
+        scrollTarget = anchor
+        scrollToken = UUID()
+    }
 
     var body: some View {
         let settings = DataStore.settings(in: modelContext)
         let log = DataStore.log(for: selectedDate, in: modelContext, defaultGoal: settings.defaultProteinGoal)
         let todayWeight = DataStore.weight(for: selectedDate, in: modelContext)
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
-                WeightBMISection(
-                    selectedDate: selectedDate,
-                    weight: todayWeight,
-                    recentWeights: recentWeights,
-                    settings: settings,
-                    onSave: { lbs in
-                        saveWeight(lbs, existing: todayWeight)
-                    },
-                    onOpenSettings: onOpenSettings
-                )
-                FeelingsSection(log: log)
-                ProteinSection(log: log, settings: settings)
-                ChecklistSection(log: log, settings: settings)
-                WorkoutSection(log: log)
-                HydrationSection(log: log, settings: settings, date: selectedDate)
-                SupplementsSection(log: log, settings: settings)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
+                        .id("header")
+                    WeightBMISection(
+                        selectedDate: selectedDate,
+                        weight: todayWeight,
+                        recentWeights: recentWeights,
+                        settings: settings,
+                        onSave: { lbs in
+                            saveWeight(lbs, existing: todayWeight)
+                        },
+                        onOpenSettings: onOpenSettings
+                    )
+                    .id("weight")
+                    FeelingsSection(log: log)
+                        .id("feelings")
+                    ProteinSection(
+                        log: log,
+                        settings: settings,
+                        scrollAnchor: "protein",
+                        onWillPresentSheet: { requestScroll(to: $0) }
+                    )
+                    .id("protein")
+                    ChecklistSection(
+                        log: log,
+                        settings: settings,
+                        scrollAnchor: "checklist",
+                        onWillPresentSheet: { requestScroll(to: $0) }
+                    )
+                    .id("checklist")
+                    WorkoutSection(log: log)
+                        .id("workouts")
+                    HydrationSection(log: log, settings: settings, date: selectedDate)
+                        .id("hydration")
+                    if settings.showSupplementsSection {
+                        SupplementsSection(log: log, settings: settings)
+                            .id("supplements")
+                    }
+                }
+                .padding()
             }
-            .padding()
+            .background(Color(.systemGroupedBackground))
+            .onChange(of: scrollToken) { _, _ in
+                guard let scrollTarget else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(scrollTarget, anchor: .center)
+                    }
+                }
+            }
         }
-        .background(Color(.systemGroupedBackground))
         .onAppear {
             recentWeights = DataStore.recentWeights(in: modelContext)
             syncHealthIfNeeded(log: log, todayWeight: todayWeight)
@@ -57,8 +94,11 @@ struct DayView: View {
         didSyncHealth = true
         Task {
             if let hkWater = await healthKit.readWaterOunces(on: selectedDate), hkWater > log.waterOz {
-                log.waterOz = hkWater
-                try? modelContext.save()
+                // Only seed total if we have no per-drink history yet.
+                if log.waterDrinks.isEmpty {
+                    log.waterDrinks = [Double(hkWater)]
+                    try? modelContext.save()
+                }
             }
             if todayWeight == nil, let hkWeight = await healthKit.readBodyMassPounds(on: selectedDate) {
                 saveWeight(hkWeight, existing: nil)

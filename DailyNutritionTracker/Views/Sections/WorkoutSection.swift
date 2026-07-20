@@ -97,14 +97,12 @@ struct AddWorkoutSheet: View {
             Form {
                 Section("Activity") {
                     TextField("Activity name", text: $name)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
-                            ForEach(suggestions, id: \.self) { suggestion in
-                                Button(suggestion) { name = suggestion }
-                                    .buttonStyle(.bordered)
-                            }
+                    Picker("Suggestions", selection: $name) {
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Text(suggestion).tag(suggestion)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
                 Section("Duration") {
                     Stepper("\(minutes) minutes", value: $minutes, in: 5...300, step: 5)
