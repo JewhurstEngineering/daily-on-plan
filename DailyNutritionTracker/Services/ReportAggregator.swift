@@ -209,6 +209,155 @@ struct ReportSnapshot {
         .sorted { $0.percent > $1.percent }
     }
 
+    var overallSupplementAdherencePercent: Double {
+        let items = supplementAdherence
+        let possible = items.reduce(0) { $0 + $1.possible }
+        guard possible > 0 else { return 0 }
+        let completed = items.reduce(0) { $0 + $1.completed }
+        return Double(completed) / Double(possible) * 100
+    }
+
+    // MARK: Average day / Snapshot
+
+    var avgWaterOz: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(logs.reduce(0) { $0 + $1.waterOz }) / Double(logs.count)
+    }
+
+    var avgFeelingsPerDay: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(totalFeelings) / Double(logs.count)
+    }
+
+    var avgVeggiesPerDay: Double {
+        guard !logs.isEmpty else { return 0 }
+        let total = veggiesPerDay.reduce(0.0) { $0 + $1.value }
+        return total / Double(logs.count)
+    }
+
+    var avgWorkoutMinutesPerDay: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(totalWorkoutMinutes) / Double(logs.count)
+    }
+
+    var avgProteinGoal: Double {
+        guard !logs.isEmpty else { return Double(settings.defaultProteinGoal) }
+        return Double(logs.reduce(0) { $0 + $1.proteinGoal }) / Double(logs.count)
+    }
+
+    var daysOnProteinGoal: Int {
+        logs.filter { $0.totalProteinCalories > 0 && $0.totalProteinCalories <= $0.proteinGoal }.count
+    }
+
+    var planFollowRate: Double {
+        guard !logs.isEmpty else { return 0 }
+        let followed = logs.filter(\.followedPlan).count
+        return Double(followed) / Double(logs.count) * 100
+    }
+
+    var ketosisRate: Double {
+        guard !logs.isEmpty else { return 0 }
+        let yes = logs.filter(\.ketosis).count
+        return Double(yes) / Double(logs.count) * 100
+    }
+
+    var hydrationHitRate: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(daysAtHydrationTarget) / Double(logs.count) * 100
+    }
+
+    // MARK: Weekly rollups
+
+    struct WeekRollup: Identifiable {
+        var id: Date { weekStart }
+        let weekStart: Date
+        let weekEnd: Date
+        let loggedDays: Int
+        let avgProtein: Double
+        let avgWater: Double
+        let totalFeelings: Int
+        let totalWorkoutMinutes: Int
+        let daysAtWaterTarget: Int
+        let daysOnProteinGoal: Int
+        let planFollowDays: Int
+        let proteinSpark: [DailyMetricPoint]
+        let waterSpark: [DailyMetricPoint]
+
+        var title: String {
+            let start = weekStart.formatted(.dateTime.month(.abbreviated).day())
+            let end = weekEnd.formatted(.dateTime.month(.abbreviated).day())
+            return "\(start) – \(end)"
+        }
+
+        var onTrackScore: Int {
+            // Simple composite: protein-on-goal days + water-hit days (higher is better)
+            daysOnProteinGoal + daysAtWaterTarget
+        }
+    }
+
+    var weeklyRollups: [WeekRollup] {
+        let calendar = Calendar.current
+        guard !logs.isEmpty else { return [] }
+
+        var buckets: [Date: [DailyLog]] = [:]
+        for log in logs {
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: log.date)?.start
+                ?? calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: log.date))
+                ?? log.date
+            let key = DateHelpers.startOfDay(weekStart)
+            buckets[key, default: []].append(log)
+        }
+
+        let target = settings.hydrationTargetOz
+        return buckets.keys.sorted().map { weekStart -> WeekRollup in
+            let weekLogs = (buckets[weekStart] ?? []).sorted { $0.date < $1.date }
+            let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+            let avgProtein = weekLogs.isEmpty ? 0 :
+                Double(weekLogs.reduce(0) { $0 + $1.totalProteinCalories }) / Double(weekLogs.count)
+            let avgWater = weekLogs.isEmpty ? 0 :
+                Double(weekLogs.reduce(0) { $0 + $1.waterOz }) / Double(weekLogs.count)
+            return WeekRollup(
+                weekStart: weekStart,
+                weekEnd: weekEnd,
+                loggedDays: weekLogs.count,
+                avgProtein: avgProtein,
+                avgWater: avgWater,
+                totalFeelings: weekLogs.reduce(0) { $0 + $1.feelingEntries.count },
+                totalWorkoutMinutes: weekLogs.flatMap(\.workoutEntries).reduce(0) { $0 + $1.durationMinutes },
+                daysAtWaterTarget: weekLogs.filter { $0.waterOz >= target }.count,
+                daysOnProteinGoal: weekLogs.filter {
+                    $0.totalProteinCalories > 0 && $0.totalProteinCalories <= $0.proteinGoal
+                }.count,
+                planFollowDays: weekLogs.filter(\.followedPlan).count,
+                proteinSpark: weekLogs.map {
+                    DailyMetricPoint(date: $0.date, value: Double($0.totalProteinCalories))
+                },
+                waterSpark: weekLogs.map {
+                    DailyMetricPoint(date: $0.date, value: Double($0.waterOz))
+                }
+            )
+        }
+    }
+
+    var bestWeek: WeekRollup? {
+        weeklyRollups.max { lhs, rhs in
+            if lhs.onTrackScore == rhs.onTrackScore {
+                return lhs.planFollowDays < rhs.planFollowDays
+            }
+            return lhs.onTrackScore < rhs.onTrackScore
+        }
+    }
+
+    var toughestWeek: WeekRollup? {
+        guard weeklyRollups.count > 1 else { return weeklyRollups.first }
+        return weeklyRollups.max { lhs, rhs in
+            if lhs.totalFeelings == rhs.totalFeelings {
+                return lhs.onTrackScore > rhs.onTrackScore
+            }
+            return lhs.totalFeelings < rhs.totalFeelings
+        }
+    }
+
     // MARK: Helpers
 
     private func ranked(_ names: [String], limit: Int = 8) -> [NamedCount] {

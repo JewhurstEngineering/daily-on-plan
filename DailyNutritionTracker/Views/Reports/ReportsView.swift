@@ -29,6 +29,19 @@ struct ReportsView: View {
                     }
                 }
 
+                Section("Overview") {
+                    NavigationLink {
+                        SnapshotReportView(snapshot: currentSnapshot)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Snapshot", systemImage: "chart.bar.doc.horizontal")
+                            Text("Average day + weekly rollups for this range")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 Section("Section reports") {
                     NavigationLink {
                         FeelingsReportView(snapshot: currentSnapshot)
