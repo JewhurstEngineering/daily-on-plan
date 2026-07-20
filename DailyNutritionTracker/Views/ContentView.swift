@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var selectedDate = Date()
     @State private var showSettings = false
     @State private var showExport = false
+    @State private var showReports = false
 
     var body: some View {
         NavigationStack {
@@ -20,12 +21,22 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
+                        .accessibilityLabel("Export")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
+                        HStack(spacing: 12) {
+                            Button {
+                                showReports = true
+                            } label: {
+                                Image(systemName: "chart.xyaxis.line")
+                            }
+                            .accessibilityLabel("Reports")
+                            Button {
+                                showSettings = true
+                            } label: {
+                                Image(systemName: "gearshape")
+                            }
+                            .accessibilityLabel("Settings")
                         }
                     }
                 }
@@ -34,6 +45,9 @@ struct ContentView: View {
                 }
                 .sheet(isPresented: $showExport) {
                     ExportSheetView(selectedDate: selectedDate)
+                }
+                .sheet(isPresented: $showReports) {
+                    ReportsView()
                 }
                 .task {
                     await healthKit.requestAuthorization()

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		16A3BA3BE218EECF484DFC95 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8D23ACB7DE87B7A8F49469 /* ExportService.swift */; };
+		17869BA6C24C50C45323A73F /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD11FEC36321824AF6BBF73 /* ReportsView.swift */; };
 		19A77925BB9BB04B288DA118 /* UsageSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */; };
 		33C7B6D251CB4D18F5B732FE /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 66665E717EEE46CD5D14B476 /* Charts.framework */; };
 		3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12455EC302B95E4C91AA758F /* WorkoutSection.swift */; };
@@ -18,6 +19,8 @@
 		70902ACB8632D233518F41A7 /* DayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA53067FFB9065A5683AB7DE /* DayView.swift */; };
 		7F1B66EA51A661F48F92057F /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829089FBB3BA5B0ACAB60EC6 /* NotificationService.swift */; };
 		8194CB2F95FBAFC09F232F8A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 72B985D7DC86E28386E75A95 /* Assets.xcassets */; };
+		8D44BF1AF9CF7089E6BC9807 /* WorkbookExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADCE192BF88F21CE5B7A9B9 /* WorkbookExportService.swift */; };
+		97F5FBCE23BEFCA14EB70C41 /* ReportAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCD1447EB3E5701976303E0 /* ReportAggregator.swift */; };
 		9DD9994450AB9EA84E0247EE /* ProteinSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBBDEBB6F446A4F9D228238 /* ProteinSection.swift */; };
 		A45372651BF6F0123DEAB68C /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF414489D39547964B6FCC9 /* DataStore.swift */; };
 		A9733E086ED0983CE62DC1E2 /* ChecklistSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF3304F60A5829DD9B6F7AB /* ChecklistSection.swift */; };
@@ -42,6 +45,7 @@
 		12455EC302B95E4C91AA758F /* WorkoutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSection.swift; sourceTree = "<group>"; };
 		26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSuggestions.swift; sourceTree = "<group>"; };
 		35D96D9B4DF86FCBE249167A /* SharedUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedUI.swift; sourceTree = "<group>"; };
+		3FCD1447EB3E5701976303E0 /* ReportAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportAggregator.swift; sourceTree = "<group>"; };
 		42C285AE838B778EDA46B2A8 /* SupplementsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupplementsSection.swift; sourceTree = "<group>"; };
 		4F900CB6CF1EF2BB39935DB1 /* DayHeaderSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayHeaderSection.swift; sourceTree = "<group>"; };
 		58BA37A01DB3E66770D6905C /* HydrationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationSection.swift; sourceTree = "<group>"; };
@@ -51,10 +55,12 @@
 		72B985D7DC86E28386E75A95 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7C08CD0A2F48C76A91863410 /* AddProteinSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProteinSheet.swift; sourceTree = "<group>"; };
 		7CB4333379BB7532601AB4AB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		7DD11FEC36321824AF6BBF73 /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
 		829089FBB3BA5B0ACAB60EC6 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		8D2C9B2DE60D6200D2F62CF7 /* ExportSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheetView.swift; sourceTree = "<group>"; };
 		9001E43297951747E222BE7E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A2ECF83CDB8B870F7C317F9F /* DailyNutritionTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DailyNutritionTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AADCE192BF88F21CE5B7A9B9 /* WorkbookExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkbookExportService.swift; sourceTree = "<group>"; };
 		ACF3304F60A5829DD9B6F7AB /* ChecklistSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistSection.swift; sourceTree = "<group>"; };
 		B414128D519FF31BB6A349A6 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 		B4CA519AD88ECDC3C79BCFBA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -111,6 +117,7 @@
 				DA53067FFB9065A5683AB7DE /* DayView.swift */,
 				B4CA519AD88ECDC3C79BCFBA /* SettingsView.swift */,
 				6FBDC7D6EFA6A2776CB5DF99 /* Components */,
+				627FA96E5ABD987E860197FB /* Reports */,
 				C24C0B28B280C761CC7297D6 /* Sections */,
 				7E44C1A46AFC1F92152C4045 /* Sheets */,
 			);
@@ -124,6 +131,8 @@
 				EC8D23ACB7DE87B7A8F49469 /* ExportService.swift */,
 				61BDC180AAA53528DC411DC8 /* HealthKitService.swift */,
 				829089FBB3BA5B0ACAB60EC6 /* NotificationService.swift */,
+				3FCD1447EB3E5701976303E0 /* ReportAggregator.swift */,
+				AADCE192BF88F21CE5B7A9B9 /* WorkbookExportService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -135,6 +144,14 @@
 				092A9C1646C3ADF0F1E7866D /* HealthKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		627FA96E5ABD987E860197FB /* Reports */ = {
+			isa = PBXGroup;
+			children = (
+				7DD11FEC36321824AF6BBF73 /* ReportsView.swift */,
+			);
+			path = Reports;
 			sourceTree = "<group>";
 		};
 		6FBDC7D6EFA6A2776CB5DF99 /* Components */ = {
@@ -292,11 +309,14 @@
 				ACB078D429D7DF1C29ABDB4B /* Models.swift in Sources */,
 				7F1B66EA51A661F48F92057F /* NotificationService.swift in Sources */,
 				9DD9994450AB9EA84E0247EE /* ProteinSection.swift in Sources */,
+				97F5FBCE23BEFCA14EB70C41 /* ReportAggregator.swift in Sources */,
+				17869BA6C24C50C45323A73F /* ReportsView.swift in Sources */,
 				B34E396A756D859471C08F07 /* SettingsView.swift in Sources */,
 				E314FF773E7239A0554AA2D2 /* SharedUI.swift in Sources */,
 				D0C33EA702DEC0D13DEB7FF7 /* SupplementsSection.swift in Sources */,
 				19A77925BB9BB04B288DA118 /* UsageSuggestions.swift in Sources */,
 				F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */,
+				8D44BF1AF9CF7089E6BC9807 /* WorkbookExportService.swift in Sources */,
 				3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

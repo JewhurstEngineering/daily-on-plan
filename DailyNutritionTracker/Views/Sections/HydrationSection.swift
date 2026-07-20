@@ -11,7 +11,6 @@ struct HydrationSection: View {
     @State private var showBottleMenu = false
 
     private var bottleOz: Double { max(settings.defaultBottleOz, 1) }
-    private var drinks: [Double] { log.waterDrinks }
 
     private var bottleOptions: [(label: String, value: Double)] {
         [
@@ -25,9 +24,15 @@ struct HydrationSection: View {
 
     private var nextBottleLabel: String { formatOz(bottleOz) }
 
-    private var displayedSlotCount: Int {
-        let targetSlots = max(4, Int(ceil(Double(settings.hydrationTargetOz) / bottleOz)))
-        return min(max(drinks.count + 1, targetSlots), 24)
+    /// Fixed target grid from daily goal ÷ bottle size (paper sheet style).
+    private var targetSlotCount: Int {
+        max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottleOz)))
+    }
+
+    private var slots: [Double?] {
+        var result = log.waterSlots
+        while result.count < targetSlotCount { result.append(nil) }
+        return result
     }
 
     var body: some View {
@@ -36,12 +41,11 @@ struct HydrationSection: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            // confirmationDialog avoids Menu/Picker scroll-jump inside ScrollView
             Button {
                 showBottleMenu = true
             } label: {
                 HStack {
-                    Text("Next drink size")
+                    Text("Drink size")
                     Spacer()
                     Text(nextBottleLabel)
                         .foregroundStyle(.secondary)
@@ -51,7 +55,7 @@ struct HydrationSection: View {
                 }
             }
             .buttonStyle(.plain)
-            .confirmationDialog("Next drink size", isPresented: $showBottleMenu, titleVisibility: .visible) {
+            .confirmationDialog("Drink size", isPresented: $showBottleMenu, titleVisibility: .visible) {
                 ForEach(bottleOptions, id: \.value) { option in
                     Button(option.label) {
                         settings.defaultBottleOz = option.value
@@ -61,20 +65,24 @@ struct HydrationSection: View {
                 Button("Cancel", role: .cancel) {}
             }
 
-            Text("Already logged drinks keep their size. Changing size only affects the next drink.")
+            Text("Tap a bottle to fill or undo. +\(nextBottleLabel) adds another bottle beyond the target grid.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-                ForEach(Array(drinks.enumerated()), id: \.offset) { index, oz in
-                    GlassButton(isFilled: true, label: formatOz(oz)) {
-                        log.removeWaterDrink(at: index)
-                        persist()
-                    }
-                }
-                ForEach(drinks.count..<displayedSlotCount, id: \.self) { _ in
-                    GlassButton(isFilled: false, label: nextBottleLabel) {
-                        log.addWaterDrink(oz: bottleOz)
+                ForEach(Array(slots.enumerated()), id: \.offset) { index, value in
+                    let filled = value != nil
+                    GlassButton(
+                        isFilled: filled,
+                        label: filled ? formatOz(value!) : nextBottleLabel
+                    ) {
+                        if index < log.waterSlots.count || filled {
+                            log.toggleWaterSlot(at: index, fillOz: bottleOz)
+                        } else {
+                            // Ensure base grid exists, then fill this index
+                            log.ensureWaterSlotCount(targetSlotCount)
+                            log.toggleWaterSlot(at: index, fillOz: bottleOz)
+                        }
                         persist()
                     }
                 }
@@ -87,10 +95,16 @@ struct HydrationSection: View {
                 }
                 Spacer()
                 Button("+\(nextBottleLabel)") {
-                    log.addWaterDrink(oz: bottleOz)
+                    log.appendFilledWaterSlot(oz: bottleOz)
                     persist()
                 }
                 .buttonStyle(.bordered)
+            }
+        }
+        .onAppear {
+            if log.waterSlots.count < targetSlotCount {
+                log.ensureWaterSlotCount(targetSlotCount)
+                try? modelContext.save()
             }
         }
     }

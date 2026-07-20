@@ -10,7 +10,7 @@ final class DailyLog {
     var followedPlan: Bool
     var notes: String
     var waterOz: Int
-    /// JSON array of individual drink sizes in oz, e.g. `[16.9, 24.0]`.
+    /// JSON array of slot values; `null`/omitted means empty. Example: `[16.9, 24.0, null]`.
     var waterDrinksJSON: String?
     @Relationship(deleteRule: .cascade) var proteinEntries: [ProteinEntry]
     @Relationship(deleteRule: .cascade) var workoutEntries: [WorkoutEntry]
@@ -53,42 +53,65 @@ final class DailyLog {
         workoutEntries.sorted { $0.timeLogged < $1.timeLogged }
     }
 
-    var waterDrinks: [Double] {
+    var waterSlots: [Double?] {
         get {
             if let data = waterDrinksJSON?.data(using: .utf8),
                let decoded = try? JSONDecoder().decode([Double].self, from: data) {
-                return decoded
+                // Sentinel -1 = empty slot. Positive values = filled oz.
+                // Legacy filled-only arrays never used -1, so they map 1:1 as filled.
+                return decoded.map { $0 < 0 ? nil : Optional($0) }
             }
-            // Legacy: only a total was stored — keep as a single drink so data isn't lost.
             if waterOz > 0 { return [Double(waterOz)] }
             return []
         }
         set {
-            if let data = try? JSONEncoder().encode(newValue),
+            let encoded = newValue.map { $0 ?? -1 }
+            if let data = try? JSONEncoder().encode(encoded),
                let string = String(data: data, encoding: .utf8) {
                 waterDrinksJSON = string
             } else {
                 waterDrinksJSON = "[]"
             }
-            waterOz = Int(newValue.reduce(0, +).rounded())
+            waterOz = Int(newValue.compactMap { $0 }.reduce(0, +).rounded())
         }
     }
 
-    func addWaterDrink(oz: Double) {
-        var drinks = waterDrinks
-        drinks.append(oz)
-        waterDrinks = drinks
+    /// Filled drinks only (for suggestions / totals helpers).
+    var waterDrinks: [Double] {
+        waterSlots.compactMap { $0 }
     }
 
-    func removeWaterDrink(at index: Int) {
-        var drinks = waterDrinks
-        guard drinks.indices.contains(index) else { return }
-        drinks.remove(at: index)
-        waterDrinks = drinks
+    func ensureWaterSlotCount(_ count: Int) {
+        var slots = waterSlots
+        while slots.count < count { slots.append(nil) }
+        if slots.count > count {
+            // Keep filled extras; only trim trailing empties beyond count if all trailing empty
+            while slots.count > count, slots.last == nil {
+                slots.removeLast()
+            }
+        }
+        waterSlots = slots
+    }
+
+    func toggleWaterSlot(at index: Int, fillOz: Double) {
+        var slots = waterSlots
+        while slots.count <= index { slots.append(nil) }
+        if slots[index] != nil {
+            slots[index] = nil
+        } else {
+            slots[index] = fillOz
+        }
+        waterSlots = slots
+    }
+
+    func appendFilledWaterSlot(oz: Double) {
+        var slots = waterSlots
+        slots.append(oz)
+        waterSlots = slots
     }
 
     func clearWaterDrinks() {
-        waterDrinks = []
+        waterSlots = []
     }
 }
 

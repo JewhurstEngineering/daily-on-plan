@@ -70,7 +70,7 @@ struct ProteinSection: View {
                                         Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
-                                        Text("Tap to edit amount · swipe left to delete")
+                                        Text("Tap to edit · swipe left to delete")
                                             .font(.caption2)
                                             .foregroundStyle(Color.accentColor)
                                     }
@@ -78,13 +78,6 @@ struct ProteinSection: View {
                                     Text("\(entry.calories) kcal")
                                         .font(.subheadline.monospacedDigit())
                                         .foregroundStyle(.primary)
-                                    Button(role: .destructive) {
-                                        delete(entry)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .font(.caption)
-                                    }
-                                    .buttonStyle(.plain)
                                 }
                             }
                             .buttonStyle(.plain)

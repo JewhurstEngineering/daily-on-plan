@@ -95,8 +95,12 @@ struct DayView: View {
         Task {
             if let hkWater = await healthKit.readWaterOunces(on: selectedDate), hkWater > log.waterOz {
                 // Only seed total if we have no per-drink history yet.
-                if log.waterDrinks.isEmpty {
-                    log.waterDrinks = [Double(hkWater)]
+                if log.waterSlots.allSatisfy({ $0 == nil }) && log.waterOz == 0 && hkWater > 0 {
+                    let settings = DataStore.settings(in: modelContext)
+                    let bottle = max(settings.defaultBottleOz, 1)
+                    let slots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
+                    log.ensureWaterSlotCount(slots)
+                    log.toggleWaterSlot(at: 0, fillOz: Double(hkWater))
                     try? modelContext.save()
                 }
             }
