@@ -10,7 +10,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            DayView(selectedDate: $selectedDate)
+            DayView(selectedDate: $selectedDate, onOpenSettings: { showSettings = true })
                 .navigationTitle("Daily Nutrition")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

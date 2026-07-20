@@ -4,6 +4,7 @@ import SwiftData
 struct AddProteinSheet: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
+    var onSaved: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -16,7 +17,7 @@ struct AddProteinSheet: View {
     @State private var time = Date()
     @State private var saveAsPreset = false
     @State private var customName = ""
-    @State private var customCalories = 35
+    @State private var customUnitCalories = 35
     @State private var useCustom = false
     @State private var showHungerHelp = false
 
@@ -28,17 +29,23 @@ struct AddProteinSheet: View {
             }
     }
 
-    private var computedCalories: Int {
-        if useCustom { return customCalories }
+    private var unitCalories: Int {
+        if useCustom { return customUnitCalories }
         guard let selected else { return 0 }
         if let per = selected.proteinCategory?.caloriesPerServing {
-            return Int((Double(per) * servings).rounded())
+            return per
         }
-        return Int((Double(selected.calories) * servings).rounded())
+        return selected.calories
+    }
+
+    private var computedCalories: Int {
+        Int((Double(unitCalories) * servings).rounded())
     }
 
     private var servingLabel: String {
-        if useCustom { return "custom" }
+        if useCustom {
+            return abs(servings - 1) < 0.01 ? "1 serving" : String(format: "%.1f× serving", servings)
+        }
         guard let selected else { return "" }
         if abs(servings - 1) < 0.01 {
             return selected.servingLabel
@@ -53,7 +60,7 @@ struct AddProteinSheet: View {
                     Toggle("Custom entry", isOn: $useCustom)
                     if useCustom {
                         TextField("Food name", text: $customName)
-                        Stepper("Calories: \(customCalories)", value: $customCalories, in: 5...800, step: 5)
+                        Stepper("Unit calories: \(customUnitCalories)", value: $customUnitCalories, in: 5...800, step: 5)
                     } else {
                         Picker("Category", selection: $selectedCategory) {
                             ForEach(ProteinCategory.allCases.filter { $0 != .other }) { cat in
@@ -69,23 +76,24 @@ struct AddProteinSheet: View {
                                 Text("\(food.name) (\(food.servingLabel))").tag(Optional(food))
                             }
                         }
-
-                        if let selected, selected.proteinCategory?.caloriesPerServing != nil {
-                            Stepper(value: $servings, in: 0.5...12, step: 0.5) {
-                                Text(String(format: "Servings: %.1f", servings))
-                            }
-                        }
                     }
                 } header: {
                     Text("Food")
                 } footer: {
-                    Text("Very lean 35 / lean 55 / medium fat 75 kcal per serving.")
+                    Text("Very lean 35 / lean 55 / medium fat 75 kcal per serving unit.")
+                }
+
+                Section("Amount") {
+                    MultiplierPicker(multiplier: $servings)
+                    Stepper(value: $servings, in: 0.5...20, step: 0.5) {
+                        Text(String(format: "Multiplier: %.1f×", servings))
+                    }
+                    Text("Protein calories: \(computedCalories)")
+                        .font(.headline.monospacedDigit())
                 }
 
                 Section("Details") {
                     DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
-                    Text("Protein calories: \(computedCalories)")
-                        .font(.headline.monospacedDigit())
                     Toggle("Save to My Presets", isOn: $saveAsPreset)
                 }
 
@@ -128,12 +136,17 @@ struct AddProteinSheet: View {
             } message: {
                 Text(HungerScale.guidance)
             }
+            .onChange(of: selected) { _, newValue in
+                if let newValue {
+                    servings = max(newValue.servingsPerUnit, 1)
+                }
+            }
         }
     }
 
     private var canSave: Bool {
         if useCustom {
-            return !customName.trimmingCharacters(in: .whitespaces).isEmpty && customCalories > 0
+            return !customName.trimmingCharacters(in: .whitespaces).isEmpty && customUnitCalories > 0
         }
         return selected != nil
     }
@@ -176,6 +189,7 @@ struct AddProteinSheet: View {
         }
 
         try? modelContext.save()
+        onSaved?()
         dismiss()
     }
 }

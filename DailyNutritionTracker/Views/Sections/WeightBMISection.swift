@@ -8,9 +8,9 @@ struct WeightBMISection: View {
     let recentWeights: [WeightEntry]
     let settings: AppSettings
     let onSave: (Double) -> Void
+    var onOpenSettings: (() -> Void)? = nil
 
     @State private var draftText = ""
-    @State private var showTrend = false
 
     private var displayWeight: String {
         guard let weight else { return "—" }
@@ -37,14 +37,28 @@ struct WeightBMISection: View {
 
     var body: some View {
         SectionCard(title: "Weight & BMI", systemImage: "scalemass") {
+            Text("BMI is calculated from today’s weight and your height in Settings.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             if !settings.hasHeight {
-                Text("Set your height in Settings to calculate BMI.")
-                    .font(.footnote)
+                Button {
+                    onOpenSettings?()
+                } label: {
+                    Label("Set height to unlock BMI", systemImage: "ruler")
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Text("Height: \(settings.heightDisplay)")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
+                    Text("Weight")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Text(displayWeight)
                         .font(.largeTitle.bold().monospacedDigit())
                     if let deltaText {
@@ -54,11 +68,21 @@ struct WeightBMISection: View {
                     }
                 }
                 Spacer()
-                if let bmi {
-                    VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("BMI")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let bmi {
                         Text(String(format: "%.1f", bmi))
                             .font(.title.bold().monospacedDigit())
                         Text(BMICalculator.category(for: bmi))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .font(.title.bold())
+                            .foregroundStyle(.tertiary)
+                        Text(settings.hasHeight ? "Log weight" : "Need height")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -66,7 +90,7 @@ struct WeightBMISection: View {
             }
 
             HStack {
-                TextField(settings.usesMetricWeight ? "kg" : "lb", text: $draftText)
+                TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                 Button("Save") {
@@ -76,46 +100,39 @@ struct WeightBMISection: View {
                 .disabled(parsedDraft == nil)
             }
 
-            if recentWeights.count > 1 {
-                Button {
-                    showTrend.toggle()
-                } label: {
-                    Label(showTrend ? "Hide trend" : "Show trend", systemImage: "chart.line.uptrend.xyaxis")
+            if !recentWeights.isEmpty {
+                Text("Weight trend")
+                    .font(.subheadline.weight(.semibold))
+                Chart(recentWeights.reversed(), id: \.id) { entry in
+                    LineMark(
+                        x: .value("Date", entry.date),
+                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
+                    )
+                    PointMark(
+                        x: .value("Date", entry.date),
+                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
+                    )
                 }
-                if showTrend {
-                    Chart(recentWeights.reversed(), id: \.id) { entry in
-                        LineMark(
-                            x: .value("Date", entry.date),
-                            y: .value("Weight", entry.weightLbs)
-                        )
-                        PointMark(
-                            x: .value("Date", entry.date),
-                            y: .value("Weight", entry.weightLbs)
-                        )
-                    }
-                    .frame(height: 120)
-                }
+                .frame(height: 140)
+                .chartYAxisLabel(settings.usesMetricWeight ? "kg" : "lb")
             }
         }
-        .onAppear {
-            if let weight {
-                draftText = settings.usesMetricWeight
-                    ? String(format: "%.1f", weight.weightLbs * 0.453592)
-                    : String(format: "%.1f", weight.weightLbs)
-            }
-        }
-        .onChange(of: weight?.weightLbs) { _, _ in
-            if let weight {
-                draftText = settings.usesMetricWeight
-                    ? String(format: "%.1f", weight.weightLbs * 0.453592)
-                    : String(format: "%.1f", weight.weightLbs)
-            }
-        }
+        .onAppear { syncDraft() }
+        .onChange(of: weight?.weightLbs) { _, _ in syncDraft() }
+        .onChange(of: settings.usesMetricWeight) { _, _ in syncDraft() }
     }
 
     private var parsedDraft: Double? {
         guard let value = Double(draftText.replacingOccurrences(of: ",", with: ".")), value > 0 else { return nil }
         return value
+    }
+
+    private func syncDraft() {
+        if let weight {
+            draftText = settings.usesMetricWeight
+                ? String(format: "%.1f", weight.weightLbs * 0.453592)
+                : String(format: "%.1f", weight.weightLbs)
+        }
     }
 
     private func commit() {

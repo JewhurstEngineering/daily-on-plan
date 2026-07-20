@@ -6,24 +6,31 @@ struct ProteinSection: View {
     let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @State private var showAdd = false
+    @State private var editingEntry: ProteinEntry?
+    @State private var editMultiplier: Double = 1
+    @State private var suggestionChips: [SuggestionItem] = []
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
     var body: some View {
         SectionCard(title: "Protein Log", systemImage: "fork.knife.circle") {
-            if !presets.isEmpty || !FoodCatalog.quickProteinPresets.isEmpty {
+            if !suggestionChips.isEmpty {
+                Text(hasHistory ? "Popular & recent" : "Suggestions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                SuggestionChipRow(items: suggestionChips) { item in
+                    addSuggestion(item)
+                }
+            }
+
+            if !presets.isEmpty {
+                Text("My presets")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
                         ForEach(presets, id: \.id) { preset in
-                            Button(preset.name) {
-                                addPreset(preset)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        ForEach(FoodCatalog.quickProteinPresets) { item in
-                            Button(item.name) {
-                                addCatalog(item)
-                            }
-                            .buttonStyle(.bordered)
+                            Button(preset.name) { addPreset(preset) }
+                                .buttonStyle(.bordered)
                         }
                     }
                 }
@@ -37,30 +44,40 @@ struct ProteinSection: View {
             .buttonStyle(.borderedProminent)
 
             if log.sortedProteins.isEmpty {
-                Text("Log meals with servings and hunger before/after.")
+                Text("Log meals with a multiplier (1×, 3×, 6×…) and hunger before/after.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(log.sortedProteins, id: \.id) { entry in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(entry.name)
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
-                            Text("\(entry.calories) kcal")
-                                .font(.subheadline.monospacedDigit())
+                    Button {
+                        editingEntry = entry
+                        editMultiplier = max(entry.servings, 1)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(entry.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Text("\(entry.calories) kcal")
+                                    .font(.subheadline.monospacedDigit())
+                                    .foregroundStyle(.primary)
+                            }
+                            Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Tap to change amount")
+                                .font(.caption2)
+                                .foregroundStyle(Color.accentColor)
                         }
-                        Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
-                    .swipeActions {
-                        Button(role: .destructive) {
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
                             log.proteinEntries.removeAll { $0.id == entry.id }
                             modelContext.delete(entry)
                             try? modelContext.save()
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                            refreshChips()
                         }
                     }
                     Divider()
@@ -68,8 +85,92 @@ struct ProteinSection: View {
             }
         }
         .sheet(isPresented: $showAdd) {
-            AddProteinSheet(log: log, settings: settings)
+            AddProteinSheet(log: log, settings: settings) {
+                refreshChips()
+            }
         }
+        .sheet(item: $editingEntry) { entry in
+            NavigationStack {
+                Form {
+                    Section("\(entry.name)") {
+                        Text("Unit: \(unitCalories(for: entry)) kcal per serving")
+                        MultiplierPicker(multiplier: $editMultiplier)
+                        Stepper(
+                            value: $editMultiplier,
+                            in: 0.5...20,
+                            step: 0.5
+                        ) {
+                            Text(String(format: "Amount: %.1f×", editMultiplier))
+                        }
+                        Text("New total: \(Int((Double(unitCalories(for: entry)) * editMultiplier).rounded())) kcal")
+                            .font(.headline.monospacedDigit())
+                    }
+                }
+                .navigationTitle("Update amount")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { editingEntry = nil }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            applyMultiplier(to: entry, multiplier: editMultiplier)
+                            editingEntry = nil
+                            refreshChips()
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+        .onAppear { refreshChips() }
+    }
+
+    private var hasHistory: Bool {
+        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.proteinEntries).isEmpty
+    }
+
+    private func refreshChips() {
+        suggestionChips = UsageSuggestions.proteinChips(in: modelContext)
+    }
+
+    private func unitCalories(for entry: ProteinEntry) -> Int {
+        if entry.servings > 0 {
+            return max(1, Int((Double(entry.calories) / entry.servings).rounded()))
+        }
+        if let cat = ProteinCategory(rawValue: entry.proteinCategory), let per = cat.caloriesPerServing {
+            return per
+        }
+        return entry.calories
+    }
+
+    private func applyMultiplier(to entry: ProteinEntry, multiplier: Double) {
+        let unit = unitCalories(for: entry)
+        entry.servings = multiplier
+        entry.calories = Int((Double(unit) * multiplier).rounded())
+        if abs(multiplier - 1) < 0.01 {
+            // keep existing serving label if 1x and it doesn't already look like a multiplier
+            if entry.servingSize.contains("×") {
+                entry.servingSize = "1 serving"
+            }
+        } else {
+            entry.servingSize = String(format: "%.1f× serving", multiplier)
+        }
+        try? modelContext.save()
+    }
+
+    private func addSuggestion(_ item: SuggestionItem) {
+        let totalCalories = item.calories ?? 35
+        let entry = ProteinEntry(
+            name: item.name,
+            servingSize: item.subtitle ?? "1 serving",
+            calories: totalCalories,
+            proteinCategory: item.proteinCategory ?? ProteinCategory.other.rawValue,
+            servings: max(item.servings, 1)
+        )
+        modelContext.insert(entry)
+        log.proteinEntries.append(entry)
+        try? modelContext.save()
+        refreshChips()
     }
 
     private func addPreset(_ preset: CustomFoodPreset) {
@@ -83,24 +184,8 @@ struct ProteinSection: View {
         modelContext.insert(entry)
         log.proteinEntries.append(entry)
         try? modelContext.save()
-    }
-
-    private func addCatalog(_ item: CatalogFood) {
-        let calories: Int
-        if let per = item.proteinCategory?.caloriesPerServing {
-            calories = Int((Double(per) * item.servingsPerUnit).rounded())
-        } else {
-            calories = item.calories
-        }
-        let entry = ProteinEntry(
-            name: item.name,
-            servingSize: item.servingLabel,
-            calories: calories,
-            proteinCategory: item.proteinCategory?.rawValue ?? ProteinCategory.other.rawValue,
-            servings: item.servingsPerUnit
-        )
-        modelContext.insert(entry)
-        log.proteinEntries.append(entry)
-        try? modelContext.save()
+        refreshChips()
     }
 }
+
+extension ProteinEntry: @retroactive Identifiable {}

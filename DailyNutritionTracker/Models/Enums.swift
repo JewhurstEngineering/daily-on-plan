@@ -133,6 +133,14 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
     var id: String
     var name: String
     var dosesPerDay: Int
+    var isEnabled: Bool
+
+    init(id: String, name: String, dosesPerDay: Int, isEnabled: Bool = true) {
+        self.id = id
+        self.name = name
+        self.dosesPerDay = dosesPerDay
+        self.isEnabled = isEnabled
+    }
 
     static let defaults: [SupplementDefinition] = [
         .init(id: "prescription", name: "Prescription", dosesPerDay: 3),
@@ -141,9 +149,9 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
         .init(id: "fat-burner", name: "Fat Burner", dosesPerDay: 2),
         .init(id: "inner-balance", name: "Inner Balance", dosesPerDay: 4),
         .init(id: "omega-3", name: "Omega 3", dosesPerDay: 2),
-        .init(id: "stay-slim", name: "Stay Slim", dosesPerDay: 2),
-        .init(id: "medi-bolic", name: "Medi-Bolic Melts", dosesPerDay: 1),
-        .init(id: "plateau", name: "Plateau Buster", dosesPerDay: 2)
+        .init(id: "stay-slim", name: "Stay Slim", dosesPerDay: 2, isEnabled: false),
+        .init(id: "medi-bolic", name: "Medi-Bolic Melts", dosesPerDay: 1, isEnabled: false),
+        .init(id: "plateau", name: "Plateau Buster", dosesPerDay: 2, isEnabled: false)
     ]
 
     static var defaultJSON: String {
@@ -153,6 +161,19 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
 
     func doseKey(_ index: Int) -> String {
         "\(id)#\(index)"
+    }
+
+    /// Decodes older saves that omit `isEnabled`.
+    enum CodingKeys: String, CodingKey {
+        case id, name, dosesPerDay, isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        dosesPerDay = try container.decode(Int.self, forKey: .dosesPerDay)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
     }
 }
 

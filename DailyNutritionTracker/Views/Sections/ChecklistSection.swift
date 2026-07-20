@@ -6,22 +6,40 @@ struct ChecklistSection: View {
     let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @State private var pickerCategory: FoodCategory?
+    @State private var editingRaw: String?
+    @State private var editingCategory: FoodCategory = .vegetable
+    @State private var editingAmount = ""
+    @State private var vegChips: [SuggestionItem] = []
+    @State private var fatChips: [SuggestionItem] = []
+    @State private var fruitChips: [SuggestionItem] = []
+    @State private var miscChips: [SuggestionItem] = []
 
     var body: some View {
         SectionCard(title: "Fats, Veggies & More", systemImage: "leaf") {
             checklistGroup(
                 title: "Vegetables",
-                items: log.checkedFatsAndVeggies.filter { name in
-                    FoodCatalog.vegetables.contains(where: { $0.name == name })
+                items: log.checkedFatsAndVeggies.filter { raw in
+                    FoodCatalog.vegetables.contains(where: { $0.name == ChecklistStorage.name(of: raw) })
                 },
-                category: .vegetable
+                category: .vegetable,
+                chips: vegChips
             )
 
             if settings.phase.allowsFatsAndFruits {
-                checklistGroup(title: "Fats", items: log.checkedFatsAndVeggies.filter { name in
-                    FoodCatalog.fats.contains(where: { $0.name == name })
-                }, category: .fat)
-                checklistGroup(title: "Fruits", items: log.checkedFruits, category: .fruit)
+                checklistGroup(
+                    title: "Fats",
+                    items: log.checkedFatsAndVeggies.filter { raw in
+                        FoodCatalog.fats.contains(where: { $0.name == ChecklistStorage.name(of: raw) })
+                    },
+                    category: .fat,
+                    chips: fatChips
+                )
+                checklistGroup(
+                    title: "Fruits",
+                    items: log.checkedFruits,
+                    category: .fruit,
+                    chips: fruitChips
+                )
             } else {
                 Text("Fats & fruits unlock in Week 2+. Change phase in Settings.")
                     .font(.footnote)
@@ -33,31 +51,49 @@ struct ChecklistSection: View {
                     Text("Miscellaneous")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text("\(log.checkedMiscItems.count)/4")
+                    Text("\(log.checkedMiscItems.count)/\(AppLimits.miscDailyLimit)")
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(log.checkedMiscItems.count > 4 ? .orange : .secondary)
+                        .foregroundStyle(log.checkedMiscItems.count > AppLimits.miscDailyLimit ? .orange : .secondary)
                 }
-                ForEach(log.checkedMiscItems, id: \.self) { item in
-                    toggleRow(item, isOn: true) {
-                        log.checkedMiscItems.removeAll { $0 == item }
-                        try? modelContext.save()
+                if !miscChips.isEmpty {
+                    SuggestionChipRow(items: miscChips) { item in
+                        addChip(item, category: .misc)
                     }
                 }
+                ForEach(log.checkedMiscItems, id: \.self) { item in
+                    loggedRow(item, category: .misc)
+                }
                 Button("Add misc item") { pickerCategory = .misc }
-                    .disabled(log.checkedMiscItems.count >= 4)
+                    .disabled(log.checkedMiscItems.count >= AppLimits.miscDailyLimit)
             }
         }
         .sheet(item: $pickerCategory) { category in
             FoodChecklistPicker(
                 category: category,
                 phase: settings.phase,
-                selected: binding(for: category)
+                onPick: { food in
+                    addFood(food, category: category)
+                }
             )
         }
+        .alert("Edit amount", isPresented: Binding(
+            get: { editingRaw != nil },
+            set: { if !$0 { editingRaw = nil } }
+        )) {
+            TextField("Amount (e.g. 1/2 cup)", text: $editingAmount)
+            Button("Save") { saveEditedAmount() }
+            Button("Cancel", role: .cancel) { editingRaw = nil }
+        }
+        .onAppear { refreshChips() }
     }
 
     @ViewBuilder
-    private func checklistGroup(title: String, items: [String], category: FoodCategory) -> some View {
+    private func checklistGroup(
+        title: String,
+        items: [String],
+        category: FoodCategory,
+        chips: [SuggestionItem]
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
@@ -66,62 +102,88 @@ struct ChecklistSection: View {
                 Button("Add") { pickerCategory = category }
                     .font(.caption)
             }
+            if !chips.isEmpty {
+                SuggestionChipRow(items: chips) { item in
+                    addChip(item, category: category)
+                }
+            }
             if items.isEmpty {
                 Text("None logged")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(items, id: \.self) { item in
-                    toggleRow(item, isOn: true) {
-                        remove(item, category: category)
-                    }
+                    loggedRow(item, category: category)
                 }
             }
         }
     }
 
-    private func toggleRow(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(Color.accentColor)
-                Text(title)
+    private func loggedRow(_ raw: String, category: FoodCategory) -> some View {
+        HStack {
+            Image(systemName: "checkmark.square.fill")
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ChecklistStorage.display(raw))
                     .foregroundStyle(.primary)
-                Spacer()
+                Text("Tap to edit amount")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(role: .destructive) {
+                remove(raw, category: category)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
             }
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingCategory = category
+            editingRaw = raw
+            editingAmount = ChecklistStorage.parse(raw).amount
+            if editingAmount.isEmpty {
+                editingAmount = ChecklistStorage.defaultAmount(
+                    for: ChecklistStorage.name(of: raw),
+                    category: category
+                )
+            }
+        }
     }
 
-    private func binding(for category: FoodCategory) -> Binding<[String]> {
+    private func refreshChips() {
+        vegChips = UsageSuggestions.checklistChips(category: .vegetable, phase: settings.phase, in: modelContext)
+        fatChips = UsageSuggestions.checklistChips(category: .fat, phase: settings.phase, in: modelContext)
+        fruitChips = UsageSuggestions.checklistChips(category: .fruit, phase: settings.phase, in: modelContext)
+        miscChips = UsageSuggestions.checklistChips(category: .misc, phase: settings.phase, in: modelContext)
+    }
+
+    private func addChip(_ item: SuggestionItem, category: FoodCategory) {
+        let amount = item.amount ?? ChecklistStorage.defaultAmount(for: item.name, category: category)
+        append(name: item.name, amount: amount, category: category)
+    }
+
+    private func addFood(_ food: CatalogFood, category: FoodCategory) {
+        append(name: food.name, amount: food.servingLabel, category: category)
+    }
+
+    private func append(name: String, amount: String, category: FoodCategory) {
+        let encoded = ChecklistStorage.encode(name: name, amount: amount)
         switch category {
         case .fruit:
-            return Binding(
-                get: { log.checkedFruits },
-                set: {
-                    log.checkedFruits = $0
-                    try? modelContext.save()
-                }
-            )
+            guard !log.checkedFruits.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
+            log.checkedFruits.append(encoded)
         case .misc:
-            return Binding(
-                get: { log.checkedMiscItems },
-                set: {
-                    log.checkedMiscItems = Array($0.prefix(4))
-                    try? modelContext.save()
-                }
-            )
-        case .fat, .vegetable:
-            return Binding(
-                get: { log.checkedFatsAndVeggies },
-                set: {
-                    log.checkedFatsAndVeggies = $0
-                    try? modelContext.save()
-                }
-            )
-        case .protein:
-            return .constant([])
+            guard log.checkedMiscItems.count < AppLimits.miscDailyLimit else { return }
+            guard !log.checkedMiscItems.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
+            log.checkedMiscItems.append(encoded)
+        default:
+            guard !log.checkedFatsAndVeggies.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
+            log.checkedFatsAndVeggies.append(encoded)
         }
+        try? modelContext.save()
+        refreshChips()
     }
 
     private func remove(_ item: String, category: FoodCategory) {
@@ -134,13 +196,37 @@ struct ChecklistSection: View {
             log.checkedFatsAndVeggies.removeAll { $0 == item }
         }
         try? modelContext.save()
+        refreshChips()
+    }
+
+    private func saveEditedAmount() {
+        guard let editingRaw else { return }
+        let name = ChecklistStorage.name(of: editingRaw)
+        let encoded = ChecklistStorage.encode(name: name, amount: editingAmount)
+        switch editingCategory {
+        case .fruit:
+            if let idx = log.checkedFruits.firstIndex(of: editingRaw) {
+                log.checkedFruits[idx] = encoded
+            }
+        case .misc:
+            if let idx = log.checkedMiscItems.firstIndex(of: editingRaw) {
+                log.checkedMiscItems[idx] = encoded
+            }
+        default:
+            if let idx = log.checkedFatsAndVeggies.firstIndex(of: editingRaw) {
+                log.checkedFatsAndVeggies[idx] = encoded
+            }
+        }
+        try? modelContext.save()
+        self.editingRaw = nil
+        refreshChips()
     }
 }
 
 struct FoodChecklistPicker: View {
     let category: FoodCategory
     let phase: ProgramPhase
-    @Binding var selected: [String]
+    let onPick: (CatalogFood) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
@@ -152,32 +238,22 @@ struct FoodChecklistPicker: View {
         NavigationStack {
             List(foods) { food in
                 Button {
-                    if selected.contains(food.name) {
-                        selected.removeAll { $0 == food.name }
-                    } else if category != .misc || selected.count < 4 {
-                        selected.append(food.name)
-                    }
+                    onPick(food)
+                    dismiss()
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(food.name)
-                            Text(food.servingLabel)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if selected.contains(food.name) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                        }
+                    VStack(alignment: .leading) {
+                        Text(food.name)
+                        Text(food.servingLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .searchable(text: $search)
             .navigationTitle(category.title)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
                 }
             }
         }

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		16A3BA3BE218EECF484DFC95 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8D23ACB7DE87B7A8F49469 /* ExportService.swift */; };
+		19A77925BB9BB04B288DA118 /* UsageSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */; };
 		33C7B6D251CB4D18F5B732FE /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 66665E717EEE46CD5D14B476 /* Charts.framework */; };
 		3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12455EC302B95E4C91AA758F /* WorkoutSection.swift */; };
 		420DD2FD0C997D367E64E551 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = B414128D519FF31BB6A349A6 /* Enums.swift */; };
@@ -39,6 +40,7 @@
 		0AB2F0CA3B8297691C6FC5E3 /* DailyNutritionTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNutritionTrackerApp.swift; sourceTree = "<group>"; };
 		0CF414489D39547964B6FCC9 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		12455EC302B95E4C91AA758F /* WorkoutSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSection.swift; sourceTree = "<group>"; };
+		26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSuggestions.swift; sourceTree = "<group>"; };
 		35D96D9B4DF86FCBE249167A /* SharedUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedUI.swift; sourceTree = "<group>"; };
 		42C285AE838B778EDA46B2A8 /* SupplementsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupplementsSection.swift; sourceTree = "<group>"; };
 		4F900CB6CF1EF2BB39935DB1 /* DayHeaderSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayHeaderSection.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				000C63FC73B2F8096605D3E8 /* Data */,
 				E7E6D9265561A1E91E3A497E /* Models */,
 				4CD9B1B42C50E5CE542FE3E1 /* Services */,
+				AFC2405742B19FE40741C174 /* Utilities */,
 				3FFC29F42EEBFD36296BB0D4 /* Views */,
 			);
 			path = DailyNutritionTracker;
@@ -166,6 +169,14 @@
 				568C3A25F3B3243A11C69CB6 /* Frameworks */,
 				7CA66D61E85A0AE192AD88A5 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		AFC2405742B19FE40741C174 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 		C24C0B28B280C761CC7297D6 /* Sections */ = {
@@ -284,6 +295,7 @@
 				B34E396A756D859471C08F07 /* SettingsView.swift in Sources */,
 				E314FF773E7239A0554AA2D2 /* SharedUI.swift in Sources */,
 				D0C33EA702DEC0D13DEB7FF7 /* SupplementsSection.swift in Sources */,
+				19A77925BB9BB04B288DA118 /* UsageSuggestions.swift in Sources */,
 				F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */,
 				3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */,
 			);

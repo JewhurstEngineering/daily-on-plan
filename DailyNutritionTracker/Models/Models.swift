@@ -172,6 +172,8 @@ final class AppSettings {
     var eveningCheckInHour: Int
     var eveningCheckInMinute: Int
     var supplementDefinitionsJSON: String
+    var defaultBottleOzStored: Double?
+    var hydrationTargetOzStored: Int?
 
     init() {
         self.id = UUID()
@@ -185,6 +187,8 @@ final class AppSettings {
         self.eveningCheckInHour = 20
         self.eveningCheckInMinute = 0
         self.supplementDefinitionsJSON = SupplementDefinition.defaultJSON
+        self.defaultBottleOzStored = AppLimits.defaultBottleOz
+        self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
     }
 
     var phase: ProgramPhase {
@@ -208,10 +212,31 @@ final class AppSettings {
         }
     }
 
+    var visibleSupplements: [SupplementDefinition] {
+        supplements.filter(\.isEnabled)
+    }
+
     var heightMeters: Double? {
         guard heightInches > 0 else { return nil }
         return heightInches * 0.0254
     }
 
     var hasHeight: Bool { heightInches > 0 }
+
+    var heightDisplay: String {
+        guard hasHeight else { return "Not set" }
+        let feet = Int(heightInches) / 12
+        let inches = Int(heightInches) % 12
+        return "\(feet)'\(inches)\""
+    }
+
+    var defaultBottleOz: Double {
+        get { defaultBottleOzStored ?? AppLimits.defaultBottleOz }
+        set { defaultBottleOzStored = newValue }
+    }
+
+    var hydrationTargetOz: Int {
+        get { hydrationTargetOzStored ?? AppLimits.hydrationTargetOz }
+        set { hydrationTargetOzStored = newValue }
+    }
 }

@@ -6,13 +6,15 @@ struct FeelingsSection: View {
     @Environment(\.modelContext) private var modelContext
     @State private var pendingNoteType: FeelingType?
     @State private var noteText = ""
+    @State private var showCustom = false
+    @State private var customFeeling = ""
 
     var body: some View {
         SectionCard(title: "Feelings & Cravings", systemImage: "heart.text.square") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
                 ForEach(FeelingType.allCases) { type in
                     Button {
-                        quickLog(type)
+                        quickLog(type.rawValue)
                     } label: {
                         Label(type.rawValue, systemImage: type.systemImage)
                             .font(.caption.weight(.semibold))
@@ -30,6 +32,20 @@ struct FeelingsSection: View {
                         }
                     }
                 }
+
+                Button {
+                    customFeeling = ""
+                    showCustom = true
+                } label: {
+                    Label("Something else", systemImage: "plus.bubble")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(.tertiarySystemFill))
+                        .foregroundStyle(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
 
             if log.sortedFeelings.isEmpty {
@@ -72,20 +88,36 @@ struct FeelingsSection: View {
             TextField("Optional note", text: $noteText)
             Button("Save") {
                 if let type = pendingNoteType {
-                    add(type, note: noteText)
+                    add(type.rawValue, note: noteText)
                 }
                 pendingNoteType = nil
             }
             Button("Cancel", role: .cancel) { pendingNoteType = nil }
         }
+        .alert("Something else", isPresented: $showCustom) {
+            TextField("Feeling / craving", text: $customFeeling)
+                .onChange(of: customFeeling) { _, newValue in
+                    if newValue.count > AppLimits.customFeelingMaxChars {
+                        customFeeling = String(newValue.prefix(AppLimits.customFeelingMaxChars))
+                    }
+                }
+            Button("Save") {
+                let trimmed = customFeeling.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                add(trimmed, note: "")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Keep it short (\(AppLimits.customFeelingMaxChars) characters max).")
+        }
     }
 
-    private func quickLog(_ type: FeelingType) {
+    private func quickLog(_ type: String) {
         add(type, note: "")
     }
 
-    private func add(_ type: FeelingType, note: String) {
-        let entry = FeelingEntry(type: type.rawValue, note: note)
+    private func add(_ type: String, note: String) {
+        let entry = FeelingEntry(type: type, note: note)
         modelContext.insert(entry)
         log.feelingEntries.append(entry)
         try? modelContext.save()

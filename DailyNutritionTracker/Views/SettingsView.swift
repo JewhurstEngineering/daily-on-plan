@@ -27,7 +27,7 @@ struct SettingsView: View {
                                 }
                             }
                             Stepper(
-                                "Default protein goal: \(settings.defaultProteinGoal)",
+                                "Default protein goal: \(settings.defaultProteinGoal) kcal",
                                 value: Binding(
                                     get: { settings.defaultProteinGoal },
                                     set: {
@@ -35,12 +35,12 @@ struct SettingsView: View {
                                         save(settings)
                                     }
                                 ),
-                                in: 100...1200,
-                                step: 25
+                                in: AppLimits.proteinGoalMin...AppLimits.proteinGoalMax,
+                                step: 1
                             )
                         }
 
-                        Section("Body metrics") {
+                        Section {
                             Toggle("Use kilograms", isOn: Binding(
                                 get: { settings.usesMetricWeight },
                                 set: {
@@ -48,19 +48,60 @@ struct SettingsView: View {
                                     save(settings)
                                 }
                             ))
-                            Stepper("Height: \(heightFeet) ft \(heightInchesPart) in", value: $heightFeet, in: 4...7)
-                            Stepper("Inches: \(heightInchesPart)", value: $heightInchesPart, in: 0...11)
-                            Button("Save height") {
-                                settings.heightInches = Double(heightFeet * 12 + heightInchesPart)
-                                save(settings)
+
+                            HStack {
+                                Text("Height")
+                                Spacer()
+                                Picker("Feet", selection: $heightFeet) {
+                                    ForEach(4...7, id: \.self) { Text("\($0) ft").tag($0) }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+
+                                Picker("Inches", selection: $heightInchesPart) {
+                                    ForEach(0...11, id: \.self) { Text("\($0) in").tag($0) }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
                             }
-                            if settings.hasHeight {
-                                let feet = Int(settings.heightInches / 12)
-                                let inches = Int(settings.heightInches.truncatingRemainder(dividingBy: 12))
-                                Text("Stored height: \(feet)'\(inches)\"")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+
+                            Text("Saved as \(heightFeet)'\(heightInchesPart)\"")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } header: {
+                            Text("Body metrics")
+                        } footer: {
+                            Text("BMI uses this height with each day’s weight. Change either picker — both update together.")
+                        }
+                        .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
+                        .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
+
+                        Section("Hydration defaults") {
+                            Picker("Default bottle", selection: Binding(
+                                get: { settings.defaultBottleOz },
+                                set: {
+                                    settings.defaultBottleOz = $0
+                                    save(settings)
+                                }
+                            )) {
+                                Text("8 oz").tag(8.0)
+                                Text("12 oz").tag(12.0)
+                                Text("16.9 oz").tag(16.9)
+                                Text("20 oz").tag(20.0)
+                                Text("24 oz").tag(24.0)
                             }
+                            Stepper(
+                                "Daily target: \(settings.hydrationTargetOz) oz",
+                                value: Binding(
+                                    get: { settings.hydrationTargetOz },
+                                    set: {
+                                        settings.hydrationTargetOz = $0
+                                        save(settings)
+                                    }
+                                ),
+                                in: 32...200,
+                                step: 8
+                            )
                         }
 
                         Section("Notifications") {
@@ -116,20 +157,21 @@ struct SettingsView: View {
                         }
 
                         Section("Supplements") {
+                            Text("Use the gear on the Supplements card to show/hide items and set doses.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                             ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                                Stepper(
-                                    "\(supplement.name): \(supplement.dosesPerDay)/day",
-                                    value: Binding(
-                                        get: { settings.supplements[index].dosesPerDay },
-                                        set: { newValue in
-                                            var list = settings.supplements
-                                            list[index].dosesPerDay = newValue
-                                            settings.supplements = list
-                                            save(settings)
-                                        }
-                                    ),
-                                    in: 1...6
-                                )
+                                Toggle(isOn: Binding(
+                                    get: { settings.supplements[index].isEnabled },
+                                    set: { newValue in
+                                        var list = settings.supplements
+                                        list[index].isEnabled = newValue
+                                        settings.supplements = list
+                                        save(settings)
+                                    }
+                                )) {
+                                    Text(supplement.name)
+                                }
                             }
                         }
 
@@ -192,6 +234,11 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func persistHeight(_ settings: AppSettings) {
+        settings.heightInches = Double(heightFeet * 12 + heightInchesPart)
+        save(settings)
     }
 
     private func save(_ settings: AppSettings) {

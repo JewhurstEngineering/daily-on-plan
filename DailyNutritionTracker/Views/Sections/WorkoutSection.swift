@@ -6,10 +6,23 @@ struct WorkoutSection: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
     @State private var showAdd = false
+    @State private var chips: [SuggestionItem] = []
+    @State private var pendingName = "Brisk walking"
 
     var body: some View {
         SectionCard(title: "Workouts", systemImage: "figure.run") {
+            if !chips.isEmpty {
+                Text(hasHistory ? "Popular & recent" : "Suggestions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                SuggestionChipRow(items: chips) { item in
+                    pendingName = item.name
+                    showAdd = true
+                }
+            }
+
             Button {
+                pendingName = "Brisk walking"
                 showAdd = true
             } label: {
                 Label("Add workout", systemImage: "plus.circle.fill")
@@ -37,6 +50,7 @@ struct WorkoutSection: View {
                             log.workoutEntries.removeAll { $0.id == workout.id }
                             modelContext.delete(workout)
                             try? modelContext.save()
+                            refreshChips()
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -46,29 +60,50 @@ struct WorkoutSection: View {
             }
         }
         .sheet(isPresented: $showAdd) {
-            AddWorkoutSheet(log: log)
+            AddWorkoutSheet(log: log, initialName: pendingName) {
+                refreshChips()
+            }
         }
+        .onAppear { refreshChips() }
+    }
+
+    private var hasHistory: Bool {
+        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.workoutEntries).isEmpty
+    }
+
+    private func refreshChips() {
+        chips = UsageSuggestions.workoutChips(in: modelContext)
     }
 }
 
 struct AddWorkoutSheet: View {
     @Bindable var log: DailyLog
+    var initialName: String = "Brisk walking"
+    var onSaved: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var healthKit: HealthKitService
 
-    @State private var name = "Brisk walking"
+    @State private var name = ""
     @State private var minutes = 30
 
-    private let suggestions = ["Interactive Exercise", "Brisk walking", "Strength training", "Cycling", "Yoga"]
+    private let suggestions = [
+        "Interactive Exercise", "Brisk walking", "Strength training", "Cycling", "Yoga",
+        "Swimming", "Running", "Cardio", "Calisthenics"
+    ]
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Activity") {
                     TextField("Activity name", text: $name)
-                    Picker("Suggestions", selection: $name) {
-                        ForEach(suggestions, id: \.self) { Text($0).tag($0) }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                Button(suggestion) { name = suggestion }
+                                    .buttonStyle(.bordered)
+                            }
+                        }
                     }
                 }
                 Section("Duration") {
@@ -89,10 +124,14 @@ struct AddWorkoutSheet: View {
                         Task {
                             await healthKit.writeWorkout(name: name, durationMinutes: minutes, on: Date())
                         }
+                        onSaved?()
                         dismiss()
                     }
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .onAppear {
+                if name.isEmpty { name = initialName }
             }
         }
     }

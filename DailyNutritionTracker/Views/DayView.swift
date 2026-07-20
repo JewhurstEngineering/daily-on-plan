@@ -3,6 +3,7 @@ import SwiftData
 
 struct DayView: View {
     @Binding var selectedDate: Date
+    var onOpenSettings: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
 
@@ -24,13 +25,14 @@ struct DayView: View {
                     settings: settings,
                     onSave: { lbs in
                         saveWeight(lbs, existing: todayWeight)
-                    }
+                    },
+                    onOpenSettings: onOpenSettings
                 )
                 FeelingsSection(log: log)
                 ProteinSection(log: log, settings: settings)
                 ChecklistSection(log: log, settings: settings)
                 WorkoutSection(log: log)
-                HydrationSection(log: log, date: selectedDate)
+                HydrationSection(log: log, settings: settings, date: selectedDate)
                 SupplementsSection(log: log, settings: settings)
             }
             .padding()
