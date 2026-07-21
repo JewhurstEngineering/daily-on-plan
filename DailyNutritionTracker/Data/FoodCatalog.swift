@@ -82,9 +82,16 @@ enum FoodCatalog {
     ]
 
     static let snacks: [CatalogFood] = [
+        .init(name: "Beef stick", category: .protein, servingLabel: "1 stick", calories: 55, proteinCategory: .snack),
+        .init(name: "Turkey stick", category: .protein, servingLabel: "1 stick", calories: 35, proteinCategory: .snack),
+        .init(name: "Jerky", category: .protein, servingLabel: "1 oz", calories: 55, proteinCategory: .snack),
+        .init(name: "Hard-boiled egg", category: .protein, servingLabel: "1 egg", calories: 55, proteinCategory: .snack),
+        .init(name: "String cheese (light)", category: .protein, servingLabel: "1 stick", calories: 50, proteinCategory: .snack),
+        .init(name: "Handful of peanuts", category: .protein, servingLabel: "1 handful (~1 oz)", calories: 160, proteinCategory: .snack),
+        .init(name: "Greek yogurt (plain, nonfat)", category: .protein, servingLabel: "1 container (5–6 oz)", calories: 80, proteinCategory: .snack),
+        .init(name: "Cottage cheese (1%)", category: .protein, servingLabel: "1/2 cup", calories: 80, proteinCategory: .snack),
         .init(name: "Protein Bar", category: .protein, servingLabel: "1 bar", calories: 120, proteinCategory: .snack),
-        .init(name: "Protein Snack", category: .protein, servingLabel: "1 snack", calories: 120, proteinCategory: .snack),
-        .init(name: "Prepared Meal", category: .protein, servingLabel: "1 meal", calories: 140, proteinCategory: .snack)
+        .init(name: "Protein Snack", category: .protein, servingLabel: "1 snack", calories: 120, proteinCategory: .snack)
     ]
 
     static let substitutions: [CatalogFood] = [

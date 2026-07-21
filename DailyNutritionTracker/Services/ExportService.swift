@@ -97,8 +97,18 @@ enum ExportService {
                     DateHelpers.formattedTime(protein.time),
                     protein.name,
                     "\(protein.calories)",
-                    "\(protein.servingSize);hunger \(protein.hungerBefore)->\(protein.hungerAfter)\(protein.hydrationOz > 0 ? ";+\(Int(protein.hydrationOz.rounded()))oz water" : "")"
+                    "\(protein.servingSize);hunger \(protein.hungerBefore)->\(protein.hungerAfter)"
                 ]))
+                if protein.hydrationOz > 0 {
+                    lines.append(csvRow([
+                        "proteinHydration",
+                        day,
+                        DateHelpers.formattedTime(protein.time),
+                        protein.name,
+                        String(format: "%.1f", protein.hydrationOz),
+                        "oz"
+                    ]))
+                }
             }
             for workout in log.sortedWorkouts {
                 lines.append(csvRow([
@@ -273,10 +283,11 @@ enum ExportService {
                 if !log.sortedProteins.isEmpty {
                     drawLine("Protein Log", font: .boldSystemFont(ofSize: 12))
                     for protein in log.sortedProteins {
-                        drawLine(
-                            "\(DateHelpers.formattedTime(protein.time)) — \(protein.name) \(protein.servingSize) · \(protein.calories) kcal · hunger \(protein.hungerBefore)→\(protein.hungerAfter)",
-                            indent: 12
-                        )
+                        var line = "\(DateHelpers.formattedTime(protein.time)) — \(protein.name) \(protein.servingSize) · \(protein.calories) kcal · hunger \(protein.hungerBefore)→\(protein.hungerAfter)"
+                        if protein.hydrationOz > 0 {
+                            line += String(format: " · +%.0f oz hydration", protein.hydrationOz)
+                        }
+                        drawLine(line, indent: 12)
                     }
                 }
 

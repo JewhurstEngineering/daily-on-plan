@@ -137,6 +137,35 @@ enum UsageSuggestions {
         return Array((latest + popular).prefix(limit))
     }
 
+    /// Recent snack-category protein entries for one-tap Snack sheet.
+    static func snackChips(in context: ModelContext, limit: Int = 6) -> [SuggestionItem] {
+        let logs = allLogs(in: context)
+        let entries = logs
+            .flatMap(\.proteinEntries)
+            .filter { $0.proteinCategory == ProteinCategory.snack.rawValue }
+            .sorted { $0.time > $1.time }
+
+        if entries.isEmpty { return [] }
+
+        var latest: [SuggestionItem] = []
+        var seen = Set<String>()
+        for entry in entries {
+            if seen.insert(entry.name.lowercased()).inserted {
+                latest.append(
+                    SuggestionItem(
+                        name: entry.name,
+                        subtitle: entry.servingSize,
+                        calories: entry.calories,
+                        proteinCategory: ProteinCategory.snack.rawValue,
+                        servings: max(entry.servings, 1)
+                    )
+                )
+            }
+            if latest.count >= limit { break }
+        }
+        return latest
+    }
+
     static func checklistChips(
         category: FoodCategory,
         phase: ProgramPhase,

@@ -9,6 +9,7 @@ struct ProteinSection: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var showAdd = false
+    @State private var showSnack = false
     @State private var showMeals = false
     @State private var editingEntry: ProteinEntry?
     @State private var suggestionChips: [SuggestionItem] = []
@@ -63,22 +64,35 @@ struct ProteinSection: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            VStack(spacing: 10) {
                 Button {
                     onWillPresentSheet?(scrollAnchor)
                     showAdd = true
                 } label: {
                     Label("Add protein", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
 
-                Button {
-                    onWillPresentSheet?(scrollAnchor)
-                    showMeals = true
-                } label: {
-                    Label("Meals", systemImage: "square.stack.3d.up")
+                HStack(spacing: 10) {
+                    Button {
+                        onWillPresentSheet?(scrollAnchor)
+                        showSnack = true
+                    } label: {
+                        Label("Snack", systemImage: "carrot.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        onWillPresentSheet?(scrollAnchor)
+                        showMeals = true
+                    } label: {
+                        Label("Meals", systemImage: "square.stack.3d.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
 
             if log.sortedProteins.isEmpty {
@@ -106,7 +120,9 @@ struct ProteinSection: View {
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        Text("Tap to edit amount")
+                                        Text(settings.proteinDrinksCountTowardHydration
+                                             ? "Tap to edit calories & fl oz"
+                                             : "Tap to edit amount")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -139,6 +155,12 @@ struct ProteinSection: View {
                 refreshChips()
             }
         }
+        .sheet(isPresented: $showSnack, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
+            QuickSnackSheet(log: log, settings: settings) {
+                refreshChips()
+            }
+            .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $showMeals, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
             NavigationStack {
                 SavedMealsListView(settings: settings, log: log)
@@ -147,8 +169,9 @@ struct ProteinSection: View {
         .sheet(item: $editingEntry, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { entry in
             EditProteinAmountSheet(
                 entry: entry,
-                onSave: { multiplier, calories in
-                    applyAmount(to: entry, multiplier: multiplier, calories: calories)
+                allowHydrationEdit: settings.proteinDrinksCountTowardHydration,
+                onSave: { multiplier, calories, hydrationOz in
+                    applyAmount(to: entry, multiplier: multiplier, calories: calories, hydrationOz: hydrationOz)
                     editingEntry = nil
                     refreshChips()
                 },
@@ -178,9 +201,12 @@ struct ProteinSection: View {
         refreshChips()
     }
 
-    private func applyAmount(to entry: ProteinEntry, multiplier: Double, calories: Int) {
+    private func applyAmount(to entry: ProteinEntry, multiplier: Double, calories: Int, hydrationOz: Double?) {
         entry.servings = multiplier
         entry.calories = max(calories, 1)
+        if let hydrationOz {
+            entry.hydrationOz = hydrationOz
+        }
         if abs(multiplier - 1) < 0.01 {
             if entry.servingSize.contains("×") {
                 entry.servingSize = "1 serving"
@@ -235,14 +261,18 @@ extension SavedMeal: @retroactive Identifiable {}
 
 struct EditProteinAmountSheet: View {
     let entry: ProteinEntry
-    var onSave: (Double, Int) -> Void
+    var allowHydrationEdit: Bool = false
+    var onSave: (Double, Int, Double?) -> Void
     var onDelete: () -> Void
     var onCancel: () -> Void
 
     @State private var servings: Double = 1
     @State private var caloriesText = ""
     @State private var totalCalories = 0
+    @State private var countTowardHydration = false
+    @State private var hydrationOz: Double = 8
     @FocusState private var caloriesFocused: Bool
+    @FocusState private var hydrationFocused: Bool
 
     private var unitCalories: Int {
         if entry.servings > 0 {
@@ -252,6 +282,12 @@ struct EditProteinAmountSheet: View {
             return per
         }
         return max(entry.calories, 1)
+    }
+
+    private var looksLikeDrink: Bool {
+        ProteinCategory(rawValue: entry.proteinCategory) == .shake
+            || entry.name.localizedCaseInsensitiveContains("shake")
+            || entry.name.localizedCaseInsensitiveContains("drink")
     }
 
     var body: some View {
@@ -304,6 +340,35 @@ struct EditProteinAmountSheet: View {
                 } footer: {
                     Text("Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
                 }
+
+                if allowHydrationEdit {
+                    Section {
+                        Toggle("Count toward hydration", isOn: $countTowardHydration)
+                        if countTowardHydration {
+                            HStack {
+                                Text("Fluid ounces")
+                                Spacer()
+                                TextField("oz", value: $hydrationOz, format: .number)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .focused($hydrationFocused)
+                                    .frame(maxWidth: 80)
+                                Text("oz")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Stepper(
+                                "\(Int(hydrationOz.rounded())) oz",
+                                value: $hydrationOz,
+                                in: 2...40,
+                                step: 1
+                            )
+                        }
+                    } header: {
+                        Text("Hydration")
+                    } footer: {
+                        Text("For RTDs and shakes, set the bottle size you actually drank (calories and fl oz are separate).")
+                    }
+                }
             }
             .navigationTitle("Update amount")
             .navigationBarTitleDisplayMode(.inline)
@@ -327,7 +392,10 @@ struct EditProteinAmountSheet: View {
                         if let typed = Int(caloriesText.filter(\.isNumber)), typed > 0 {
                             totalCalories = typed
                         }
-                        onSave(servings, max(totalCalories, 1))
+                        let hydration: Double? = allowHydrationEdit
+                            ? (countTowardHydration ? max(hydrationOz, 0) : 0)
+                            : nil
+                        onSave(servings, max(totalCalories, 1), hydration)
                     }
                 }
             }
@@ -335,6 +403,16 @@ struct EditProteinAmountSheet: View {
                 servings = max(entry.servings, 0.5)
                 totalCalories = max(entry.calories, 1)
                 caloriesText = "\(totalCalories)"
+                if entry.hydrationOz > 0 {
+                    countTowardHydration = true
+                    hydrationOz = entry.hydrationOz
+                } else if looksLikeDrink {
+                    countTowardHydration = true
+                    hydrationOz = 8
+                } else {
+                    countTowardHydration = false
+                    hydrationOz = 8
+                }
             }
         }
     }
@@ -342,5 +420,132 @@ struct EditProteinAmountSheet: View {
     private func syncCaloriesFromServings() {
         totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
         caloriesText = "\(totalCalories)"
+    }
+}
+
+/// One-tap snack logging — no hunger sliders, no category picker.
+struct QuickSnackSheet: View {
+    @Bindable var log: DailyLog
+    let settings: AppSettings
+    var onLogged: (() -> Void)? = nil
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var showCustom = false
+    @State private var customName = ""
+    @State private var customCalories = 55
+    @FocusState private var customFocused: Bool
+
+    private var recentSnacks: [SuggestionItem] {
+        UsageSuggestions.snackChips(in: modelContext, limit: 6)
+    }
+
+    private var catalogSnacks: [CatalogFood] {
+        let excluded = Set(settings.excludedFoodNames.map { $0.lowercased() })
+        let recentNames = Set(recentSnacks.map { $0.name.lowercased() })
+        return FoodCatalog.snacks.filter { food in
+            !excluded.contains(food.name.lowercased()) && !recentNames.contains(food.name.lowercased())
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !recentSnacks.isEmpty {
+                    Section("Recent") {
+                        ForEach(recentSnacks) { item in
+                            snackButton(
+                                name: item.name,
+                                detail: item.subtitle ?? "1 serving",
+                                calories: item.calories ?? 55,
+                                servings: max(item.servings, 1)
+                            )
+                        }
+                    }
+                }
+
+                Section("Tap to log") {
+                    ForEach(catalogSnacks) { food in
+                        snackButton(
+                            name: food.name,
+                            detail: food.servingLabel,
+                            calories: food.calories,
+                            servings: 1
+                        )
+                    }
+                }
+
+                Section {
+                    if showCustom {
+                        TextField("What did you have?", text: $customName)
+                            .focused($customFocused)
+                        Stepper("\(customCalories) kcal", value: $customCalories, in: 10...400, step: 5)
+                        Button("Log custom snack") {
+                            logCustom()
+                        }
+                        .disabled(customName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    } else {
+                        Button("Something else…") {
+                            showCustom = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                customFocused = true
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Snack")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+            .keyboardDoneToolbar(focus: $customFocused)
+        }
+    }
+
+    private func snackButton(name: String, detail: String, calories: Int, servings: Double) -> some View {
+        Button {
+            logSnack(name: name, servingSize: detail, calories: calories, servings: servings)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text("\(detail) · \(calories) kcal")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
+    private func logSnack(name: String, servingSize: String, calories: Int, servings: Double) {
+        let entry = ProteinEntry(
+            name: name,
+            servingSize: servingSize,
+            calories: max(calories, 1),
+            hungerBefore: 4,
+            hungerAfter: 6,
+            proteinCategory: ProteinCategory.snack.rawValue,
+            servings: servings
+        )
+        modelContext.insert(entry)
+        log.proteinEntries.append(entry)
+        try? modelContext.save()
+        onLogged?()
+        dismiss()
+    }
+
+    private func logCustom() {
+        let name = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        logSnack(name: name, servingSize: "1 serving", calories: customCalories, servings: 1)
     }
 }

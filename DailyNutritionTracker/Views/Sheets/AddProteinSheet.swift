@@ -4,6 +4,8 @@ import SwiftData
 struct AddProteinSheet: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
+    var initialCategory: ProteinCategory = .veryLean
+    var navigationTitleText: String = "Add Protein"
     var onSaved: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -25,6 +27,22 @@ struct AddProteinSheet: View {
     @State private var countTowardHydration = false
     @State private var hydrationOz: Double = 8
     @FocusState private var caloriesFocused: Bool
+    @FocusState private var hydrationFocused: Bool
+
+    init(
+        log: DailyLog,
+        settings: AppSettings,
+        initialCategory: ProteinCategory = .veryLean,
+        navigationTitleText: String = "Add Protein",
+        onSaved: (() -> Void)? = nil
+    ) {
+        self.log = log
+        self.settings = settings
+        self.initialCategory = initialCategory
+        self.navigationTitleText = navigationTitleText
+        self.onSaved = onSaved
+        _selectedCategory = State(initialValue: initialCategory)
+    }
 
     private var catalogItems: [CatalogFood] {
         let excluded = Set(settings.excludedFoodNames.map { $0.lowercased() })
@@ -137,8 +155,19 @@ struct AddProteinSheet: View {
                     Section {
                         Toggle("Also count toward hydration", isOn: $countTowardHydration)
                         if countTowardHydration {
+                            HStack {
+                                Text("Fluid ounces")
+                                Spacer()
+                                TextField("oz", value: $hydrationOz, format: .number)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .focused($hydrationFocused)
+                                    .frame(maxWidth: 80)
+                                Text("oz")
+                                    .foregroundStyle(.secondary)
+                            }
                             Stepper(
-                                "\(Int(hydrationOz)) oz fluid",
+                                "\(Int(hydrationOz.rounded())) oz",
                                 value: $hydrationOz,
                                 in: 2...40,
                                 step: 1
@@ -147,7 +176,7 @@ struct AddProteinSheet: View {
                     } header: {
                         Text("Hydration")
                     } footer: {
-                        Text("Protein shakes and ready-to-drink items can add to today’s water total without logging a separate bottle.")
+                        Text("Set the real bottle size (e.g. 11 oz RTD). Calories and fluid ounces are tracked separately.")
                     }
                 }
 
@@ -175,7 +204,7 @@ struct AddProteinSheet: View {
                     Button("Hunger scale help") { showHungerHelp = true }
                 }
             }
-            .navigationTitle("Add Protein")
+            .navigationTitle(navigationTitleText)
             .keyboardDoneToolbar(focus: $caloriesFocused)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

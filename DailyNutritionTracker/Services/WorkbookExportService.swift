@@ -109,9 +109,9 @@ enum WorkbookExportService {
         rows.append([])
 
         rows.append(["Protein Source"])
-        rows.append(["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After"])
+        rows.append(["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After", "Hydration oz"])
         if log.sortedProteins.isEmpty {
-            rows.append(["—", "", "", "", "", ""])
+            rows.append(["—", "", "", "", "", "", ""])
         } else {
             for protein in log.sortedProteins {
                 rows.append([
@@ -120,7 +120,8 @@ enum WorkbookExportService {
                     protein.servingSize,
                     "\(protein.calories)",
                     "\(protein.hungerBefore)",
-                    "\(protein.hungerAfter)"
+                    "\(protein.hungerAfter)",
+                    protein.hydrationOz > 0 ? String(format: "%.1f", protein.hydrationOz) : ""
                 ])
             }
         }
