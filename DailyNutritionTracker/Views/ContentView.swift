@@ -15,6 +15,14 @@ struct ContentView: View {
         settingsList.first?.accentTheme ?? .onPlan
     }
 
+    private var accentPrimary: Color {
+        settingsList.first?.accentPrimary ?? theme.primary
+    }
+
+    private var accentProgress: Color {
+        settingsList.first?.accentProgress ?? theme.progress
+    }
+
     private var appearanceMode: AppearanceMode {
         settingsList.first?.appearanceMode ?? .system
     }
@@ -56,20 +64,26 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
-                    .tint(theme.primary)
+                    .tint(accentPrimary)
                     .environment(\.accentTheme, theme)
+                    .environment(\.accentPrimary, accentPrimary)
+                    .environment(\.accentProgress, accentProgress)
                     .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .sheet(isPresented: $showExport) {
                 ExportSheetView(selectedDate: selectedDate)
-                    .tint(theme.primary)
+                    .tint(accentPrimary)
                     .environment(\.accentTheme, theme)
+                    .environment(\.accentPrimary, accentPrimary)
+                    .environment(\.accentProgress, accentProgress)
                     .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .sheet(isPresented: $showReports) {
                 ReportsView()
-                    .tint(theme.primary)
+                    .tint(accentPrimary)
                     .environment(\.accentTheme, theme)
+                    .environment(\.accentPrimary, accentPrimary)
+                    .environment(\.accentProgress, accentProgress)
                     .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .task {
@@ -86,7 +100,9 @@ struct ContentView: View {
             }
         }
         .environment(\.accentTheme, theme)
-        .tint(theme.primary)
+        .environment(\.accentPrimary, accentPrimary)
+        .environment(\.accentProgress, accentProgress)
+        .tint(accentPrimary)
         .preferredColorScheme(appearanceMode.preferredColorScheme)
     }
 }

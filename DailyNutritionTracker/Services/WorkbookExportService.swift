@@ -195,9 +195,16 @@ enum WorkbookExportService {
         rows.append([])
 
         rows.append(["Hydration"])
-        rows.append(["Total oz", "\(log.waterOz)"])
+        rows.append(["Total oz", "\(log.totalHydrationOz(settings: settings))"])
+        rows.append(["From bottles", "\(log.slotWaterOz)"])
+        rows.append(["From protein drinks", "\(log.proteinHydrationOz(settings: settings))"])
         rows.append(["Target oz", "\(settings.hydrationTargetOz)"])
-        let drinks = log.waterDrinks.map { formatOz($0) }.joined(separator: ", ")
+        rows.append(["Electrolyte drinks", "\(log.electrolyteDrinkCount)"])
+        let drinks = log.waterSlots.compactMap { slot -> String? in
+            guard let slot else { return nil }
+            let label = formatOz(slot.oz)
+            return slot.isElectrolyte ? "\(label) electrolyte" : label
+        }.joined(separator: ", ")
         rows.append(["Drinks", drinks.isEmpty ? "—" : drinks])
         rows.append([])
 

@@ -185,7 +185,7 @@ struct ReportSnapshot {
     // MARK: Hydration
 
     var hydrationSeries: [DailyMetricPoint] {
-        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.waterOz)) }
+        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.totalHydrationOz(settings: settings))) }
     }
 
     var hydrationTarget: Double {
@@ -193,7 +193,7 @@ struct ReportSnapshot {
     }
 
     var daysAtHydrationTarget: Int {
-        logs.filter { $0.waterOz >= settings.hydrationTargetOz }.count
+        logs.filter { $0.totalHydrationOz(settings: settings) >= settings.hydrationTargetOz }.count
     }
 
     // MARK: Weight
@@ -339,7 +339,7 @@ struct ReportSnapshot {
 
     var avgWaterOz: Double {
         guard !logs.isEmpty else { return 0 }
-        return Double(logs.reduce(0) { $0 + $1.waterOz }) / Double(logs.count)
+        return Double(logs.reduce(0) { $0 + $1.totalHydrationOz(settings: settings) }) / Double(logs.count)
     }
 
     var avgFeelingsPerDay: Double {
@@ -433,7 +433,7 @@ struct ReportSnapshot {
                 case .followedPlan:
                     hit = log.followedPlan
                 case .waterHit:
-                    hit = log.waterOz >= settings.hydrationTargetOz
+                    hit = log.totalHydrationOz(settings: settings) >= settings.hydrationTargetOz
                 case .proteinOnGoal:
                     hit = log.totalProteinCalories > 0 && log.totalProteinCalories <= log.proteinGoal
                 case .smokeFree:
@@ -543,7 +543,7 @@ struct ReportSnapshot {
             let avgProtein = weekLogs.isEmpty ? 0 :
                 Double(weekLogs.reduce(0) { $0 + $1.totalProteinCalories }) / Double(weekLogs.count)
             let avgWater = weekLogs.isEmpty ? 0 :
-                Double(weekLogs.reduce(0) { $0 + $1.waterOz }) / Double(weekLogs.count)
+                Double(weekLogs.reduce(0) { $0 + $1.totalHydrationOz(settings: settings) }) / Double(weekLogs.count)
             return WeekRollup(
                 weekStart: weekStart,
                 weekEnd: weekEnd,
@@ -552,7 +552,7 @@ struct ReportSnapshot {
                 avgWater: avgWater,
                 totalFeelings: weekLogs.reduce(0) { $0 + $1.feelingEntries.count },
                 totalWorkoutMinutes: weekLogs.flatMap(\.workoutEntries).reduce(0) { $0 + $1.durationMinutes },
-                daysAtWaterTarget: weekLogs.filter { $0.waterOz >= target }.count,
+                daysAtWaterTarget: weekLogs.filter { $0.totalHydrationOz(settings: settings) >= target }.count,
                 daysOnProteinGoal: weekLogs.filter {
                     $0.totalProteinCalories > 0 && $0.totalProteinCalories <= $0.proteinGoal
                 }.count,

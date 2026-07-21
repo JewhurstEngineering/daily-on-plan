@@ -20,7 +20,21 @@ enum ExportService {
             if !log.offPlanReasons.isEmpty {
                 lines.append(csvRow(["day", day, "", "offPlanReasons", log.offPlanReasons.joined(separator: "; "), ""]))
             }
-            lines.append(csvRow(["day", day, "", "waterOz", "\(log.waterOz)", ""]))
+            lines.append(csvRow(["day", day, "", "waterOz", "\(log.totalHydrationOz(settings: settings))", ""]))
+            lines.append(csvRow(["day", day, "", "waterSlotsOz", "\(log.slotWaterOz)", ""]))
+            lines.append(csvRow(["day", day, "", "proteinHydrationOz", "\(log.proteinHydrationOz(settings: settings))", ""]))
+            lines.append(csvRow(["day", day, "", "electrolyteDrinks", "\(log.electrolyteDrinkCount)", ""]))
+            for (index, slot) in log.waterSlots.enumerated() {
+                guard let slot else { continue }
+                lines.append(csvRow([
+                    "water",
+                    day,
+                    "",
+                    slot.isElectrolyte ? "electrolyte" : "water",
+                    String(format: "%.1f", slot.oz),
+                    "slot \(index + 1)"
+                ]))
+            }
             lines.append(csvRow(["day", day, "", "notes", log.notes, ""]))
             lines.append(csvRow(["day", day, "", "cigarettes", "\(log.cigarettesSmoked)", ""]))
             for event in log.cigaretteEvents {
@@ -83,7 +97,7 @@ enum ExportService {
                     DateHelpers.formattedTime(protein.time),
                     protein.name,
                     "\(protein.calories)",
-                    "\(protein.servingSize);hunger \(protein.hungerBefore)->\(protein.hungerAfter)"
+                    "\(protein.servingSize);hunger \(protein.hungerBefore)->\(protein.hungerAfter)\(protein.hydrationOz > 0 ? ";+\(Int(protein.hydrationOz.rounded()))oz water" : "")"
                 ]))
             }
             for workout in log.sortedWorkouts {
@@ -207,7 +221,13 @@ enum ExportService {
                 ensureSpace(80)
                 drawLine(DateHelpers.formattedDay(log.date), font: .boldSystemFont(ofSize: 14))
                 drawLine("Protein \(log.totalProteinCalories)/\(log.proteinGoal) kcal  |  Ketosis: \(log.ketosis ? "Y" : "N")  |  Plan: \(log.followedPlan ? "Y" : "N")")
-                drawLine("Water: \(log.waterOz) / \(settings.hydrationTargetOz) oz")
+                drawLine("Water: \(log.totalHydrationOz(settings: settings)) / \(settings.hydrationTargetOz) oz")
+                if log.proteinHydrationOz(settings: settings) > 0 {
+                    drawLine("Incl. protein drinks: \(log.proteinHydrationOz(settings: settings)) oz", indent: 12)
+                }
+                if log.hasElectrolyteDrink {
+                    drawLine("Electrolyte drinks: \(log.electrolyteDrinkCount)", indent: 12)
+                }
                 if settings.smokingMode.showsSection || log.cigarettesSmoked > 0 || !log.cigaretteUrges.isEmpty {
                     drawLine("Cigarettes: \(log.cigarettesSmoked) (\(CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked)))\(settings.effectiveDailyCigaretteLimit.map { " / max \($0)" } ?? "")")
                     for event in log.cigaretteEvents {

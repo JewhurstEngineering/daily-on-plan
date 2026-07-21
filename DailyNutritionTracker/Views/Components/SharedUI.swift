@@ -196,6 +196,7 @@ struct CalorieRingView: View {
     let current: Int
     let goal: Int
     @Environment(\.accentTheme) private var theme
+    @Environment(\.accentProgress) private var progressColor
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -211,7 +212,7 @@ struct CalorieRingView: View {
             Circle()
                 .trim(from: 0, to: min(progress, 1))
                 .stroke(
-                    isOver ? theme.warning : theme.progress,
+                    isOver ? theme.warning : progressColor,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -230,16 +231,30 @@ struct CalorieRingView: View {
 
 struct GlassButton: View {
     let isFilled: Bool
+    var isElectrolyte: Bool = false
     let label: String
     let action: () -> Void
-    @Environment(\.accentTheme) private var theme
+    @Environment(\.accentProgress) private var progressColor
+
+    private var fillColor: Color {
+        isElectrolyte ? Color.yellow.opacity(0.95) : progressColor
+    }
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: isFilled ? "waterbottle.fill" : "waterbottle")
-                    .font(.title3)
-                    .foregroundStyle(isFilled ? theme.progress : Color.secondary)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: isFilled ? "waterbottle.fill" : "waterbottle")
+                        .font(.title3)
+                        .foregroundStyle(isFilled ? fillColor : Color.secondary)
+                    if isElectrolyte {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(isFilled ? Color.orange : Color.secondary)
+                            .offset(x: 6, y: -4)
+                    }
+                }
+                .frame(height: 22)
                 Text(label)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -248,10 +263,16 @@ struct GlassButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isFilled ? theme.progress.opacity(0.12) : Color(.tertiarySystemFill))
+            .background(isFilled ? fillColor.opacity(isElectrolyte ? 0.18 : 0.12) : Color(.tertiarySystemFill))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        if !isFilled { return "Empty bottle, \(label)" }
+        return isElectrolyte ? "Electrolyte \(label)" : "Water \(label)"
     }
 }
 

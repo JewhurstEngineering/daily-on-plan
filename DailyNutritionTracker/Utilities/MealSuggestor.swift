@@ -87,12 +87,17 @@ enum MealLogger {
                 } else {
                     servingText = String(format: "%.1f× %@", component.servings, component.servingLabel)
                 }
+                let category = component.proteinCategory ?? ProteinCategory.other.rawValue
                 let entry = ProteinEntry(
                     name: component.name,
                     servingSize: servingText,
                     calories: component.totalCalories,
-                    proteinCategory: component.proteinCategory ?? ProteinCategory.other.rawValue,
-                    servings: component.servings
+                    proteinCategory: category,
+                    servings: component.servings,
+                    hydrationOz: settings.suggestedHydrationOz(
+                        forProteinCategory: category,
+                        servings: component.servings
+                    )
                 )
                 log.proteinEntries.append(entry)
             case .vegetable, .fat:

@@ -98,32 +98,59 @@ final class DailyLog {
         workoutEntries.sorted { $0.timeLogged < $1.timeLogged }
     }
 
-    var waterSlots: [Double?] {
+    var waterSlots: [WaterSlotRecord?] {
         get {
-            if let data = waterDrinksJSON?.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode([Double].self, from: data) {
-                // Sentinel -1 = empty slot. Positive values = filled oz.
-                // Legacy filled-only arrays never used -1, so they map 1:1 as filled.
-                return decoded.map { $0 < 0 ? nil : Optional($0) }
+            if let data = waterDrinksJSON?.data(using: .utf8) {
+                if let decoded = try? JSONDecoder().decode([WaterSlotStored].self, from: data) {
+                    return decoded.map(\.asRecord)
+                }
+                if let legacy = try? JSONDecoder().decode([Double].self, from: data) {
+                    // Sentinel -1 = empty slot. Positive values = filled oz.
+                    return legacy.map { $0 < 0 ? nil : WaterSlotRecord(oz: $0) }
+                }
             }
-            if waterOz > 0 { return [Double(waterOz)] }
+            if waterOz > 0 { return [WaterSlotRecord(oz: Double(waterOz))] }
             return []
         }
         set {
-            let encoded = newValue.map { $0 ?? -1 }
+            let encoded = newValue.map(WaterSlotStored.init(from:))
             if let data = try? JSONEncoder().encode(encoded),
                let string = String(data: data, encoding: .utf8) {
                 waterDrinksJSON = string
             } else {
                 waterDrinksJSON = "[]"
             }
-            waterOz = Int(newValue.compactMap { $0 }.reduce(0, +).rounded())
+            waterOz = Int(newValue.compactMap { $0?.oz }.reduce(0, +).rounded())
         }
     }
 
     /// Filled drinks only (for suggestions / totals helpers).
     var waterDrinks: [Double] {
-        waterSlots.compactMap { $0 }
+        waterSlots.compactMap { $0?.oz }
+    }
+
+    var electrolyteDrinkCount: Int {
+        waterSlots.compactMap { $0 }.filter(\.isElectrolyte).count
+    }
+
+    var hasElectrolyteDrink: Bool {
+        electrolyteDrinkCount > 0
+    }
+
+    /// Slot ounces only (does not include protein shakes).
+    var slotWaterOz: Int {
+        Int(waterSlots.compactMap { $0?.oz }.reduce(0, +).rounded())
+    }
+
+    func proteinHydrationOz(settings: AppSettings) -> Int {
+        guard settings.proteinDrinksCountTowardHydration else { return 0 }
+        let total = proteinEntries.reduce(0.0) { $0 + $1.hydrationOz }
+        return Int(total.rounded())
+    }
+
+    /// Slot water + optional protein-drink ounces.
+    func totalHydrationOz(settings: AppSettings) -> Int {
+        slotWaterOz + proteinHydrationOz(settings: settings)
     }
 
     var cigaretteEvents: [CigaretteEventRecord] {
@@ -290,31 +317,46 @@ final class DailyLog {
         waterSlots = slots
     }
 
-    func toggleWaterSlot(at index: Int, fillOz: Double) {
+    func toggleWaterSlot(at index: Int, fillOz: Double, isElectrolyte: Bool = false) {
         var slots = waterSlots
         while slots.count <= index { slots.append(nil) }
         if slots[index] != nil {
             slots[index] = nil
         } else {
-            slots[index] = fillOz
+            slots[index] = WaterSlotRecord(oz: fillOz, isElectrolyte: isElectrolyte)
         }
         waterSlots = slots
     }
 
-    func appendFilledWaterSlot(oz: Double) {
+    func setWaterSlot(at index: Int, oz: Double, isElectrolyte: Bool) {
         var slots = waterSlots
-        slots.append(oz)
+        while slots.count <= index { slots.append(nil) }
+        slots[index] = WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte)
+        waterSlots = slots
+    }
+
+    func setWaterSlotElectrolyte(at index: Int, isElectrolyte: Bool) {
+        var slots = waterSlots
+        guard index < slots.count, var record = slots[index] else { return }
+        record.isElectrolyte = isElectrolyte
+        slots[index] = record
+        waterSlots = slots
+    }
+
+    func appendFilledWaterSlot(oz: Double, isElectrolyte: Bool = false) {
+        var slots = waterSlots
+        slots.append(WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte))
         waterSlots = slots
     }
 
     /// Fills the first empty slot, or appends if all filled.
-    func fillNextWaterSlot(oz: Double, ensuringMinimumSlots minimum: Int = 1) {
+    func fillNextWaterSlot(oz: Double, ensuringMinimumSlots minimum: Int = 1, isElectrolyte: Bool = false) {
         var slots = waterSlots
         while slots.count < minimum { slots.append(nil) }
         if let empty = slots.firstIndex(where: { $0 == nil }) {
-            slots[empty] = oz
+            slots[empty] = WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte)
         } else {
-            slots.append(oz)
+            slots.append(WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte))
         }
         waterSlots = slots
     }
@@ -350,6 +392,8 @@ final class ProteinEntry {
     var hungerAfter: Int
     var proteinCategory: String
     var servings: Double
+    /// Fluid ounces counted toward hydration when the setting is on (shakes, RTDs, etc.).
+    var hydrationOzStored: Double?
 
     init(
         name: String,
@@ -359,7 +403,8 @@ final class ProteinEntry {
         hungerBefore: Int = 4,
         hungerAfter: Int = 6,
         proteinCategory: String = "other",
-        servings: Double = 1
+        servings: Double = 1,
+        hydrationOz: Double? = nil
     ) {
         self.id = UUID()
         self.name = name
@@ -370,6 +415,12 @@ final class ProteinEntry {
         self.hungerAfter = hungerAfter
         self.proteinCategory = proteinCategory
         self.servings = servings
+        self.hydrationOzStored = hydrationOz
+    }
+
+    var hydrationOz: Double {
+        get { max(0, hydrationOzStored ?? 0) }
+        set { hydrationOzStored = newValue > 0 ? newValue : nil }
     }
 }
 
@@ -400,6 +451,41 @@ final class WeightEntry {
         self.date = Calendar.current.startOfDay(for: date)
         self.weightLbs = weightLbs
         self.timeLogged = timeLogged
+    }
+}
+
+struct WaterSlotRecord: Codable, Equatable, Hashable {
+    var oz: Double
+    var isElectrolyte: Bool
+
+    init(oz: Double, isElectrolyte: Bool = false) {
+        self.oz = oz
+        self.isElectrolyte = isElectrolyte
+    }
+}
+
+private struct WaterSlotStored: Codable {
+    var oz: Double
+    var e: Bool?
+
+    init(oz: Double, e: Bool? = nil) {
+        self.oz = oz
+        self.e = e
+    }
+
+    init(from record: WaterSlotRecord?) {
+        if let record {
+            self.oz = record.oz
+            self.e = record.isElectrolyte ? true : nil
+        } else {
+            self.oz = -1
+            self.e = nil
+        }
+    }
+
+    var asRecord: WaterSlotRecord? {
+        guard oz >= 0 else { return nil }
+        return WaterSlotRecord(oz: oz, isElectrolyte: e == true)
     }
 }
 
@@ -566,6 +652,7 @@ final class AppSettings {
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
     var accentThemeRaw: String?
+    var customAccentHexStored: String?
     var appearanceModeRaw: String?
     var weightSectionCollapsedStored: Bool?
     var collapsedSectionsJSON: String?
@@ -613,6 +700,10 @@ final class AppSettings {
     var motivationReminderMinuteStored: Int?
     var customMotivationQuotesJSON: String?
     var sectionOrderJSON: String?
+
+    // Protein drinks → hydration
+    var proteinDrinksCountTowardHydrationStored: Bool?
+    var defaultShakeHydrationOzStored: Double?
 
     init() {
         self.id = UUID()
@@ -706,20 +797,44 @@ final class AppSettings {
         set { showSupplementsSectionStored = newValue }
     }
 
+    /// When on, protein shakes / RTDs with hydration oz add to the day’s water total.
+    var proteinDrinksCountTowardHydration: Bool {
+        get { proteinDrinksCountTowardHydrationStored ?? true }
+        set { proteinDrinksCountTowardHydrationStored = newValue }
+    }
+
+    var defaultShakeHydrationOz: Double {
+        get { defaultShakeHydrationOzStored ?? 8 }
+        set { defaultShakeHydrationOzStored = max(1, min(newValue, 64)) }
+    }
+
+    /// Suggested fluid oz when logging a protein shake / RTD (nil if setting off or not a shake).
+    func suggestedHydrationOz(forProteinCategory raw: String, servings: Double) -> Double? {
+        guard proteinDrinksCountTowardHydration else { return nil }
+        guard ProteinCategory(rawValue: raw) == .shake else { return nil }
+        return defaultShakeHydrationOz * max(servings, 0.5)
+    }
+
     var accentTheme: AccentTheme {
         get {
             if let theme = AccentTheme(rawValue: accentThemeRaw ?? "") {
                 return theme
             }
-            // Legacy accents from before OnPlan role-based themes.
+            // Legacy accents from before expanded presets.
             switch accentThemeRaw {
-            case "teal", "blue", "indigo", "purple", "pink", "orange", "red", "brown":
+            case "blue", "pink", "red", "brown":
                 return .onPlan
             default:
                 return .onPlan
             }
         }
         set { accentThemeRaw = newValue.rawValue }
+    }
+
+    /// `#RRGGBB` used when `accentTheme == .custom`.
+    var customAccentHex: String? {
+        get { customAccentHexStored }
+        set { customAccentHexStored = newValue }
     }
 
     var appearanceMode: AppearanceMode {

@@ -30,11 +30,14 @@ struct HydrationSection: View {
         max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottleOz)))
     }
 
-    private var slots: [Double?] {
+    private var slots: [WaterSlotRecord?] {
         var result = log.waterSlots
         while result.count < targetSlotCount { result.append(nil) }
         return result
     }
+
+    private var totalOz: Int { log.totalHydrationOz(settings: settings) }
+    private var proteinOz: Int { log.proteinHydrationOz(settings: settings) }
 
     var body: some View {
         SectionCard(
@@ -51,9 +54,25 @@ struct HydrationSection: View {
                 .accessibilityLabel("Configure hydration goals")
             }
         ) {
-            Text("\(log.waterOz) oz · target \(settings.hydrationTargetOz) oz")
+            Text("\(totalOz) oz · target \(settings.hydrationTargetOz) oz")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if proteinOz > 0 {
+                Text("Includes \(proteinOz) oz from protein drinks")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: log.hasElectrolyteDrink ? "bolt.fill" : "bolt")
+                    .foregroundStyle(log.hasElectrolyteDrink ? Color.orange : Color.secondary)
+                Text(log.hasElectrolyteDrink
+                     ? "Electrolyte logged (\(log.electrolyteDrinkCount))"
+                     : "Long-press a bottle to mark electrolyte")
+                    .font(.caption)
+                    .foregroundStyle(log.hasElectrolyteDrink ? .primary : .secondary)
+            }
 
             Button {
                 showBottleMenu = true
@@ -79,16 +98,18 @@ struct HydrationSection: View {
                 Button("Cancel", role: .cancel) {}
             }
 
-            Text("Tap a bottle to fill or undo. +\(nextBottleLabel) adds another bottle beyond the target grid.")
+            Text("Tap to fill or undo. Long-press for electrolyte. +\(nextBottleLabel) adds another bottle beyond the target grid.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
                 ForEach(Array(slots.enumerated()), id: \.offset) { index, value in
                     let filled = value != nil
+                    let electrolyte = value?.isElectrolyte == true
                     GlassButton(
                         isFilled: filled,
-                        label: filled ? formatOz(value!) : nextBottleLabel
+                        isElectrolyte: electrolyte,
+                        label: filled ? formatOz(value!.oz) : nextBottleLabel
                     ) {
                         if index < log.waterSlots.count || filled {
                             log.toggleWaterSlot(at: index, fillOz: bottleOz)
@@ -97,6 +118,34 @@ struct HydrationSection: View {
                             log.toggleWaterSlot(at: index, fillOz: bottleOz)
                         }
                         persist()
+                    }
+                    .contextMenu {
+                        if filled {
+                            Button {
+                                log.setWaterSlotElectrolyte(at: index, isElectrolyte: !electrolyte)
+                                persist()
+                            } label: {
+                                Label(
+                                    electrolyte ? "Mark as plain water" : "Mark as electrolyte",
+                                    systemImage: electrolyte ? "waterbottle" : "bolt.fill"
+                                )
+                            }
+                            Button("Clear", role: .destructive) {
+                                log.toggleWaterSlot(at: index, fillOz: bottleOz)
+                                persist()
+                            }
+                        } else {
+                            Button {
+                                ensureAndFill(index: index, electrolyte: false)
+                            } label: {
+                                Label("Fill as water", systemImage: "waterbottle.fill")
+                            }
+                            Button {
+                                ensureAndFill(index: index, electrolyte: true)
+                            } label: {
+                                Label("Fill as electrolyte", systemImage: "bolt.fill")
+                            }
+                        }
                     }
                 }
             }
@@ -130,6 +179,14 @@ struct HydrationSection: View {
         }
     }
 
+    private func ensureAndFill(index: Int, electrolyte: Bool) {
+        if index >= log.waterSlots.count {
+            log.ensureWaterSlotCount(targetSlotCount)
+        }
+        log.setWaterSlot(at: index, oz: bottleOz, isElectrolyte: electrolyte)
+        persist()
+    }
+
     private func formatOz(_ oz: Double) -> String {
         if abs(oz.rounded() - oz) < 0.05 {
             return "\(Int(oz.rounded()))oz"
@@ -140,7 +197,7 @@ struct HydrationSection: View {
     private func persist() {
         try? modelContext.save()
         Task {
-            await healthKit.writeWater(ounces: log.waterOz, on: date)
+            await healthKit.writeWater(ounces: log.totalHydrationOz(settings: settings), on: date)
         }
     }
 }
@@ -200,7 +257,7 @@ struct HydrationConfigSheet: View {
                 } header: {
                     Text("Daily goal")
                 } footer: {
-                    Text("Type any number like 180. Not locked to bottle-size multiples.")
+                    Text("Type any number like 180. Not locked to bottle-size multiples. Long-press bottles on the day view to mark electrolytes.")
                 }
 
                 Section("Default drink size") {
@@ -217,6 +274,34 @@ struct HydrationConfigSheet: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
+                }
+
+                Section {
+                    Toggle("Protein drinks count toward hydration", isOn: Binding(
+                        get: { settings.proteinDrinksCountTowardHydration },
+                        set: {
+                            settings.proteinDrinksCountTowardHydration = $0
+                            try? modelContext.save()
+                        }
+                    ))
+                    if settings.proteinDrinksCountTowardHydration {
+                        Stepper(
+                            "Default shake size: \(Int(settings.defaultShakeHydrationOz)) oz",
+                            value: Binding(
+                                get: { Int(settings.defaultShakeHydrationOz) },
+                                set: {
+                                    settings.defaultShakeHydrationOz = Double($0)
+                                    try? modelContext.save()
+                                }
+                            ),
+                            in: 4...32,
+                            step: 1
+                        )
+                    }
+                } header: {
+                    Text("Protein drinks")
+                } footer: {
+                    Text("When on, protein shakes and ready-to-drink items add fluid ounces to today’s hydration total (in addition to protein calories).")
                 }
 
                 if onOpenFullSettings != nil {

@@ -48,6 +48,7 @@ struct SettingsView: View {
                                 ForEach(AccentTheme.pickerCases) { themeOption in
                                     Button {
                                         settings.accentTheme = themeOption
+                                        settings.customAccentHex = nil
                                         save(settings)
                                     } label: {
                                         ZStack {
@@ -76,6 +77,46 @@ struct SettingsView: View {
                                     .accessibilityLabel(themeOption.title)
                                 }
                             }
+
+                            ColorPicker(
+                                "Custom color",
+                                selection: Binding(
+                                    get: {
+                                        settings.accentPrimary
+                                    },
+                                    set: { newColor in
+                                        if let hex = newColor.toHexRGB() {
+                                            settings.customAccentHex = hex
+                                            settings.accentTheme = .custom
+                                            save(settings)
+                                        }
+                                    }
+                                ),
+                                supportsOpacity: false
+                            )
+
+                            if settings.accentTheme == .custom {
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(settings.accentPrimary)
+                                        .frame(width: 22, height: 22)
+                                        .overlay {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+                                    Text("Using custom color")
+                                        .font(.caption.weight(.semibold))
+                                    Spacer()
+                                    Button("Reset") {
+                                        settings.accentTheme = .onPlan
+                                        settings.customAccentHex = nil
+                                        save(settings)
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+
                             Text(settings.accentTheme.title)
                                 .font(.caption.weight(.semibold))
                             Text(settings.accentTheme.subtitle)
@@ -380,10 +421,31 @@ struct SettingsView: View {
                                 in: 16...400,
                                 step: 1
                             )
+                            Toggle("Protein drinks count toward hydration", isOn: Binding(
+                                get: { settings.proteinDrinksCountTowardHydration },
+                                set: {
+                                    settings.proteinDrinksCountTowardHydration = $0
+                                    save(settings)
+                                }
+                            ))
+                            if settings.proteinDrinksCountTowardHydration {
+                                Stepper(
+                                    "Default shake size: \(Int(settings.defaultShakeHydrationOz)) oz",
+                                    value: Binding(
+                                        get: { Int(settings.defaultShakeHydrationOz) },
+                                        set: {
+                                            settings.defaultShakeHydrationOz = Double($0)
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: 4...32,
+                                    step: 1
+                                )
+                            }
                         } header: {
                             Text("Hydration defaults")
                         } footer: {
-                            Text("Type any whole number (e.g. 180). Bottle size only sets the drink taps, not the goal.")
+                            Text("Type any whole number (e.g. 180). Bottle size only sets the drink taps, not the goal. Long-press a bottle on the day view to mark it as electrolyte. Shakes can also add ounces when the toggle is on.")
                         }
 
                         Section("Supplements") {

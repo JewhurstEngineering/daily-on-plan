@@ -22,6 +22,8 @@ struct AddProteinSheet: View {
     @State private var customUnitCalories = 35
     @State private var useCustom = false
     @State private var showHungerHelp = false
+    @State private var countTowardHydration = false
+    @State private var hydrationOz: Double = 8
     @FocusState private var caloriesFocused: Bool
 
     private var catalogItems: [CatalogFood] {
@@ -131,6 +133,24 @@ struct AddProteinSheet: View {
                     Toggle("Save to My Presets", isOn: $saveAsPreset)
                 }
 
+                if settings.proteinDrinksCountTowardHydration {
+                    Section {
+                        Toggle("Also count toward hydration", isOn: $countTowardHydration)
+                        if countTowardHydration {
+                            Stepper(
+                                "\(Int(hydrationOz)) oz fluid",
+                                value: $hydrationOz,
+                                in: 2...40,
+                                step: 1
+                            )
+                        }
+                    } header: {
+                        Text("Hydration")
+                    } footer: {
+                        Text("Protein shakes and ready-to-drink items can add to today’s water total without logging a separate bottle.")
+                    }
+                }
+
                 Section {
                     VStack(alignment: .leading) {
                         Text("Hunger before: \(hungerBefore)")
@@ -177,18 +197,58 @@ struct AddProteinSheet: View {
             .onChange(of: selected) { _, _ in
                 servings = 1
                 syncCaloriesFromServings()
+                refreshHydrationDefaults()
+            }
+            .onChange(of: selectedCategory) { _, _ in
+                selected = nil
+                refreshHydrationDefaults()
+            }
+            .onChange(of: servings) { _, _ in
+                if countTowardHydration, let suggested = currentSuggestedHydration {
+                    hydrationOz = suggested
+                }
             }
             .onChange(of: useCustom) { _, _ in
                 syncCaloriesFromServings()
+                refreshHydrationDefaults()
             }
             .onChange(of: customUnitCalories) { _, _ in
                 if useCustom { syncCaloriesFromServings() }
             }
-            .onChange(of: selectedCategory) { _, _ in
-                selected = nil
-            }
             .onAppear {
                 syncCaloriesFromServings()
+                refreshHydrationDefaults()
+            }
+        }
+    }
+
+    private var currentSuggestedHydration: Double? {
+        let category: String
+        if useCustom {
+            category = ProteinCategory.other.rawValue
+        } else if let selected {
+            category = selected.proteinCategory?.rawValue ?? selectedCategory.rawValue
+        } else {
+            category = selectedCategory.rawValue
+        }
+        return settings.suggestedHydrationOz(forProteinCategory: category, servings: servings)
+    }
+
+    private func refreshHydrationDefaults() {
+        guard settings.proteinDrinksCountTowardHydration else {
+            countTowardHydration = false
+            return
+        }
+        if let suggested = currentSuggestedHydration {
+            countTowardHydration = true
+            hydrationOz = suggested
+        } else if selectedCategory == .shake || (!useCustom && selected?.proteinCategory == .shake) {
+            countTowardHydration = true
+            hydrationOz = settings.defaultShakeHydrationOz * max(servings, 0.5)
+        } else {
+            // Keep manual toggle state if user already enabled it for a non-shake.
+            if !countTowardHydration {
+                hydrationOz = settings.defaultShakeHydrationOz
             }
         }
     }
@@ -239,7 +299,10 @@ struct AddProteinSheet: View {
             hungerBefore: hungerBefore,
             hungerAfter: hungerAfter,
             proteinCategory: category,
-            servings: servings
+            servings: servings,
+            hydrationOz: (settings.proteinDrinksCountTowardHydration && countTowardHydration)
+                ? hydrationOz
+                : nil
         )
         modelContext.insert(entry)
         log.proteinEntries.append(entry)

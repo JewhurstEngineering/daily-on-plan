@@ -210,7 +210,7 @@ enum ShareCardBuilder {
             followedPlan: log?.followedPlan ?? false,
             protein: log?.totalProteinCalories ?? 0,
             proteinGoal: log?.proteinGoal ?? settings.defaultProteinGoal,
-            waterOz: log?.waterOz ?? 0,
+            waterOz: log?.totalHydrationOz(settings: settings) ?? 0,
             waterTarget: settings.hydrationTargetOz,
             weightLabel: weightLabel,
             toGoLabel: toGoLabel,

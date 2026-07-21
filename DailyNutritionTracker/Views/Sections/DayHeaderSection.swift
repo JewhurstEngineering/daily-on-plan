@@ -7,6 +7,7 @@ struct DayHeaderSection: View {
     @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accentTheme) private var theme
+    @Environment(\.accentPrimary) private var accentPrimary
     @State private var showNotes = false
     @State private var customReason = ""
     @State private var showCustomReason = false
@@ -69,7 +70,7 @@ struct DayHeaderSection: View {
                         Text("Ketosis")
                             .font(.subheadline.weight(.medium))
                     }
-                    .tint(theme.primary)
+                    .tint(accentPrimary)
 
                     Toggle(isOn: $log.followedPlan) {
                         Text("Followed Plan")

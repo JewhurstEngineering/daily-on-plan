@@ -101,6 +101,11 @@ struct ProteinSection: View {
                                         Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                        if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
+                                            Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
                                         Text("Tap to edit amount")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
@@ -188,12 +193,17 @@ struct ProteinSection: View {
 
     private func addSuggestion(_ item: SuggestionItem) {
         let totalCalories = item.calories ?? 35
+        let category = item.proteinCategory ?? ProteinCategory.other.rawValue
         let entry = ProteinEntry(
             name: item.name,
             servingSize: item.subtitle ?? "1 serving",
             calories: totalCalories,
-            proteinCategory: item.proteinCategory ?? ProteinCategory.other.rawValue,
-            servings: max(item.servings, 1)
+            proteinCategory: category,
+            servings: max(item.servings, 1),
+            hydrationOz: settings.suggestedHydrationOz(
+                forProteinCategory: category,
+                servings: max(item.servings, 1)
+            )
         )
         modelContext.insert(entry)
         log.proteinEntries.append(entry)
@@ -207,7 +217,11 @@ struct ProteinSection: View {
             servingSize: preset.servingLabel,
             calories: preset.calories,
             proteinCategory: preset.proteinCategory,
-            servings: preset.servingsPerUnit
+            servings: preset.servingsPerUnit,
+            hydrationOz: settings.suggestedHydrationOz(
+                forProteinCategory: preset.proteinCategory,
+                servings: preset.servingsPerUnit
+            )
         )
         modelContext.insert(entry)
         log.proteinEntries.append(entry)
