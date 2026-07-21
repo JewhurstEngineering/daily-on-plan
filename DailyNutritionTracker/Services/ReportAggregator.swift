@@ -261,6 +261,28 @@ struct ReportSnapshot {
         return Double(yes) / Double(logs.count) * 100
     }
 
+    var offPlanDays: Int {
+        logs.filter { !$0.followedPlan }.count
+    }
+
+    /// How often each off-plan reason was tagged (a day can contribute to multiple reasons).
+    var offPlanReasonCounts: [NamedCount] {
+        var counts: [String: Int] = [:]
+        for log in logs where !log.followedPlan {
+            for reason in log.offPlanReasons {
+                counts[reason, default: 0] += 1
+            }
+        }
+        return counts
+            .map { NamedCount(name: $0.key, count: $0.value) }
+            .sorted {
+                if $0.count == $1.count {
+                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
+                return $0.count > $1.count
+            }
+    }
+
     var hydrationHitRate: Double {
         guard !logs.isEmpty else { return 0 }
         return Double(daysAtHydrationTarget) / Double(logs.count) * 100

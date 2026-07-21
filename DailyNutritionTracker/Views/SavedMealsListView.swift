@@ -15,9 +15,22 @@ struct SavedMealsListView: View {
     var body: some View {
         List {
             Section {
-                Text("Build reusable meals from proteins, veggies, and more. Log them in one tap. Suggest builds a draft from your preferences — you confirm before saving or logging.")
+                Text("Save meals you actually eat, then log them in one tap. That’s the reliable path.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                Text("Suggest is intentionally simple — not AI. It picks a protein (aiming near remaining calories) plus a couple of veggies from your allowed list, and fats/fruit only in Week 2+. Results can feel random if your preferences are empty.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                NavigationLink {
+                    FoodPreferencesView(settings: settings)
+                } label: {
+                    Label("Set food preferences first", systemImage: "heart.text.square")
+                }
+                Text("Add prefers (foods you like) and excludes (allergies / hard nos). Suggest uses those; without them it just shuffles the catalog.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("How this works")
             }
 
             Section {
@@ -26,7 +39,12 @@ struct SavedMealsListView: View {
                     draftSuggest = MealSuggestor.suggest(settings: settings, remainingProteinCalories: remaining)
                     suggestName = "Suggested meal"
                 } label: {
-                    Label("Suggest a meal", systemImage: "sparkles")
+                    Label("Suggest a meal", systemImage: "lightbulb")
+                }
+                if settings.preferredFoodNames.isEmpty && settings.excludedFoodNames.isEmpty {
+                    Text("Preferences are empty — expect a rough draft. Set prefers/excludes above for better picks.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 Button {
                     showCreate = true
@@ -87,6 +105,9 @@ struct SavedMealsListView: View {
                     Form {
                         Section {
                             TextField("Name", text: $suggestName)
+                            Text("Simple shuffle from your preferences/catalog — not a smart meal plan. Edit or dismiss if it’s off.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
                         Section("Draft") {
                             ForEach(draft) { component in

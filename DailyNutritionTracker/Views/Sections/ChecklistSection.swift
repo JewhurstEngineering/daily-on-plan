@@ -17,7 +17,12 @@ struct ChecklistSection: View {
     @State private var miscChips: [SuggestionItem] = []
 
     var body: some View {
-        SectionCard(title: "Fats, Veggies & More", systemImage: "leaf") {
+        SectionCard(
+            title: "Fats, Veggies & More",
+            systemImage: "leaf",
+            isCollapsed: settings.sectionCollapsedBinding(.checklist, context: modelContext),
+            collapsedMessage: DaySectionID.checklist.collapsedMessage
+        ) {
             checklistGroup(
                 title: "Vegetables",
                 items: log.checkedFatsAndVeggies.filter { raw in

@@ -17,7 +17,12 @@ struct ProteinSection: View {
     @Query(sort: \SavedMeal.name) private var savedMeals: [SavedMeal]
 
     var body: some View {
-        SectionCard(title: "Protein Log", systemImage: "fork.knife.circle") {
+        SectionCard(
+            title: "Protein Log",
+            systemImage: "fork.knife.circle",
+            isCollapsed: settings.sectionCollapsedBinding(.protein, context: modelContext),
+            collapsedMessage: DaySectionID.protein.collapsedMessage
+        ) {
             if !suggestionChips.isEmpty {
                 Text(hasHistory ? "Popular & recent" : "Suggestions")
                     .font(.caption)

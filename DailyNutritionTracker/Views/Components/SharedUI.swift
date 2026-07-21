@@ -1,21 +1,32 @@
 import SwiftUI
+import SwiftData
 
 struct SectionCard<Content: View, Trailing: View>: View {
     let title: String
     var systemImage: String? = nil
+    var isCollapsed: Binding<Bool>? = nil
+    var collapsedMessage: String = "Collapsed — tap the chevron to show."
     @ViewBuilder var trailing: () -> Trailing
     @ViewBuilder var content: Content
 
     init(
         title: String,
         systemImage: String? = nil,
+        isCollapsed: Binding<Bool>? = nil,
+        collapsedMessage: String = "Collapsed — tap the chevron to show.",
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.systemImage = systemImage
+        self.isCollapsed = isCollapsed
+        self.collapsedMessage = collapsedMessage
         self.trailing = trailing
         self.content = content()
+    }
+
+    private var collapsed: Bool {
+        isCollapsed?.wrappedValue ?? false
     }
 
     var body: some View {
@@ -27,10 +38,32 @@ struct SectionCard<Content: View, Trailing: View>: View {
                 }
                 Text(title)
                     .font(.headline)
-                Spacer()
+                Spacer(minLength: 8)
                 trailing()
+                if let isCollapsed {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isCollapsed.wrappedValue.toggle()
+                        }
+                    } label: {
+                        Image(systemName: collapsed ? "chevron.down" : "chevron.up")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 36, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(collapsed ? "Expand \(title)" : "Collapse \(title)")
+                }
             }
-            content
+
+            if collapsed {
+                Text(collapsedMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                content
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -152,5 +185,17 @@ struct MultiplierPicker: View {
             }
             Spacer()
         }
+    }
+}
+
+extension AppSettings {
+    func sectionCollapsedBinding(_ section: DaySectionID, context: ModelContext) -> Binding<Bool> {
+        Binding(
+            get: { self.isSectionCollapsed(section) },
+            set: {
+                self.setSectionCollapsed(section, $0)
+                try? context.save()
+            }
+        )
     }
 }

@@ -3,6 +3,7 @@ import SwiftData
 
 struct FeelingsSection: View {
     @Bindable var log: DailyLog
+    let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @State private var pendingNoteType: FeelingType?
     @State private var noteText = ""
@@ -10,7 +11,12 @@ struct FeelingsSection: View {
     @State private var customFeeling = ""
 
     var body: some View {
-        SectionCard(title: "Feelings & Cravings", systemImage: "heart.text.square") {
+        SectionCard(
+            title: "Feelings & Cravings",
+            systemImage: "heart.text.square",
+            isCollapsed: settings.sectionCollapsedBinding(.feelings, context: modelContext),
+            collapsedMessage: DaySectionID.feelings.collapsedMessage
+        ) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 ForEach(FeelingType.allCases) { type in
                     Button {

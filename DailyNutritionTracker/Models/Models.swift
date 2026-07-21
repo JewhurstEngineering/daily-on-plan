@@ -19,6 +19,8 @@ final class DailyLog {
     var checkedMiscItems: [String]
     var checkedFruits: [String]
     var completedSupplements: [String]
+    /// JSON array of off-plan reason tags (e.g. Pizza, Beer). Meaningful when followedPlan is false.
+    var offPlanReasonsJSON: String?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
@@ -35,6 +37,35 @@ final class DailyLog {
         self.checkedMiscItems = []
         self.checkedFruits = []
         self.completedSupplements = []
+        self.offPlanReasonsJSON = "[]"
+    }
+
+    var offPlanReasons: [String] {
+        get {
+            guard let data = offPlanReasonsJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                offPlanReasonsJSON = string
+            } else {
+                offPlanReasonsJSON = "[]"
+            }
+        }
+    }
+
+    func toggleOffPlanReason(_ reason: String) {
+        var list = offPlanReasons
+        if let idx = list.firstIndex(where: { $0.caseInsensitiveCompare(reason) == .orderedSame }) {
+            list.remove(at: idx)
+        } else {
+            list.append(reason)
+        }
+        offPlanReasons = list
     }
 
     var totalProteinCalories: Int {
@@ -303,6 +334,7 @@ final class AppSettings {
     var showSupplementsSectionStored: Bool?
     var accentThemeRaw: String?
     var weightSectionCollapsedStored: Bool?
+    var collapsedSectionsJSON: String?
 
     // Notifications (v2) — optionals for SwiftData-friendly migration
     var notificationsDefaultsVersionStored: Int?
@@ -316,8 +348,12 @@ final class AppSettings {
     var weighReminderEnabledStored: Bool?
     var weighReminderHourStored: Int?
     var weighReminderMinuteStored: Int?
+    var ketosisCheckInEnabledStored: Bool?
+    var ketosisCheckInHourStored: Int?
+    var ketosisCheckInMinuteStored: Int?
     var excludedFoodsJSON: String?
     var preferredFoodsJSON: String?
+    var customOffPlanReasonsJSON: String?
 
     init() {
         self.id = UUID()
@@ -336,7 +372,8 @@ final class AppSettings {
         self.showSupplementsSectionStored = true
         self.accentThemeRaw = AccentTheme.green.rawValue
         self.weightSectionCollapsedStored = false
-        self.notificationsDefaultsVersionStored = 1
+        self.collapsedSectionsJSON = "{}"
+        self.notificationsDefaultsVersionStored = 2
         self.notificationsPausedStored = false
         self.genericCheckInEnabledStored = true
         self.genericCheckInHourStored = 19
@@ -347,8 +384,12 @@ final class AppSettings {
         self.weighReminderEnabledStored = false
         self.weighReminderHourStored = 7
         self.weighReminderMinuteStored = 0
+        self.ketosisCheckInEnabledStored = true
+        self.ketosisCheckInHourStored = 20
+        self.ketosisCheckInMinuteStored = 5
         self.excludedFoodsJSON = "[]"
         self.preferredFoodsJSON = "[]"
+        self.customOffPlanReasonsJSON = "[]"
     }
 
     var phase: ProgramPhase {
@@ -411,8 +452,60 @@ final class AppSettings {
     }
 
     var weightSectionCollapsed: Bool {
-        get { weightSectionCollapsedStored ?? false }
-        set { weightSectionCollapsedStored = newValue }
+        get { isSectionCollapsed(.weight) }
+        set { setSectionCollapsed(.weight, newValue) }
+    }
+
+    var ketosisCheckInEnabled: Bool {
+        get { ketosisCheckInEnabledStored ?? true }
+        set { ketosisCheckInEnabledStored = newValue }
+    }
+
+    var ketosisCheckInHour: Int {
+        get { ketosisCheckInHourStored ?? 20 }
+        set { ketosisCheckInHourStored = newValue }
+    }
+
+    var ketosisCheckInMinute: Int {
+        get { ketosisCheckInMinuteStored ?? 5 }
+        set { ketosisCheckInMinuteStored = newValue }
+    }
+
+    func isSectionCollapsed(_ section: DaySectionID) -> Bool {
+        let map = collapsedSectionsMap
+        if let value = map[section.rawValue] { return value }
+        // Legacy single-flag migration for weight privacy collapse.
+        if section == .weight {
+            return weightSectionCollapsedStored ?? false
+        }
+        return false
+    }
+
+    func setSectionCollapsed(_ section: DaySectionID, _ collapsed: Bool) {
+        var map = collapsedSectionsMap
+        map[section.rawValue] = collapsed
+        if section == .weight {
+            weightSectionCollapsedStored = collapsed
+        }
+        collapsedSectionsMap = map
+    }
+
+    private var collapsedSectionsMap: [String: Bool] {
+        get {
+            guard let data = collapsedSectionsJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([String: Bool].self, from: data) else {
+                return [:]
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                collapsedSectionsJSON = string
+            } else {
+                collapsedSectionsJSON = "{}"
+            }
+        }
     }
 
     var notificationsPaused: Bool {
@@ -475,6 +568,39 @@ final class AppSettings {
         set { preferredFoodsJSON = Self.encodeStringList(newValue) }
     }
 
+    var customOffPlanReasons: [String] {
+        get { Self.decodeStringList(customOffPlanReasonsJSON) }
+        set { customOffPlanReasonsJSON = Self.encodeStringList(newValue) }
+    }
+
+    /// Presets + user customs, presets first, no duplicates.
+    var allOffPlanReasonOptions: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for name in OffPlanReasonCatalog.presets + customOffPlanReasons {
+            let key = name.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(name)
+        }
+        return result
+    }
+
+    func addCustomOffPlanReason(_ raw: String) -> String? {
+        let trimmed = String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(OffPlanReasonCatalog.maxCustomLength))
+        guard !trimmed.isEmpty else { return nil }
+        if OffPlanReasonCatalog.presets.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return OffPlanReasonCatalog.presets.first { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
+        }
+        var customs = customOffPlanReasons
+        if let existing = customs.first(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return existing
+        }
+        customs.append(trimmed)
+        customOffPlanReasons = customs
+        return trimmed
+    }
+
     func isExcluded(_ name: String) -> Bool {
         excludedFoodNames.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
     }
@@ -485,15 +611,25 @@ final class AppSettings {
 
     /// One-time migration: turn water off; keep evening on; enable generic check-in.
     func migrateNotificationDefaultsIfNeeded() {
-        if (notificationsDefaultsVersionStored ?? 0) >= 1 { return }
-        waterReminderEnabled = false
-        if waterReminderIntervalHours < 2 { waterReminderIntervalHours = 3 }
-        eveningCheckInEnabled = true
-        genericCheckInEnabled = true
-        mealReminderEnabled = false
-        weighReminderEnabled = false
-        notificationsPaused = false
-        notificationsDefaultsVersionStored = 1
+        let version = notificationsDefaultsVersionStored ?? 0
+        if version < 1 {
+            waterReminderEnabled = false
+            if waterReminderIntervalHours < 2 { waterReminderIntervalHours = 3 }
+            eveningCheckInEnabled = true
+            genericCheckInEnabled = true
+            mealReminderEnabled = false
+            weighReminderEnabled = false
+            notificationsPaused = false
+            notificationsDefaultsVersionStored = 1
+        }
+        if (notificationsDefaultsVersionStored ?? 0) < 2 {
+            ketosisCheckInEnabled = true
+            if ketosisCheckInHourStored == nil {
+                ketosisCheckInHour = eveningCheckInHour
+                ketosisCheckInMinute = min(eveningCheckInMinute + 5, 59)
+            }
+            notificationsDefaultsVersionStored = 2
+        }
     }
 
     private static func decodeStringList(_ json: String?) -> [String] {

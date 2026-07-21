@@ -11,6 +11,8 @@ struct SupplementsSection: View {
         SectionCard(
             title: "Supplements",
             systemImage: "pills",
+            isCollapsed: settings.sectionCollapsedBinding(.supplements, context: modelContext),
+            collapsedMessage: DaySectionID.supplements.collapsedMessage,
             trailing: {
                 Button {
                     showConfig = true

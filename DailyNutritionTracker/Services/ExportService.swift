@@ -17,6 +17,11 @@ enum ExportService {
             lines.append("day,\(day),,proteinCalories,\(log.totalProteinCalories),")
             lines.append("day,\(day),,ketosis,\(log.ketosis),")
             lines.append("day,\(day),,followedPlan,\(log.followedPlan),")
+            if !log.offPlanReasons.isEmpty {
+                let reasons = log.offPlanReasons.joined(separator: "; ")
+                    .replacingOccurrences(of: "\"", with: "\"\"")
+                lines.append("day,\(day),,offPlanReasons,\"\(reasons)\",")
+            }
             lines.append("day,\(day),,waterOz,\(log.waterOz),")
             lines.append("day,\(day),,notes,\"\(log.notes.replacingOccurrences(of: "\"", with: "\"\""))\",")
 

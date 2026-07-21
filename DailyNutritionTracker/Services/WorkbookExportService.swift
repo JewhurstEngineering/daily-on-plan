@@ -64,6 +64,9 @@ enum WorkbookExportService {
         xml += row(["Total Protein Calories", "\(log.totalProteinCalories)"])
         xml += row(["Ketosis", log.ketosis ? "Y" : "N"])
         xml += row(["Followed Plan", log.followedPlan ? "Y" : "N"])
+        if !log.offPlanReasons.isEmpty {
+            xml += row(["Off-plan reasons", log.offPlanReasons.joined(separator: ", ")])
+        }
         xml += row(["Notes", log.notes])
         xml += row([])
 

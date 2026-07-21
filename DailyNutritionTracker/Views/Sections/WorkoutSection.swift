@@ -3,6 +3,7 @@ import SwiftData
 
 struct WorkoutSection: View {
     @Bindable var log: DailyLog
+    let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
     @State private var showAdd = false
@@ -10,7 +11,12 @@ struct WorkoutSection: View {
     @State private var pendingName = "Brisk walking"
 
     var body: some View {
-        SectionCard(title: "Workouts", systemImage: "figure.run") {
+        SectionCard(
+            title: "Workouts",
+            systemImage: "figure.run",
+            isCollapsed: settings.sectionCollapsedBinding(.workouts, context: modelContext),
+            collapsedMessage: DaySectionID.workouts.collapsedMessage
+        ) {
             if !chips.isEmpty {
                 Text(hasHistory ? "Popular & recent" : "Suggestions")
                     .font(.caption)

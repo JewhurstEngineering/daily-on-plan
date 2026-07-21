@@ -7,6 +7,7 @@ enum NotificationKind: String {
     case meal
     case weigh
     case eveningPlan
+    case ketosis
     case genericCheckIn
 
     var deepLinkSection: String {
@@ -14,7 +15,7 @@ enum NotificationKind: String {
         case .water: return "hydration"
         case .meal: return "protein"
         case .weigh: return "weight"
-        case .eveningPlan, .genericCheckIn: return "header"
+        case .eveningPlan, .ketosis, .genericCheckIn: return "header"
         }
     }
 }
@@ -22,8 +23,11 @@ enum NotificationKind: String {
 enum NotificationActionID {
     static let eveningYes = "evening.yes"
     static let eveningNo = "evening.no"
+    static let ketosisYes = "ketosis.yes"
+    static let ketosisNo = "ketosis.no"
     static let waterLogged = "water.logged"
     static let categoryEvening = "CATEGORY_EVENING_PLAN"
+    static let categoryKetosis = "CATEGORY_KETOSIS"
     static let categoryWater = "CATEGORY_WATER"
 }
 
@@ -106,7 +110,6 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         if settings.eveningCheckInEnabled {
             let content = UNMutableNotificationContent()
             content.title = "Did you follow the plan today?"
-            // iOS hides action buttons until the notification is expanded (press and hold / swipe down).
             content.body = "Press and hold, then tap Yes or No — or open \(AppIdentity.displayName)."
             content.sound = .default
             content.categoryIdentifier = NotificationActionID.categoryEvening
@@ -117,6 +120,25 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
             let request = UNNotificationRequest(
                 identifier: "evening-plan",
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(request)
+        }
+
+        if settings.ketosisCheckInEnabled {
+            let content = UNMutableNotificationContent()
+            content.title = "Are you in ketosis today?"
+            content.body = "Press and hold for Yes or No. (Strips, blood meter, breath — or your best guess.)"
+            content.sound = .default
+            content.categoryIdentifier = NotificationActionID.categoryKetosis
+            content.userInfo = ["kind": NotificationKind.ketosis.rawValue]
+            var comps = DateComponents()
+            comps.hour = settings.ketosisCheckInHour
+            comps.minute = settings.ketosisCheckInMinute
+            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+            let request = UNNotificationRequest(
+                identifier: "ketosis-checkin",
                 content: content,
                 trigger: trigger
             )
@@ -167,6 +189,23 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             options: []
         )
 
+        let ketosisYes = UNNotificationAction(
+            identifier: NotificationActionID.ketosisYes,
+            title: "Yes",
+            options: []
+        )
+        let ketosisNo = UNNotificationAction(
+            identifier: NotificationActionID.ketosisNo,
+            title: "No",
+            options: [.destructive]
+        )
+        let ketosis = UNNotificationCategory(
+            identifier: NotificationActionID.categoryKetosis,
+            actions: [ketosisYes, ketosisNo],
+            intentIdentifiers: [],
+            options: []
+        )
+
         let logged = UNNotificationAction(
             identifier: NotificationActionID.waterLogged,
             title: "Logged a drink",
@@ -179,7 +218,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             options: []
         )
 
-        UNUserNotificationCenter.current().setNotificationCategories([evening, water])
+        UNUserNotificationCenter.current().setNotificationCategories([evening, ketosis, water])
     }
 
     private func scheduleWater(settings: AppSettings, center: UNUserNotificationCenter) {
@@ -239,6 +278,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             setFollowedPlan(true)
         case NotificationActionID.eveningNo:
             setFollowedPlan(false)
+        case NotificationActionID.ketosisYes:
+            setKetosis(true)
+        case NotificationActionID.ketosisNo:
+            setKetosis(false)
         case NotificationActionID.waterLogged:
             logWaterDrink()
         case UNNotificationDefaultActionIdentifier:
@@ -261,6 +304,15 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         settings.migrateNotificationDefaultsIfNeeded()
         let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
         log.followedPlan = followed
+        try? context.save()
+    }
+
+    private func setKetosis(_ inKetosis: Bool) {
+        guard let container else { return }
+        let context = ModelContext(container)
+        let settings = DataStore.settings(in: context)
+        let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
+        log.ketosis = inKetosis
         try? context.save()
     }
 

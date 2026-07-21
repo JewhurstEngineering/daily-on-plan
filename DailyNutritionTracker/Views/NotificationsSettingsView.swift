@@ -10,7 +10,7 @@ struct NotificationsSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Only the evening plan question and daily check-in are on by default. Everything else is optional — turn on what helps, leave the rest off.")
+                Text("Evening plan, ketosis check, and daily check-in are on by default. Everything else is optional — turn on what helps, leave the rest off.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -60,6 +60,28 @@ struct NotificationsSettingsView: View {
                     }
                 ),
                 showTime: settings.eveningCheckInEnabled
+            )
+
+            reminderRow(
+                title: "Ketosis check",
+                explanation: "Asks “Are you in ketosis today?” with Yes / No (press and hold). People usually know via urine strips, a blood ketone meter, breath acetone, or a best-guess self-report — the app doesn’t measure it.",
+                enabled: Binding(
+                    get: { settings.ketosisCheckInEnabled },
+                    set: {
+                        settings.ketosisCheckInEnabled = $0
+                        persist()
+                    }
+                ),
+                time: Binding(
+                    get: { date(hour: settings.ketosisCheckInHour, minute: settings.ketosisCheckInMinute) },
+                    set: { d in
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                        settings.ketosisCheckInHour = c.hour ?? 20
+                        settings.ketosisCheckInMinute = c.minute ?? 5
+                        persist()
+                    }
+                ),
+                showTime: settings.ketosisCheckInEnabled
             )
 
             reminderRow(

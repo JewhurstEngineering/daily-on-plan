@@ -56,7 +56,7 @@ struct SettingsView: View {
                                 }
                             }
                             Stepper(
-                                "Default protein goal: \(settings.defaultProteinGoal) kcal",
+                                "Protein goal: \(settings.defaultProteinGoal) kcal",
                                 value: Binding(
                                     get: { settings.defaultProteinGoal },
                                     set: {
@@ -124,7 +124,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Reminders & meals")
                         } footer: {
-                            Text("Notifications default to evening plan + daily check-in only. Food preferences filter allergies and picky-eater picks.")
+                            Text("Notifications default to evening plan, ketosis check, and daily check-in. Food preferences filter allergies and picky-eater picks.")
                         }
 
                         Section("Hydration defaults") {

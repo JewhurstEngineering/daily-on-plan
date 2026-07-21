@@ -1,5 +1,45 @@
 import Foundation
 
+enum DaySectionID: String, CaseIterable, Identifiable {
+    case dailyStatus
+    case weight
+    case feelings
+    case protein
+    case checklist
+    case workouts
+    case hydration
+    case supplements
+
+    var id: String { rawValue }
+
+    var collapsedMessage: String {
+        switch self {
+        case .weight:
+            return "Hidden for privacy — tap the chevron to show."
+        default:
+            return "Collapsed — tap the chevron to show."
+        }
+    }
+}
+
+/// Preset off-plan reasons — countable in reports. Users can add custom chips that stick.
+enum OffPlanReasonCatalog {
+    static let presets: [String] = [
+        "Pizza",
+        "Beer",
+        "Wine",
+        "Sweets",
+        "Bread / carbs",
+        "Fast food",
+        "Restaurant",
+        "Alcohol",
+        "Social event",
+        "Stress eating"
+    ]
+
+    static let maxCustomLength = 24
+}
+
 enum ProgramPhase: String, CaseIterable, Identifiable, Codable {
     case week1 = "week1"
     case week2Plus = "week2Plus"

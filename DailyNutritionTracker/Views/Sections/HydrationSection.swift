@@ -40,6 +40,8 @@ struct HydrationSection: View {
         SectionCard(
             title: "Hydration",
             systemImage: "drop.fill",
+            isCollapsed: settings.sectionCollapsedBinding(.hydration, context: modelContext),
+            collapsedMessage: DaySectionID.hydration.collapsedMessage,
             trailing: {
                 Button {
                     showConfig = true

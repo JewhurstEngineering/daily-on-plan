@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+  <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18D6E6"/><stop offset="0.48" stop-color="#00AFC4"/><stop offset="1" stop-color="#98EC39"/></linearGradient>
+  <linearGradient id="wordGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#98EC39"/><stop offset="1" stop-color="#18D6E6"/></linearGradient>
+  <radialGradient id="bgRad" cx="35%" cy="15%" r="90%"><stop offset="0" stop-color="#172B4B"/><stop offset="0.45" stop-color="#071426"/><stop offset="1" stop-color="#020812"/></radialGradient>
+  <linearGradient id="discGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B2C45"/><stop offset="1" stop-color="#07101E"/></linearGradient>
+  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.38"/></filter>
+  <filter id="smallShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.28"/></filter>
+</defs><rect width="1024" height="1024" rx="220" fill="url(#bgRad)"/><path d="M210 150 H735 L865 280 V820 Q865 870 815 870 H210 Q160 870 160 820 V200 Q160 150 210 150Z" fill="#F8FAFC" filter="url(#softShadow)"/>
+<path d="M735 150 V280 H865" fill="#D8E0EA"/>
+<text x="235" y="270" font-family="Avenir Next, Inter, Helvetica Neue, Arial, sans-serif" font-size="78" font-weight="800" fill="#0B1930">TODAY</text>
+<g stroke="#6B7687" stroke-width="18" stroke-linecap="round"><path d="M360 380 H710"/><path d="M360 505 H710"/><path d="M360 630 H710"/></g>
+<g fill="none" stroke="#152842" stroke-width="18"><circle cx="265" cy="375" r="42"/><path d="M235 375 L258 398 L302 350"/><path d="M240 470 Q265 420 290 470 Q305 510 265 530 Q225 510 240 470Z"/><path d="M220 585 H310 M240 555 V615 M290 555 V615"/></g>
+<path d="M650 690 H865 V820 Q865 870 815 870 H650Z" fill="#08A89F"/>
+<path d="M710 785 L755 830 L838 737" fill="none" stroke="white" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/></svg>

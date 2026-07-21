@@ -49,7 +49,7 @@ struct DayView: View {
                         onOpenSettings: onOpenSettings
                     )
                     .id("weight")
-                    FeelingsSection(log: log)
+                    FeelingsSection(log: log, settings: settings)
                         .id("feelings")
                     ProteinSection(
                         log: log,
@@ -65,7 +65,7 @@ struct DayView: View {
                         onWillPresentSheet: { requestScroll(to: $0) }
                     )
                     .id("checklist")
-                    WorkoutSection(log: log)
+                    WorkoutSection(log: log, settings: settings)
                         .id("workouts")
                     HydrationSection(
                         log: log,

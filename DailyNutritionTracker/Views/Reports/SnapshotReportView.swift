@@ -64,6 +64,17 @@ struct SnapshotReportView: View {
                 .frame(height: 160)
             }
 
+            if !snapshot.offPlanReasonCounts.isEmpty {
+                Text("Off-plan reasons")
+                    .font(.subheadline.weight(.semibold))
+                Text("Tagged on days you didn’t follow the plan. A day can count toward more than one reason.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                ForEach(snapshot.offPlanReasonCounts.prefix(8)) { item in
+                    ReportMetricRow(title: item.name, value: "\(item.count)×")
+                }
+            }
+
             if !snapshot.hydrationSeries.isEmpty {
                 Text("Water intake")
                     .font(.subheadline.weight(.semibold))
@@ -140,6 +151,12 @@ struct SnapshotReportView: View {
                 title: "Followed plan",
                 value: String(format: "%.0f%% of days", snapshot.planFollowRate)
             )
+            if snapshot.offPlanDays > 0 {
+                ReportMetricRow(
+                    title: "Off-plan days",
+                    value: "\(snapshot.offPlanDays)/\(snapshot.logs.count)"
+                )
+            }
             ReportMetricRow(
                 title: "Ketosis",
                 value: String(format: "%.0f%% of days", snapshot.ketosisRate)
@@ -258,6 +275,12 @@ struct SnapshotReportView: View {
                     calloutCard(
                         title: "Most common feeling",
                         detail: "\(topFeeling.name) (\(topFeeling.count)× in range)"
+                    )
+                }
+                if let topOffPlan = snapshot.offPlanReasonCounts.first {
+                    calloutCard(
+                        title: "Most common off-plan reason",
+                        detail: "\(topOffPlan.name) (\(topOffPlan.count)× in range)"
                     )
                 }
             }

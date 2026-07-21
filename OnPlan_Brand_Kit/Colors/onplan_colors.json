@@ -1,0 +1,57 @@
+{
+  "brand": "OnPlan",
+  "colors": [
+    {
+      "name": "deep_navy",
+      "hex": "#071426"
+    },
+    {
+      "name": "navy",
+      "hex": "#0F172A"
+    },
+    {
+      "name": "slate",
+      "hex": "#1E293B"
+    },
+    {
+      "name": "blue",
+      "hex": "#3B82F6"
+    },
+    {
+      "name": "cyan",
+      "hex": "#18D6E6"
+    },
+    {
+      "name": "cyan2",
+      "hex": "#00AFC4"
+    },
+    {
+      "name": "green",
+      "hex": "#22C55E"
+    },
+    {
+      "name": "lime",
+      "hex": "#98EC39"
+    },
+    {
+      "name": "muted",
+      "hex": "#64748B"
+    },
+    {
+      "name": "light",
+      "hex": "#F8FAFC"
+    },
+    {
+      "name": "white",
+      "hex": "#FFFFFF"
+    },
+    {
+      "name": "ink",
+      "hex": "#091423"
+    },
+    {
+      "name": "silver",
+      "hex": "#CBD5E1"
+    }
+  ]
+}

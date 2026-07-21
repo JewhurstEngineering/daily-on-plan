@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+  <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18D6E6"/><stop offset="0.48" stop-color="#00AFC4"/><stop offset="1" stop-color="#98EC39"/></linearGradient>
+  <linearGradient id="wordGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#98EC39"/><stop offset="1" stop-color="#18D6E6"/></linearGradient>
+  <radialGradient id="bgRad" cx="35%" cy="15%" r="90%"><stop offset="0" stop-color="#172B4B"/><stop offset="0.45" stop-color="#071426"/><stop offset="1" stop-color="#020812"/></radialGradient>
+  <linearGradient id="discGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B2C45"/><stop offset="1" stop-color="#07101E"/></linearGradient>
+  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.38"/></filter>
+  <filter id="smallShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.28"/></filter>
+</defs><rect width="1024" height="1024" rx="220" fill="#F8FAFC"/><rect x="18" y="18" width="988" height="988" rx="205" fill="none" stroke="#D9E1EA" stroke-width="8"/><circle cx="512" cy="512" r="280" fill="#FFFFFF" stroke="#D9E1EA" stroke-width="22" filter="url(#softShadow)"/>
+<circle cx="512" cy="512" r="240" fill="none" stroke="url(#ringGrad)" stroke-width="50" stroke-dasharray="1030 478" transform="rotate(-90 512 512)"/>
+<path d="M380 525 L472 617 L660 396" fill="none" stroke="#0D3A42" stroke-width="62" stroke-linecap="round" stroke-linejoin="round"/>
+<g stroke="#10233A" stroke-width="30" stroke-linecap="round"><path d="M210 326 V710"/><path d="M170 326 V470"/><path d="M210 326 V470"/><path d="M250 326 V470"/><path d="M814 326 V710"/><path d="M780 326 V515 Q780 560 814 560"/></g></svg>
