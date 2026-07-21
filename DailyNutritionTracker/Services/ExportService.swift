@@ -22,6 +22,18 @@ enum ExportService {
             }
             lines.append(csvRow(["day", day, "", "waterOz", "\(log.waterOz)", ""]))
             lines.append(csvRow(["day", day, "", "notes", log.notes, ""]))
+            lines.append(csvRow(["day", day, "", "cigarettes", "\(log.cigarettesSmoked)", ""]))
+
+            for urge in log.cigaretteUrges {
+                lines.append(csvRow([
+                    "urge",
+                    day,
+                    DateHelpers.formattedTime(urge.timeLogged),
+                    "cigarette",
+                    "",
+                    urge.note
+                ]))
+            }
 
             for feeling in log.sortedFeelings {
                 lines.append(csvRow([
@@ -165,6 +177,12 @@ enum ExportService {
                 drawLine(DateHelpers.formattedDay(log.date), font: .boldSystemFont(ofSize: 14))
                 drawLine("Protein \(log.totalProteinCalories)/\(log.proteinGoal) kcal  |  Ketosis: \(log.ketosis ? "Y" : "N")  |  Plan: \(log.followedPlan ? "Y" : "N")")
                 drawLine("Water: \(log.waterOz) / \(settings.hydrationTargetOz) oz")
+                if settings.smokingMode.showsSection || log.cigarettesSmoked > 0 || !log.cigaretteUrges.isEmpty {
+                    drawLine("Cigarettes: \(log.cigarettesSmoked)\(settings.effectiveDailyCigaretteLimit.map { " / max \($0)" } ?? "")")
+                    if !log.cigaretteUrges.isEmpty {
+                        drawLine("Urges: \(log.cigaretteUrges.count)", indent: 12)
+                    }
+                }
                 if !log.offPlanReasons.isEmpty {
                     drawLine("Off-plan: \(log.offPlanReasons.joined(separator: ", "))")
                 }

@@ -3,6 +3,7 @@ import Foundation
 enum DaySectionID: String, CaseIterable, Identifiable {
     case dailyStatus
     case weight
+    case smoking
     case feelings
     case protein
     case checklist
@@ -14,12 +15,41 @@ enum DaySectionID: String, CaseIterable, Identifiable {
 
     var collapsedMessage: String {
         switch self {
-        case .weight:
+        case .weight, .smoking:
             return "Hidden for privacy — tap the chevron to show."
         default:
             return "Collapsed — tap the chevron to show."
         }
     }
+}
+
+enum SmokingMode: String, CaseIterable, Identifiable, Codable {
+    case off
+    case count
+    case reduce
+    case quit
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: return "Off"
+        case .count: return "Count"
+        case .reduce: return "Reduce"
+        case .quit: return "Quit"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .off: return "Hide the smoking section"
+        case .count: return "Daily cigarette counter only"
+        case .reduce: return "Counter plus a daily max"
+        case .quit: return "Quit date, smoke-free days, and urge log"
+        }
+    }
+
+    var showsSection: Bool { self != .off }
 }
 
 /// Preset off-plan reasons — countable in reports. Users can add custom chips that stick.

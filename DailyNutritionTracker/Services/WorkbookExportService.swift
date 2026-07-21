@@ -72,6 +72,10 @@ enum WorkbookExportService {
             }
             rows.append(["Weight & BMI"])
             rows.append(["Weight (lb)", String(format: "%.1f", weight.weightLbs)])
+            if let goal = settings.goalWeightLbs {
+                rows.append(["Goal (lb)", String(format: "%.1f", goal)])
+                rows.append(["To go (lb)", String(format: "%.1f", weight.weightLbs - goal)])
+            }
             rows.append(["BMI", bmi])
             rows.append([])
         }
@@ -182,6 +186,26 @@ enum WorkbookExportService {
         rows.append(["Target oz", "\(settings.hydrationTargetOz)"])
         let drinks = log.waterDrinks.map { formatOz($0) }.joined(separator: ", ")
         rows.append(["Drinks", drinks.isEmpty ? "—" : drinks])
+        rows.append([])
+
+        if settings.smokingMode.showsSection || log.cigarettesSmoked > 0 || !log.cigaretteUrges.isEmpty {
+            rows.append(["Smoking"])
+            rows.append(["Cigarettes", "\(log.cigarettesSmoked)"])
+            if let limit = settings.effectiveDailyCigaretteLimit {
+                rows.append(["Daily max", "\(limit)"])
+            }
+            if settings.smokingMode == .quit, let quit = settings.quitDate {
+                rows.append(["Quit date", DateHelpers.formattedDay(quit)])
+            }
+            rows.append(["Urge", "Time", "Note"])
+            if log.cigaretteUrges.isEmpty {
+                rows.append(["—", "", ""])
+            } else {
+                for urge in log.cigaretteUrges {
+                    rows.append(["Urge", DateHelpers.formattedTime(urge.timeLogged), urge.note])
+                }
+            }
+        }
         return rows
     }
 
@@ -306,7 +330,8 @@ enum WorkbookExportService {
             "Miscellaneous Items",
             "Activity / Workout",
             "Supplements",
-            "Hydration"
+            "Hydration",
+            "Smoking"
         ].contains(title)
     }
 
@@ -317,6 +342,7 @@ enum WorkbookExportService {
             || values == ["Item", "Amount"]
             || values == ["Activity", "Duration (minutes)", "Time"]
             || values == ["Supplement", "Completed", "Planned"]
+            || values == ["Urge", "Time", "Note"]
     }
 
     // MARK: - Helpers

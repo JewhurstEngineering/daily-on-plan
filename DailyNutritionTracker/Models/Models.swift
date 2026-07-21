@@ -21,6 +21,9 @@ final class DailyLog {
     var completedSupplements: [String]
     /// JSON array of off-plan reason tags (e.g. Pizza, Beer). Meaningful when followedPlan is false.
     var offPlanReasonsJSON: String?
+    var cigarettesSmokedStored: Int?
+    /// JSON array of `{id,timeLogged,note}` urge records (quit mode).
+    var cigaretteUrgesJSON: String?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
@@ -38,6 +41,8 @@ final class DailyLog {
         self.checkedFruits = []
         self.completedSupplements = []
         self.offPlanReasonsJSON = "[]"
+        self.cigarettesSmokedStored = 0
+        self.cigaretteUrgesJSON = "[]"
     }
 
     var offPlanReasons: [String] {
@@ -110,6 +115,47 @@ final class DailyLog {
     /// Filled drinks only (for suggestions / totals helpers).
     var waterDrinks: [Double] {
         waterSlots.compactMap { $0 }
+    }
+
+    var cigarettesSmoked: Int {
+        get { max(0, cigarettesSmokedStored ?? 0) }
+        set { cigarettesSmokedStored = max(0, newValue) }
+    }
+
+    var cigaretteUrges: [CigaretteUrgeRecord] {
+        get {
+            guard let data = cigaretteUrgesJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([CigaretteUrgeRecord].self, from: data) else {
+                return []
+            }
+            return decoded.sorted { $0.timeLogged < $1.timeLogged }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                cigaretteUrgesJSON = string
+            } else {
+                cigaretteUrgesJSON = "[]"
+            }
+        }
+    }
+
+    func addCigarette() {
+        cigarettesSmoked += 1
+    }
+
+    func removeCigarette() {
+        cigarettesSmoked = max(0, cigarettesSmoked - 1)
+    }
+
+    func addUrge(note: String = "", timeLogged: Date = Date()) {
+        var list = cigaretteUrges
+        list.append(CigaretteUrgeRecord(timeLogged: timeLogged, note: note))
+        cigaretteUrges = list
+    }
+
+    func removeUrge(id: UUID) {
+        cigaretteUrges = cigaretteUrges.filter { $0.id != id }
     }
 
     func ensureWaterSlotCount(_ count: Int) {
@@ -237,6 +283,18 @@ final class WeightEntry {
     }
 }
 
+struct CigaretteUrgeRecord: Codable, Identifiable, Hashable {
+    var id: UUID
+    var timeLogged: Date
+    var note: String
+
+    init(id: UUID = UUID(), timeLogged: Date = Date(), note: String = "") {
+        self.id = id
+        self.timeLogged = timeLogged
+        self.note = note
+    }
+}
+
 @Model
 final class CustomFoodPreset {
     var id: UUID
@@ -355,6 +413,14 @@ final class AppSettings {
     var excludedFoodsJSON: String?
     var preferredFoodsJSON: String?
     var customOffPlanReasonsJSON: String?
+
+    // Goal weight + smoking (optional for migration)
+    var goalWeightLbsStored: Double?
+    var smokingModeRaw: String?
+    var dailyCigaretteLimitStored: Int?
+    var quitDateStored: Date?
+    var cigarettesPerPackStored: Int?
+    var cigarettePackPriceStored: Double?
 
     init() {
         self.id = UUID()
@@ -589,6 +655,71 @@ final class AppSettings {
     var customOffPlanReasons: [String] {
         get { Self.decodeStringList(customOffPlanReasonsJSON) }
         set { customOffPlanReasonsJSON = Self.encodeStringList(newValue) }
+    }
+
+    var goalWeightLbs: Double? {
+        get {
+            guard let value = goalWeightLbsStored, value > 0 else { return nil }
+            return value
+        }
+        set {
+            if let newValue, newValue > 0 {
+                goalWeightLbsStored = newValue
+            } else {
+                goalWeightLbsStored = nil
+            }
+        }
+    }
+
+    var hasGoalWeight: Bool { goalWeightLbs != nil }
+
+    var smokingMode: SmokingMode {
+        get { SmokingMode(rawValue: smokingModeRaw ?? "") ?? .off }
+        set { smokingModeRaw = newValue.rawValue }
+    }
+
+    var dailyCigaretteLimit: Int {
+        get { max(0, dailyCigaretteLimitStored ?? AppLimits.defaultDailyCigaretteLimit) }
+        set { dailyCigaretteLimitStored = max(0, newValue) }
+    }
+
+    /// Effective daily max for UI: reduce uses limit; quit targets 0; count/off have none.
+    var effectiveDailyCigaretteLimit: Int? {
+        switch smokingMode {
+        case .off, .count: return nil
+        case .reduce: return dailyCigaretteLimit
+        case .quit: return 0
+        }
+    }
+
+    var quitDate: Date? {
+        get { quitDateStored.map { DateHelpers.startOfDay($0) } }
+        set { quitDateStored = newValue.map { DateHelpers.startOfDay($0) } }
+    }
+
+    var cigarettesPerPack: Int {
+        get { max(1, cigarettesPerPackStored ?? AppLimits.defaultCigarettesPerPack) }
+        set { cigarettesPerPackStored = max(1, newValue) }
+    }
+
+    var cigarettePackPrice: Double? {
+        get {
+            guard let value = cigarettePackPriceStored, value > 0 else { return nil }
+            return value
+        }
+        set {
+            if let newValue, newValue > 0 {
+                cigarettePackPriceStored = newValue
+            } else {
+                cigarettePackPriceStored = nil
+            }
+        }
+    }
+
+    /// Money saved estimate for quit mode when pack price is set (cigs avoided × price/cig).
+    func estimatedMoneySaved(cigarettesAvoided: Int) -> Double? {
+        guard let price = cigarettePackPrice, cigarettesPerPack > 0, cigarettesAvoided > 0 else { return nil }
+        return Double(cigarettesAvoided) / Double(cigarettesPerPack) * price
     }
 
     /// Presets + user customs, presets first, no duplicates.

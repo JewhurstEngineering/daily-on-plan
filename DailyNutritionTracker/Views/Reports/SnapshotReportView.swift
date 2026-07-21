@@ -96,18 +96,45 @@ struct SnapshotReportView: View {
             if snapshot.weightSeries.count > 1 {
                 Text("Weight")
                     .font(.subheadline.weight(.semibold))
-                Chart(snapshot.weightSeries) { point in
-                    LineMark(
-                        x: .value("Day", point.date),
-                        y: .value("Weight", point.value)
-                    )
-                    PointMark(
-                        x: .value("Day", point.date),
-                        y: .value("Weight", point.value)
-                    )
+                Chart {
+                    ForEach(snapshot.weightSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value("Weight", point.value)
+                        )
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value("Weight", point.value)
+                        )
+                    }
+                    if let goal = snapshot.goalWeightDisplay {
+                        RuleMark(y: .value("Goal", goal))
+                            .foregroundStyle(.orange)
+                            .lineStyle(StrokeStyle(dash: [4, 3]))
+                    }
                 }
                 .frame(height: 140)
                 .chartYAxisLabel(snapshot.settings.usesMetricWeight ? "kg" : "lb")
+            }
+
+            if snapshot.showsSmokingReport, !snapshot.cigaretteSeries.isEmpty {
+                Text("Cigarettes")
+                    .font(.subheadline.weight(.semibold))
+                Chart {
+                    ForEach(snapshot.cigaretteSeries) { point in
+                        BarMark(
+                            x: .value("Day", point.date),
+                            y: .value("Cigs", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                    }
+                    if let limit = snapshot.settings.effectiveDailyCigaretteLimit {
+                        RuleMark(y: .value("Max", Double(limit)))
+                            .foregroundStyle(.orange)
+                            .lineStyle(StrokeStyle(dash: [4, 3]))
+                    }
+                }
+                .frame(height: 140)
             }
         }
         .padding()
@@ -167,6 +194,25 @@ struct SnapshotReportView: View {
                     value: String(format: "%@%.1f %@", delta >= 0 ? "+" : "", delta, unit)
                 )
             }
+            if let goal = snapshot.goalWeightDisplay {
+                ReportMetricRow(
+                    title: "Goal weight",
+                    value: String(format: "%.1f %@", goal, unit)
+                )
+            }
+            if let toGo = snapshot.weightToGoDisplay {
+                ReportMetricRow(title: "Vs goal", value: weightToGoLabel(toGo, unit: unit))
+            }
+            if snapshot.showsSmokingReport {
+                ReportMetricRow(
+                    title: "Avg cigarettes / day",
+                    value: String(format: "%.1f", snapshot.avgCigarettesPerDay)
+                )
+                ReportMetricRow(
+                    title: "Smoke-free days",
+                    value: "\(snapshot.smokeFreeDaysInRange)/\(snapshot.logs.count)"
+                )
+            }
             if let bmi = snapshot.latestBMI {
                 ReportMetricRow(
                     title: "Latest BMI",
@@ -174,6 +220,12 @@ struct SnapshotReportView: View {
                 )
             }
         }
+    }
+
+    private func weightToGoLabel(_ toGo: Double, unit: String) -> String {
+        if abs(toGo) < 0.05 { return "At goal" }
+        if toGo > 0 { return String(format: "%.1f %@ to go", toGo, unit) }
+        return String(format: "%.1f %@ under goal", abs(toGo), unit)
     }
 
     private var weeklySection: some View {

@@ -179,6 +179,55 @@ struct ReportSnapshot {
         return BMICalculator.bmi(weightLbs: last.weightLbs, heightInches: settings.heightInches)
     }
 
+    var goalWeightDisplay: Double? {
+        guard let goal = settings.goalWeightLbs else { return nil }
+        return settings.usesMetricWeight ? goal * 0.453592 : goal
+    }
+
+    var latestWeightDisplay: Double? {
+        guard let last = weights.last else { return nil }
+        return settings.usesMetricWeight ? last.weightLbs * 0.453592 : last.weightLbs
+    }
+
+    /// Latest weight minus goal (positive = still above goal).
+    var weightToGoDisplay: Double? {
+        guard let goal = settings.goalWeightLbs, let last = weights.last else { return nil }
+        let delta = last.weightLbs - goal
+        return settings.usesMetricWeight ? delta * 0.453592 : delta
+    }
+
+    // MARK: Smoking
+
+    var cigaretteSeries: [DailyMetricPoint] {
+        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.cigarettesSmoked)) }
+    }
+
+    var totalCigarettes: Int {
+        logs.reduce(0) { $0 + $1.cigarettesSmoked }
+    }
+
+    var avgCigarettesPerDay: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(totalCigarettes) / Double(logs.count)
+    }
+
+    var daysUnderCigaretteLimit: Int {
+        guard let limit = settings.effectiveDailyCigaretteLimit else { return 0 }
+        return logs.filter { $0.cigarettesSmoked <= limit }.count
+    }
+
+    var smokeFreeDaysInRange: Int {
+        logs.filter { $0.cigarettesSmoked == 0 }.count
+    }
+
+    var totalUrges: Int {
+        logs.reduce(0) { $0 + $1.cigaretteUrges.count }
+    }
+
+    var showsSmokingReport: Bool {
+        settings.smokingMode.showsSection || totalCigarettes > 0 || totalUrges > 0
+    }
+
     // MARK: Supplements
 
     struct SupplementAdherence: Identifiable {

@@ -73,6 +73,13 @@ struct ReportsView: View {
                     } label: {
                         Label("Weight & BMI", systemImage: "scalemass")
                     }
+                    if currentSnapshot.showsSmokingReport {
+                        NavigationLink {
+                            SmokingReportView(snapshot: currentSnapshot)
+                        } label: {
+                            Label("Smoking", systemImage: "smoke")
+                        }
+                    }
                     NavigationLink {
                         SupplementsReportView(snapshot: currentSnapshot)
                     } label: {
@@ -412,12 +419,21 @@ struct WeightReportView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                let unit = snapshot.settings.usesMetricWeight ? "kg" : "lb"
                 if let delta = snapshot.weightDelta {
-                    let unit = snapshot.settings.usesMetricWeight ? "kg" : "lb"
                     ReportMetricRow(
                         title: "Change over range",
                         value: String(format: "%@%.1f %@", delta >= 0 ? "+" : "", delta, unit)
                     )
+                }
+                if let goal = snapshot.goalWeightDisplay {
+                    ReportMetricRow(title: "Goal weight", value: String(format: "%.1f %@", goal, unit))
+                }
+                if let latest = snapshot.latestWeightDisplay {
+                    ReportMetricRow(title: "Latest weight", value: String(format: "%.1f %@", latest, unit))
+                }
+                if let toGo = snapshot.weightToGoDisplay {
+                    ReportMetricRow(title: "Vs goal", value: Self.weightToGoLabel(toGo, unit: unit))
                 }
                 if let bmi = snapshot.latestBMI {
                     ReportMetricRow(
@@ -430,18 +446,30 @@ struct WeightReportView: View {
                 if !snapshot.weightSeries.isEmpty {
                     Text("Trend")
                         .font(.headline)
-                    Chart(snapshot.weightSeries) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("Weight", point.value)
-                        )
-                        PointMark(
-                            x: .value("Day", point.date),
-                            y: .value("Weight", point.value)
-                        )
+                    Chart {
+                        ForEach(snapshot.weightSeries) { point in
+                            LineMark(
+                                x: .value("Day", point.date),
+                                y: .value("Weight", point.value)
+                            )
+                            PointMark(
+                                x: .value("Day", point.date),
+                                y: .value("Weight", point.value)
+                            )
+                        }
+                        if let goal = snapshot.goalWeightDisplay {
+                            RuleMark(y: .value("Goal", goal))
+                                .foregroundStyle(.orange)
+                                .lineStyle(StrokeStyle(dash: [4, 3]))
+                                .annotation(position: .top, alignment: .trailing) {
+                                    Text("Goal")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                }
+                        }
                     }
                     .frame(height: 200)
-                    .chartYAxisLabel(snapshot.settings.usesMetricWeight ? "kg" : "lb")
+                    .chartYAxisLabel(unit)
                 } else {
                     EmptyReportHint()
                 }
@@ -449,6 +477,67 @@ struct WeightReportView: View {
             .padding()
         }
         .navigationTitle("Weight & BMI")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private static func weightToGoLabel(_ toGo: Double, unit: String) -> String {
+        if abs(toGo) < 0.05 { return "At goal" }
+        if toGo > 0 { return String(format: "%.1f %@ to go", toGo, unit) }
+        return String(format: "%.1f %@ under goal", abs(toGo), unit)
+    }
+}
+
+struct SmokingReportView: View {
+    let snapshot: ReportSnapshot
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ReportMetricRow(title: "Mode", value: snapshot.settings.smokingMode.title)
+                ReportMetricRow(title: "Total cigarettes", value: "\(snapshot.totalCigarettes)")
+                ReportMetricRow(
+                    title: "Avg / day",
+                    value: String(format: "%.1f", snapshot.avgCigarettesPerDay)
+                )
+                ReportMetricRow(
+                    title: "Smoke-free days",
+                    value: "\(snapshot.smokeFreeDaysInRange)/\(snapshot.logs.count)"
+                )
+                if snapshot.settings.effectiveDailyCigaretteLimit != nil {
+                    ReportMetricRow(
+                        title: "Days at/under max",
+                        value: "\(snapshot.daysUnderCigaretteLimit)/\(snapshot.logs.count)"
+                    )
+                }
+                if snapshot.totalUrges > 0 {
+                    ReportMetricRow(title: "Urges logged", value: "\(snapshot.totalUrges)")
+                }
+
+                if !snapshot.cigaretteSeries.isEmpty {
+                    Text("Daily count")
+                        .font(.headline)
+                    Chart {
+                        ForEach(snapshot.cigaretteSeries) { point in
+                            BarMark(
+                                x: .value("Day", point.date),
+                                y: .value("Cigs", point.value)
+                            )
+                            .foregroundStyle(Color.accentColor)
+                        }
+                        if let limit = snapshot.settings.effectiveDailyCigaretteLimit {
+                            RuleMark(y: .value("Max", Double(limit)))
+                                .foregroundStyle(.orange)
+                                .lineStyle(StrokeStyle(dash: [4, 3]))
+                        }
+                    }
+                    .frame(height: 200)
+                } else {
+                    EmptyReportHint()
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Smoking")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

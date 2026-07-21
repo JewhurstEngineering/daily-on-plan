@@ -12,14 +12,14 @@ struct WeightBMISection: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var draftText = ""
+    @State private var showGoalEditor = false
     @FocusState private var weightFocused: Bool
+
+    private var unitLabel: String { settings.usesMetricWeight ? "kg" : "lb" }
 
     private var displayWeight: String {
         guard let weight else { return "—" }
-        if settings.usesMetricWeight {
-            return String(format: "%.1f kg", weight.weightLbs * 0.453592)
-        }
-        return String(format: "%.1f lb", weight.weightLbs)
+        return String(format: "%.1f %@", displayValue(lbs: weight.weightLbs), unitLabel)
     }
 
     private var bmi: Double? {
@@ -31,10 +31,29 @@ struct WeightBMISection: View {
         guard let weight,
               let prior = recentWeights.first(where: { $0.date < weight.date }) else { return nil }
         let delta = weight.weightLbs - prior.weightLbs
-        let unit = settings.usesMetricWeight ? "kg" : "lb"
-        let value = settings.usesMetricWeight ? delta * 0.453592 : delta
+        let value = displayValue(lbs: delta)
         let sign = value >= 0 ? "+" : ""
-        return String(format: "%@%.1f %@", sign, value, unit)
+        return String(format: "%@%.1f %@ vs prior", sign, value, unitLabel)
+    }
+
+    private var goalDisplayLbs: Double? { settings.goalWeightLbs }
+
+    private var toGoText: String? {
+        guard let goal = goalDisplayLbs, let weight else { return nil }
+        let delta = weight.weightLbs - goal
+        let value = displayValue(lbs: abs(delta))
+        if abs(delta) < 0.05 {
+            return "At goal"
+        }
+        if delta > 0 {
+            return String(format: "%.1f %@ to go", value, unitLabel)
+        }
+        return String(format: "%.1f %@ under goal", value, unitLabel)
+    }
+
+    private var chartGoalValue: Double? {
+        guard let goal = goalDisplayLbs else { return nil }
+        return displayValue(lbs: goal)
     }
 
     var body: some View {
@@ -69,7 +88,7 @@ struct WeightBMISection: View {
                     Text(displayWeight)
                         .font(.largeTitle.bold().monospacedDigit())
                     if let deltaText {
-                        Text(deltaText + " vs prior")
+                        Text(deltaText)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -96,6 +115,8 @@ struct WeightBMISection: View {
                 }
             }
 
+            goalBlock
+
             HStack {
                 TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
                     .keyboardType(.decimalPad)
@@ -111,21 +132,36 @@ struct WeightBMISection: View {
             if !recentWeights.isEmpty {
                 Text("Weight trend")
                     .font(.subheadline.weight(.semibold))
-                Chart(recentWeights.reversed(), id: \.id) { entry in
-                    LineMark(
-                        x: .value("Date", entry.date),
-                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
-                    )
-                    PointMark(
-                        x: .value("Date", entry.date),
-                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
-                    )
+                Chart {
+                    ForEach(recentWeights.reversed(), id: \.id) { entry in
+                        LineMark(
+                            x: .value("Date", entry.date),
+                            y: .value("Weight", displayValue(lbs: entry.weightLbs))
+                        )
+                        PointMark(
+                            x: .value("Date", entry.date),
+                            y: .value("Weight", displayValue(lbs: entry.weightLbs))
+                        )
+                    }
+                    if let chartGoalValue {
+                        RuleMark(y: .value("Goal", chartGoalValue))
+                            .foregroundStyle(.orange)
+                            .lineStyle(StrokeStyle(dash: [4, 3]))
+                            .annotation(position: .top, alignment: .trailing) {
+                                Text("Goal")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                    }
                 }
                 .frame(height: 140)
-                .chartYAxisLabel(settings.usesMetricWeight ? "kg" : "lb")
+                .chartYAxisLabel(unitLabel)
             }
         }
         .keyboardDoneToolbar(focus: $weightFocused)
+        .sheet(isPresented: $showGoalEditor) {
+            GoalWeightConfigSheet(settings: settings)
+        }
         .onAppear { syncDraft() }
         .onChange(of: weight?.weightLbs) { _, _ in
             if !weightFocused { syncDraft() }
@@ -133,16 +169,54 @@ struct WeightBMISection: View {
         .onChange(of: settings.usesMetricWeight) { _, _ in syncDraft() }
     }
 
+    @ViewBuilder
+    private var goalBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Goal weight")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let goal = goalDisplayLbs {
+                        Text(String(format: "%.1f %@", displayValue(lbs: goal), unitLabel))
+                            .font(.title3.bold().monospacedDigit())
+                        if let toGoText {
+                            Text(toGoText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if weight == nil {
+                            Text("Log today’s weight to see progress")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("Not set")
+                            .font(.title3.bold())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Spacer()
+                Button(goalDisplayLbs == nil ? "Set goal" : "Edit goal") {
+                    showGoalEditor = true
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private var parsedDraft: Double? {
         guard let value = Double(draftText.replacingOccurrences(of: ",", with: ".")), value > 0 else { return nil }
         return value
     }
 
+    private func displayValue(lbs: Double) -> Double {
+        settings.usesMetricWeight ? lbs * 0.453592 : lbs
+    }
+
     private func syncDraft() {
         if let weight {
-            draftText = settings.usesMetricWeight
-                ? String(format: "%.1f", weight.weightLbs * 0.453592)
-                : String(format: "%.1f", weight.weightLbs)
+            draftText = String(format: "%.1f", displayValue(lbs: weight.weightLbs))
         }
     }
 
@@ -152,9 +226,82 @@ struct WeightBMISection: View {
         Keyboard.dismiss()
         let lbs = settings.usesMetricWeight ? value / 0.453592 : value
         onSave(lbs)
-        // Keep the typed value visible; sync from saved entry next appear/change.
-        draftText = settings.usesMetricWeight
-            ? String(format: "%.1f", value)
-            : String(format: "%.1f", value)
+        draftText = String(format: "%.1f", value)
+    }
+}
+
+struct GoalWeightConfigSheet: View {
+    @Bindable var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var goalText = ""
+    @FocusState private var goalFocused: Bool
+
+    private var unitLabel: String { settings.usesMetricWeight ? "kg" : "lb" }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        TextField("Goal", text: $goalText)
+                            .keyboardType(.decimalPad)
+                            .focused($goalFocused)
+                        Text(unitLabel)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Target weight")
+                } footer: {
+                    Text("Shown on the Weight card and in Snapshot with a goal line on the trend chart.")
+                }
+
+                if settings.hasGoalWeight {
+                    Section {
+                        Button("Clear goal", role: .destructive) {
+                            settings.goalWeightLbs = nil
+                            try? modelContext.save()
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Goal Weight")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar(focus: $goalFocused)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        Keyboard.dismiss()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        commit()
+                    }
+                    .disabled(parsedGoal == nil)
+                }
+            }
+            .onAppear {
+                if let goal = settings.goalWeightLbs {
+                    let value = settings.usesMetricWeight ? goal * 0.453592 : goal
+                    goalText = String(format: "%.1f", value)
+                }
+            }
+        }
+    }
+
+    private var parsedGoal: Double? {
+        guard let value = Double(goalText.replacingOccurrences(of: ",", with: ".")), value > 0 else { return nil }
+        return value
+    }
+
+    private func commit() {
+        guard let value = parsedGoal else { return }
+        Keyboard.dismiss()
+        settings.goalWeightLbs = settings.usesMetricWeight ? value / 0.453592 : value
+        try? modelContext.save()
+        dismiss()
     }
 }

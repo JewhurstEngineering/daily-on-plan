@@ -8,7 +8,11 @@ struct SettingsView: View {
     @State private var heightFeet = 5
     @State private var heightInchesPart = 8
     @State private var hydrationTargetText = ""
+    @State private var goalWeightText = ""
+    @State private var packPriceText = ""
     @FocusState private var hydrationTargetFocused: Bool
+    @FocusState private var goalWeightFocused: Bool
+    @FocusState private var packPriceFocused: Bool
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
     var body: some View {
@@ -133,13 +137,116 @@ struct SettingsView: View {
                             Text("Saved as \(heightFeet)'\(heightInchesPart)\"")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                            HStack {
+                                TextField("Goal weight", text: $goalWeightText)
+                                    .keyboardType(.decimalPad)
+                                    .focused($goalWeightFocused)
+                                    .onChange(of: goalWeightText) { _, newValue in
+                                        let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "," }
+                                        if filtered != newValue { goalWeightText = filtered }
+                                    }
+                                Text(settings.usesMetricWeight ? "kg" : "lb")
+                                    .foregroundStyle(.secondary)
+                            }
+                            if settings.hasGoalWeight {
+                                Button("Clear goal weight", role: .destructive) {
+                                    settings.goalWeightLbs = nil
+                                    goalWeightText = ""
+                                    save(settings)
+                                }
+                            }
                         } header: {
                             Text("Body metrics")
                         } footer: {
-                            Text("BMI uses this height with each day’s weight. Change either picker — both update together.")
+                            Text("BMI uses height with each day’s weight. Goal weight shows to-go on the Weight card and Snapshot.")
                         }
                         .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
                         .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
+                        .onChange(of: goalWeightFocused) { _, focused in
+                            if !focused { commitGoalWeight(settings) }
+                        }
+
+                        Section {
+                            Picker("Mode", selection: Binding(
+                                get: { settings.smokingMode },
+                                set: {
+                                    settings.smokingMode = $0
+                                    if $0 == .quit, settings.quitDate == nil {
+                                        settings.quitDate = Date()
+                                    }
+                                    save(settings)
+                                }
+                            )) {
+                                ForEach(SmokingMode.allCases) { mode in
+                                    Text(mode.title).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
+                            Text(settings.smokingMode.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            if settings.smokingMode == .reduce {
+                                Stepper(
+                                    "Daily max: \(settings.dailyCigaretteLimit)",
+                                    value: Binding(
+                                        get: { settings.dailyCigaretteLimit },
+                                        set: {
+                                            settings.dailyCigaretteLimit = $0
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: 0...AppLimits.cigaretteLimitMax,
+                                    step: 1
+                                )
+                            }
+
+                            if settings.smokingMode == .quit {
+                                DatePicker(
+                                    "Quit date",
+                                    selection: Binding(
+                                        get: { settings.quitDate ?? Date() },
+                                        set: {
+                                            settings.quitDate = $0
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: ...Date(),
+                                    displayedComponents: .date
+                                )
+                                Stepper(
+                                    "Cigs per pack: \(settings.cigarettesPerPack)",
+                                    value: Binding(
+                                        get: { settings.cigarettesPerPack },
+                                        set: {
+                                            settings.cigarettesPerPack = $0
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: 1...40,
+                                    step: 1
+                                )
+                                HStack {
+                                    TextField("Pack price (optional)", text: $packPriceText)
+                                        .keyboardType(.decimalPad)
+                                        .focused($packPriceFocused)
+                                    Text("$")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text("Used only to estimate money saved on smoke-free days.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("Smoking")
+                        } footer: {
+                            Text("Off hides the section. Count is a simple tap counter. Reduce adds a daily max. Quit adds smoke-free days and an urge log.")
+                        }
+                        .onChange(of: packPriceFocused) { _, focused in
+                            if !focused { commitPackPrice(settings) }
+                        }
 
                         Section {
                             NavigationLink {
@@ -285,12 +392,27 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .keyboardDoneToolbar(focus: $hydrationTargetFocused)
             .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        hydrationTargetFocused = false
+                        goalWeightFocused = false
+                        packPriceFocused = false
+                        if let settings {
+                            commitHydrationTarget(settings)
+                            commitGoalWeight(settings)
+                            commitPackPrice(settings)
+                        }
+                        Keyboard.dismiss()
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         if let settings {
                             commitHydrationTarget(settings)
+                            commitGoalWeight(settings)
+                            commitPackPrice(settings)
                         }
                         Keyboard.dismiss()
                         dismiss()
@@ -301,6 +423,17 @@ struct SettingsView: View {
                 let s = DataStore.settings(in: modelContext)
                 settings = s
                 hydrationTargetText = "\(s.hydrationTargetOz)"
+                if let goal = s.goalWeightLbs {
+                    let value = s.usesMetricWeight ? goal * 0.453592 : goal
+                    goalWeightText = String(format: "%.1f", value)
+                } else {
+                    goalWeightText = ""
+                }
+                if let price = s.cigarettePackPrice {
+                    packPriceText = String(format: "%.2f", price)
+                } else {
+                    packPriceText = ""
+                }
                 let total = Int(s.heightInches)
                 if total > 0 {
                     heightFeet = total / 12
@@ -323,6 +456,43 @@ struct SettingsView: View {
         } else {
             hydrationTargetText = "\(settings.hydrationTargetOz)"
         }
+    }
+
+    private func commitGoalWeight(_ settings: AppSettings) {
+        let cleaned = goalWeightText.replacingOccurrences(of: ",", with: ".")
+        if cleaned.trimmingCharacters(in: .whitespaces).isEmpty {
+            return
+        }
+        guard let value = Double(cleaned), value > 0 else {
+            if let goal = settings.goalWeightLbs {
+                let display = settings.usesMetricWeight ? goal * 0.453592 : goal
+                goalWeightText = String(format: "%.1f", display)
+            }
+            return
+        }
+        settings.goalWeightLbs = settings.usesMetricWeight ? value / 0.453592 : value
+        goalWeightText = String(format: "%.1f", value)
+        save(settings)
+    }
+
+    private func commitPackPrice(_ settings: AppSettings) {
+        let cleaned = packPriceText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        if cleaned.isEmpty {
+            settings.cigarettePackPrice = nil
+            save(settings)
+            return
+        }
+        guard let value = Double(cleaned), value > 0 else {
+            if let price = settings.cigarettePackPrice {
+                packPriceText = String(format: "%.2f", price)
+            } else {
+                packPriceText = ""
+            }
+            return
+        }
+        settings.cigarettePackPrice = value
+        packPriceText = String(format: "%.2f", value)
+        save(settings)
     }
 
     private func persistHeight(_ settings: AppSettings) {
