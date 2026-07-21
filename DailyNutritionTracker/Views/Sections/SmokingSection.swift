@@ -42,18 +42,21 @@ struct SmokingSection: View {
         return String(format: "Est. $%.2f saved", saved)
     }
 
+    private var overLimit: Bool { !underLimit }
+
     var body: some View {
         SectionCard(
             title: "Smoking",
             systemImage: "smoke",
             isCollapsed: settings.sectionCollapsedBinding(.smoking, context: modelContext),
-            collapsedMessage: DaySectionID.smoking.collapsedMessage
+            collapsedMessage: DaySectionID.smoking.collapsedMessage,
+            emphasis: overLimit ? .caution : .none
         ) {
             Text(modeBlurb)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Today")
                         .font(.caption)
@@ -74,27 +77,27 @@ struct SmokingSection: View {
                         .foregroundStyle(.secondary)
                     }
                 }
-                Spacer()
-                HStack(spacing: 12) {
-                    Button {
-                        log.removeLastCigaretteEvent()
-                        try? modelContext.save()
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title)
-                    }
-                    .disabled(log.cigaretteEvents.isEmpty)
-                    .accessibilityLabel("Undo last smoke log")
-
-                    Button {
-                        log.addCigarette()
-                        try? modelContext.save()
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                    }
-                    .accessibilityLabel("Log one cigarette")
+                Spacer(minLength: 8)
+                HabitTapButton(
+                    caption: "Ash to add",
+                    isCaution: overLimit,
+                    accessibilityLabel: "Log one cigarette"
+                ) {
+                    log.addCigarette()
+                    try? modelContext.save()
+                } icon: {
+                    CigaretteGlyph()
                 }
+                Button {
+                    log.removeLastCigaretteEvent()
+                    try? modelContext.save()
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                }
+                .disabled(log.cigaretteEvents.isEmpty)
+                .accessibilityLabel("Undo last smoke log")
                 .buttonStyle(.plain)
             }
 
@@ -250,11 +253,11 @@ struct SmokingSection: View {
         case .off:
             return ""
         case .count:
-            return "Log each cigarette or a pack amount. Every entry gets a timestamp."
+            return "Tap the cigarette to ash one — each log gets a timestamp. Or add a pack below."
         case .reduce:
-            return "Stay at or under your daily max. Log by cig or pack."
+            return "Stay at or under your daily max. Tap the cig or add a pack."
         case .quit:
-            return "Target is zero. Log slips with time stamps and urges when cravings hit."
+            return "Target is zero. Tap the cig for slips (timestamped) and log urges when cravings hit."
         }
     }
 

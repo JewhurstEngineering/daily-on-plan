@@ -6,6 +6,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
     var systemImage: String? = nil
     var isCollapsed: Binding<Bool>? = nil
     var collapsedMessage: String = "Collapsed — tap the chevron to show."
+    var emphasis: SectionCardEmphasis = .none
     @ViewBuilder var trailing: () -> Trailing
     @ViewBuilder var content: Content
 
@@ -14,6 +15,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
         systemImage: String? = nil,
         isCollapsed: Binding<Bool>? = nil,
         collapsedMessage: String = "Collapsed — tap the chevron to show.",
+        emphasis: SectionCardEmphasis = .none,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
         @ViewBuilder content: () -> Content
     ) {
@@ -21,6 +23,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
         self.systemImage = systemImage
         self.isCollapsed = isCollapsed
         self.collapsedMessage = collapsedMessage
+        self.emphasis = emphasis
         self.trailing = trailing
         self.content = content()
     }
@@ -34,10 +37,19 @@ struct SectionCard<Content: View, Trailing: View>: View {
             HStack(spacing: 8) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(emphasis == .caution ? Color.orange : Color.accentColor)
                 }
                 Text(title)
                     .font(.headline)
+                if emphasis == .caution {
+                    Text("Over")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.orange.opacity(0.18))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
+                }
                 Spacer(minLength: 8)
                 trailing()
                 if let isCollapsed {
@@ -67,8 +79,116 @@ struct SectionCard<Content: View, Trailing: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(emphasis == .caution ? Color.orange.opacity(0.45) : Color.clear, lineWidth: 1.5)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.easeInOut(duration: 0.25), value: emphasis)
+    }
+
+    private var cardBackground: Color {
+        switch emphasis {
+        case .none:
+            return Color(.secondarySystemGroupedBackground)
+        case .caution:
+            return Color.orange.opacity(0.10)
+        }
+    }
+}
+
+enum SectionCardEmphasis: Equatable {
+    case none
+    /// Soft over-limit highlight (smoking / drinking max).
+    case caution
+}
+
+/// Big tap target for logging one habit unit (cig, drink) with a light bounce.
+struct HabitTapButton<Icon: View>: View {
+    let caption: String
+    let isCaution: Bool
+    let accessibilityLabel: String
+    let action: () -> Void
+    @ViewBuilder var icon: () -> Icon
+
+    @State private var pressTick = 0
+
+    init(
+        caption: String,
+        isCaution: Bool,
+        accessibilityLabel: String,
+        action: @escaping () -> Void,
+        @ViewBuilder icon: @escaping () -> Icon
+    ) {
+        self.caption = caption
+        self.isCaution = isCaution
+        self.accessibilityLabel = accessibilityLabel
+        self.action = action
+        self.icon = icon
+    }
+
+    var body: some View {
+        Button {
+            pressTick += 1
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill((isCaution ? Color.orange : Color.accentColor).opacity(0.14))
+                    icon()
+                        .foregroundStyle(isCaution ? Color.orange : Color.accentColor)
+                }
+                .frame(width: 68, height: 68)
+                .symbolEffect(.bounce, value: pressTick)
+                Text(caption)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+        .sensoryFeedback(.impact(weight: .light), trigger: pressTick)
+    }
+}
+
+/// Reliable cigarette glyph — `cigarette` SF Symbol is missing/blank on some installs.
+struct CigaretteGlyph: View {
+    var body: some View {
+        Canvas { context, size in
+            let w = size.width
+            let h = size.height
+            let cigHeight = h * 0.22
+            let cigY = (h - cigHeight) / 2
+            let tipWidth = w * 0.18
+            let filterWidth = w * 0.22
+            let bodyWidth = w - tipWidth - filterWidth - w * 0.08
+
+            // Ash / tip
+            var tip = Path(roundedRect: CGRect(x: w * 0.04, y: cigY, width: tipWidth, height: cigHeight), cornerRadius: cigHeight / 2)
+            context.fill(tip, with: .color(.secondary.opacity(0.55)))
+
+            // Paper body
+            var paper = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth, y: cigY, width: bodyWidth, height: cigHeight), cornerRadius: 1)
+            context.fill(paper, with: .color(.primary.opacity(0.85)))
+
+            // Filter
+            var filter = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth + bodyWidth, y: cigY, width: filterWidth, height: cigHeight), cornerRadius: cigHeight / 3)
+            context.fill(filter, with: .color(.orange.opacity(0.85)))
+
+            // Little smoke wisp
+            var wisp = Path()
+            let sx = w * 0.08
+            wisp.move(to: CGPoint(x: sx, y: cigY - 2))
+            wisp.addCurve(
+                to: CGPoint(x: sx - 4, y: cigY - h * 0.28),
+                control1: CGPoint(x: sx + 6, y: cigY - h * 0.1),
+                control2: CGPoint(x: sx - 10, y: cigY - h * 0.18)
+            )
+            context.stroke(wisp, with: .color(.secondary.opacity(0.5)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        }
+        .frame(width: 40, height: 40)
     }
 }
 

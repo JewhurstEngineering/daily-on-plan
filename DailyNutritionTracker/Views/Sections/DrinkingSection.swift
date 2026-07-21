@@ -28,18 +28,21 @@ struct DrinkingSection: View {
         return Self.trailingUnderLimitDays(from: log.date, logs: recentLogs, limit: limit)
     }
 
+    private var overLimit: Bool { !underLimit }
+
     var body: some View {
         SectionCard(
             title: "Drinking",
             systemImage: "wineglass",
             isCollapsed: settings.sectionCollapsedBinding(.drinking, context: modelContext),
-            collapsedMessage: DaySectionID.drinking.collapsedMessage
+            collapsedMessage: DaySectionID.drinking.collapsedMessage,
+            emphasis: overLimit ? .caution : .none
         ) {
             Text(modeBlurb)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Today")
                         .font(.caption)
@@ -57,27 +60,29 @@ struct DrinkingSection: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Spacer()
-                HStack(spacing: 12) {
-                    Button {
-                        log.removeLastDrinkEvent()
-                        try? modelContext.save()
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title)
-                    }
-                    .disabled(log.drinkEvents.isEmpty)
-                    .accessibilityLabel("Undo last drink")
-
-                    Button {
-                        log.addDrinks(1)
-                        try? modelContext.save()
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                    }
-                    .accessibilityLabel("Log one drink")
+                Spacer(minLength: 8)
+                HabitTapButton(
+                    caption: "Pour to add",
+                    isCaution: overLimit,
+                    accessibilityLabel: "Log one drink"
+                ) {
+                    log.addDrinks(1)
+                    try? modelContext.save()
+                } icon: {
+                    Image(systemName: "wineglass.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
                 }
+                Button {
+                    log.removeLastDrinkEvent()
+                    try? modelContext.save()
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                }
+                .disabled(log.drinkEvents.isEmpty)
+                .accessibilityLabel("Undo last drink")
                 .buttonStyle(.plain)
             }
 
@@ -220,9 +225,9 @@ struct DrinkingSection: View {
     private var modeBlurb: String {
         switch settings.drinkingMode {
         case .off: return ""
-        case .count: return "Log each drink with a timestamp. Keep it simple — standard drinks."
-        case .reduce: return "Stay at or under your daily drink max."
-        case .quit: return "Target is zero. Log slips and urges with times."
+        case .count: return "Tap the glass to pour one — each drink gets a timestamp."
+        case .reduce: return "Stay at or under your daily drink max. Tap the glass to log."
+        case .quit: return "Target is zero. Tap for slips and log urges when cravings hit."
         }
     }
 

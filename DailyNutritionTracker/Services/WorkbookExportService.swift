@@ -59,26 +59,39 @@ enum WorkbookExportService {
         rows.append(["Total Protein Calories", "\(log.totalProteinCalories)"])
         rows.append(["Ketosis", log.ketosis ? "Y" : "N"])
         rows.append(["Followed Plan", log.followedPlan ? "Y" : "N"])
-        if !log.offPlanReasons.isEmpty {
-            rows.append(["Off-plan reasons", log.offPlanReasons.joined(separator: ", ")])
-        }
+        // Always present so day sheets keep the same header shape on-plan vs off-plan.
+        rows.append([
+            "Off-plan reasons",
+            log.offPlanReasons.isEmpty ? "" : log.offPlanReasons.joined(separator: ", ")
+        ])
         rows.append(["Notes", log.notes])
         rows.append([])
 
+        // Always emit Weight block so sheets align whether or not a weigh-in exists.
+        rows.append(["Weight & BMI"])
         if let weight {
-            var bmi = ""
-            if let value = BMICalculator.bmi(weightLbs: weight.weightLbs, heightInches: settings.heightInches) {
-                bmi = String(format: "%.1f (%@)", value, BMICalculator.category(for: value))
-            }
-            rows.append(["Weight & BMI"])
             rows.append(["Weight (lb)", String(format: "%.1f", weight.weightLbs)])
-            if let goal = settings.goalWeightLbs {
-                rows.append(["Goal (lb)", String(format: "%.1f", goal)])
-                rows.append(["To go (lb)", String(format: "%.1f", weight.weightLbs - goal)])
-            }
-            rows.append(["BMI", bmi])
-            rows.append([])
+        } else {
+            rows.append(["Weight (lb)", ""])
         }
+        if let goal = settings.goalWeightLbs {
+            rows.append(["Goal (lb)", String(format: "%.1f", goal)])
+            if let weight {
+                rows.append(["To go (lb)", String(format: "%.1f", weight.weightLbs - goal)])
+            } else {
+                rows.append(["To go (lb)", ""])
+            }
+        } else {
+            rows.append(["Goal (lb)", ""])
+            rows.append(["To go (lb)", ""])
+        }
+        if let weight,
+           let value = BMICalculator.bmi(weightLbs: weight.weightLbs, heightInches: settings.heightInches) {
+            rows.append(["BMI", String(format: "%.1f (%@)", value, BMICalculator.category(for: value))])
+        } else {
+            rows.append(["BMI", ""])
+        }
+        rows.append([])
 
         rows.append(["Feelings & Cravings"])
         rows.append(["Type", "Time", "Note"])
