@@ -317,6 +317,16 @@ struct SettingsView: View {
                                 Label("Notifications", systemImage: "bell.badge")
                             }
                             NavigationLink {
+                                MotivationQuotesSettingsView(settings: settings)
+                            } label: {
+                                Label("Motivational quotes", systemImage: "quote.bubble")
+                            }
+                            NavigationLink {
+                                DayLayoutSettingsView(settings: settings)
+                            } label: {
+                                Label("Day layout", systemImage: "list.bullet.rectangle")
+                            }
+                            NavigationLink {
                                 SavedMealsListView(settings: settings)
                             } label: {
                                 Label("Saved meals", systemImage: "fork.knife")
@@ -329,7 +339,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Reminders & meals")
                         } footer: {
-                            Text("Notifications default to evening plan, ketosis check, and daily check-in. Food preferences filter allergies and picky-eater picks.")
+                            Text("Notifications default to evening plan, ketosis check, and daily check-in. Reorder day sections under Day layout. Food preferences filter allergies and picky-eater picks.")
                         }
 
                         Section {
@@ -443,10 +453,32 @@ struct SettingsView: View {
                             }
                         }
 
-                        Section("Health") {
-                            Button("Request Apple Health access") {
-                                Task { await HealthKitService.shared.requestAuthorization() }
+                        Section {
+                            Text(HealthKitService.shared.authStatus.title)
+                                .font(.subheadline.weight(.semibold))
+                            if let message = HealthKitService.shared.lastMessage {
+                                Text(message)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
+                            Button(healthButtonTitle) {
+                                Task {
+                                    await HealthKitService.shared.requestAuthorization()
+                                }
+                            }
+                            if HealthKitService.shared.authStatus == .sharingDenied
+                                || HealthKitService.shared.authStatus == .sharingAuthorized {
+                                Button("Open Health / Settings") {
+                                    HealthKitService.shared.openHealthOrSystemSettings()
+                                }
+                            }
+                        } header: {
+                            Text("Health")
+                        } footer: {
+                            Text("Syncs water, weight, workouts, and alcoholic drinks to Apple Health. Cigarette counts stay in \(AppIdentity.displayName) only — HealthKit has no public nicotine type.")
+                        }
+                        .onAppear {
+                            HealthKitService.shared.refreshStatus()
                         }
                     }
                 } else {
@@ -564,5 +596,14 @@ struct SettingsView: View {
 
     private func save(_ settings: AppSettings) {
         try? modelContext.save()
+    }
+
+    private var healthButtonTitle: String {
+        switch HealthKitService.shared.authStatus {
+        case .unavailable: return "Health unavailable"
+        case .notDetermined: return "Request Apple Health access"
+        case .sharingDenied: return "Request again / re-check"
+        case .sharingAuthorized: return "Re-check Health permissions"
+        }
     }
 }

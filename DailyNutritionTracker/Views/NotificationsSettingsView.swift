@@ -175,6 +175,76 @@ struct NotificationsSettingsView: View {
                 ),
                 showTime: settings.weighReminderEnabled
             )
+
+            reminderRow(
+                title: "Smoking check-in",
+                explanation: settings.smokingMode.showsSection
+                    ? "Soft nudge to log cigarettes / urges. Off by default. Only fires while Smoking mode is on."
+                    : "Turn on Smoking in Settings (mode ≠ Off) to enable this reminder.",
+                enabled: Binding(
+                    get: { settings.smokingCheckInEnabled },
+                    set: {
+                        settings.smokingCheckInEnabled = $0
+                        persist()
+                    }
+                ),
+                time: Binding(
+                    get: { date(hour: settings.smokingCheckInHour, minute: settings.smokingCheckInMinute) },
+                    set: { d in
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                        settings.smokingCheckInHour = c.hour ?? 16
+                        settings.smokingCheckInMinute = c.minute ?? 0
+                        persist()
+                    }
+                ),
+                showTime: settings.smokingCheckInEnabled
+            )
+
+            reminderRow(
+                title: "Drinking check-in",
+                explanation: settings.drinkingMode.showsSection
+                    ? "Soft nudge to log drinks / urges. Off by default. Only fires while Drinking mode is on."
+                    : "Turn on Drinking in Settings (mode ≠ Off) to enable this reminder.",
+                enabled: Binding(
+                    get: { settings.drinkingCheckInEnabled },
+                    set: {
+                        settings.drinkingCheckInEnabled = $0
+                        persist()
+                    }
+                ),
+                time: Binding(
+                    get: { date(hour: settings.drinkingCheckInHour, minute: settings.drinkingCheckInMinute) },
+                    set: { d in
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                        settings.drinkingCheckInHour = c.hour ?? 17
+                        settings.drinkingCheckInMinute = c.minute ?? 0
+                        persist()
+                    }
+                ),
+                showTime: settings.drinkingCheckInEnabled
+            )
+
+            reminderRow(
+                title: "Daily motivation",
+                explanation: "A short quote each day. Manage the quote list under Settings → Motivational quotes. Off by default.",
+                enabled: Binding(
+                    get: { settings.motivationReminderEnabled },
+                    set: {
+                        settings.motivationReminderEnabled = $0
+                        persist()
+                    }
+                ),
+                time: Binding(
+                    get: { date(hour: settings.motivationReminderHour, minute: settings.motivationReminderMinute) },
+                    set: { d in
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                        settings.motivationReminderHour = c.hour ?? 8
+                        settings.motivationReminderMinute = c.minute ?? 0
+                        persist()
+                    }
+                ),
+                showTime: settings.motivationReminderEnabled
+            )
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)

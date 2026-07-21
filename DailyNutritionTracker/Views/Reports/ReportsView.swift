@@ -40,6 +40,16 @@ struct ReportsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    NavigationLink {
+                        CalendarHeatmapView(snapshot: currentSnapshot)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Calendar heatmap", systemImage: "calendar")
+                            Text("Plan, water, protein, and habit free days")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 Section("Section reports") {

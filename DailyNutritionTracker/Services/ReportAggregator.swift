@@ -46,6 +46,43 @@ struct NamedCount: Identifiable {
     let count: Int
 }
 
+enum HeatmapMetric: String, CaseIterable, Identifiable {
+    case followedPlan
+    case waterHit
+    case proteinOnGoal
+    case smokeFree
+    case alcoholFree
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .followedPlan: return "Followed plan"
+        case .waterHit: return "Water hit"
+        case .proteinOnGoal: return "Protein ≤ goal"
+        case .smokeFree: return "Smoke-free"
+        case .alcoholFree: return "Alcohol-free"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .followedPlan: return "Plan"
+        case .waterHit: return "Water"
+        case .proteinOnGoal: return "Protein"
+        case .smokeFree: return "Smoke-free"
+        case .alcoholFree: return "Alcohol-free"
+        }
+    }
+}
+
+struct HeatmapDay: Identifiable {
+    var id: Date { date }
+    let date: Date
+    /// `nil` = no log that day; `true` = met; `false` = missed.
+    let hit: Bool?
+}
+
 struct ReportSnapshot {
     let start: Date
     let end: Date
@@ -367,6 +404,94 @@ struct ReportSnapshot {
     var hydrationHitRate: Double {
         guard !logs.isEmpty else { return 0 }
         return Double(daysAtHydrationTarget) / Double(logs.count) * 100
+    }
+
+    // MARK: Heatmaps & streaks
+
+    var availableHeatmapMetrics: [HeatmapMetric] {
+        var metrics: [HeatmapMetric] = [.followedPlan, .waterHit, .proteinOnGoal]
+        if settings.smokingMode.showsSection || smokeFreeDaysInRange > 0 || totalCigarettes > 0 {
+            metrics.append(.smokeFree)
+        }
+        if settings.drinkingMode.showsSection || alcoholFreeDaysInRange > 0 || totalDrinks > 0 {
+            metrics.append(.alcoholFree)
+        }
+        return metrics
+    }
+
+    func heatmapDays(for metric: HeatmapMetric) -> [HeatmapDay] {
+        let calendar = Calendar.current
+        let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
+        var days: [HeatmapDay] = []
+        var cursor = DateHelpers.startOfDay(start)
+        let endDay = DateHelpers.startOfDay(end)
+        while cursor <= endDay {
+            let log = byDay[cursor]
+            let hit: Bool?
+            if let log {
+                switch metric {
+                case .followedPlan:
+                    hit = log.followedPlan
+                case .waterHit:
+                    hit = log.waterOz >= settings.hydrationTargetOz
+                case .proteinOnGoal:
+                    hit = log.totalProteinCalories > 0 && log.totalProteinCalories <= log.proteinGoal
+                case .smokeFree:
+                    hit = log.cigarettesSmoked == 0
+                case .alcoholFree:
+                    hit = log.drinksLogged == 0
+                }
+            } else {
+                hit = nil
+            }
+            days.append(HeatmapDay(date: cursor, hit: hit))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return days
+    }
+
+    var currentPlanFollowStreak: Int {
+        trailingStreak(from: end) { $0.followedPlan }
+    }
+
+    var currentSmokeFreeStreak: Int {
+        SmokingSection.trailingSmokeFreeDays(
+            from: end,
+            logs: logs,
+            quitDate: settings.quitDate
+        )
+    }
+
+    var currentAlcoholFreeStreak: Int {
+        DrinkingSection.trailingAlcoholFreeDays(
+            from: end,
+            logs: logs,
+            quitDate: settings.alcoholQuitDate
+        )
+    }
+
+    var logForEndDate: DailyLog? {
+        let day = DateHelpers.startOfDay(end)
+        return logs.first { DateHelpers.startOfDay($0.date) == day }
+    }
+
+    var weightForEndDate: WeightEntry? {
+        let day = DateHelpers.startOfDay(end)
+        return weights.first { DateHelpers.startOfDay($0.date) == day } ?? weights.last
+    }
+
+    private func trailingStreak(from day: Date, matches: (DailyLog) -> Bool) -> Int {
+        let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
+        var cursor = DateHelpers.startOfDay(day)
+        var streak = 0
+        while let log = byDay[cursor] {
+            guard matches(log) else { break }
+            streak += 1
+            guard let previous = Calendar.current.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return streak
     }
 
     // MARK: Weekly rollups

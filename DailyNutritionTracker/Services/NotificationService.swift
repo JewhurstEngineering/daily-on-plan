@@ -9,13 +9,18 @@ enum NotificationKind: String {
     case eveningPlan
     case ketosis
     case genericCheckIn
+    case smokingCheckIn
+    case drinkingCheckIn
+    case motivation
 
     var deepLinkSection: String {
         switch self {
         case .water: return "hydration"
         case .meal: return "protein"
         case .weigh: return "weight"
-        case .eveningPlan, .ketosis, .genericCheckIn: return "header"
+        case .smokingCheckIn: return "smoking"
+        case .drinkingCheckIn: return "drinking"
+        case .eveningPlan, .ketosis, .genericCheckIn, .motivation: return "header"
         }
     }
 }
@@ -143,6 +148,47 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 trigger: trigger
             )
             try? await center.add(request)
+        }
+
+        if settings.smokingCheckInEnabled, settings.smokingMode.showsSection {
+            let body = MotivationQuoteStore.smokingBodies().randomElement()
+                ?? "Open Smoking to log today’s count."
+            scheduleDaily(
+                id: "smoking-checkin",
+                title: "Smoking check-in",
+                body: body,
+                hour: settings.smokingCheckInHour,
+                minute: settings.smokingCheckInMinute,
+                kind: .smokingCheckIn,
+                center: center
+            )
+        }
+
+        if settings.drinkingCheckInEnabled, settings.drinkingMode.showsSection {
+            let body = MotivationQuoteStore.drinkingBodies().randomElement()
+                ?? "Open Drinking to log today’s drinks."
+            scheduleDaily(
+                id: "drinking-checkin",
+                title: "Drinking check-in",
+                body: body,
+                hour: settings.drinkingCheckInHour,
+                minute: settings.drinkingCheckInMinute,
+                kind: .drinkingCheckIn,
+                center: center
+            )
+        }
+
+        if settings.motivationReminderEnabled {
+            let quote = MotivationQuoteStore.nextQuote(custom: settings.customMotivationQuotes)
+            scheduleDaily(
+                id: "motivation-daily",
+                title: "Stay on plan",
+                body: quote,
+                hour: settings.motivationReminderHour,
+                minute: settings.motivationReminderMinute,
+                kind: .motivation,
+                center: center
+            )
         }
     }
 

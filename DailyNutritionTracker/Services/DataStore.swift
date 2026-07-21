@@ -28,7 +28,7 @@ enum DataStore {
         if let existing = try? context.fetch(descriptor).first {
             let before = existing.notificationsDefaultsVersionStored ?? 0
             existing.migrateNotificationDefaultsIfNeeded()
-            if before < 3 {
+            if before < 4 {
                 try? context.save()
             }
             return existing

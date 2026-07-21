@@ -8,6 +8,7 @@ struct DrinkingSection: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var healthKit: HealthKitService
     @State private var showUrgeSheet = false
     @State private var urgeNote = ""
     @State private var showEventList = false
@@ -67,7 +68,7 @@ struct DrinkingSection: View {
                     accessibilityLabel: "Log one drink"
                 ) {
                     log.addDrinks(1)
-                    try? modelContext.save()
+                    persistDrinks()
                 } icon: {
                     Image(systemName: "wineglass.fill")
                         .font(.system(size: 30, weight: .semibold))
@@ -75,7 +76,7 @@ struct DrinkingSection: View {
                 }
                 Button {
                     log.removeLastDrinkEvent()
-                    try? modelContext.save()
+                    persistDrinks()
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.title)
@@ -93,7 +94,7 @@ struct DrinkingSection: View {
                 ForEach([2, 3, 4], id: \.self) { count in
                     Button {
                         log.addDrinks(count)
-                        try? modelContext.save()
+                        persistDrinks()
                     } label: {
                         Text("+\(count)")
                             .font(.caption.weight(.semibold))
@@ -117,7 +118,7 @@ struct DrinkingSection: View {
                             Spacer()
                             Button(role: .destructive) {
                                 log.removeDrinkEvent(id: event.id)
-                                try? modelContext.save()
+                                persistDrinks()
                             } label: {
                                 Image(systemName: "trash")
                                     .font(.caption)
@@ -219,6 +220,13 @@ struct DrinkingSection: View {
                 }
             }
             .presentationDetents([.medium])
+        }
+    }
+
+    private func persistDrinks() {
+        try? modelContext.save()
+        Task {
+            await healthKit.writeAlcoholicDrinks(count: log.drinksLogged, on: log.date)
         }
     }
 

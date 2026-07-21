@@ -14,6 +14,26 @@ enum DaySectionID: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var settingsTitle: String {
+        switch self {
+        case .dailyStatus: return "Daily status"
+        case .weight: return "Weight & BMI"
+        case .smoking: return "Smoking"
+        case .drinking: return "Drinking"
+        case .feelings: return "Feelings & cravings"
+        case .protein: return "Protein"
+        case .checklist: return "Fats, veggies & more"
+        case .workouts: return "Workouts"
+        case .hydration: return "Hydration"
+        case .supplements: return "Supplements"
+        }
+    }
+
+    /// Sections the user can reorder (header stays pinned).
+    static var defaultReorderableOrder: [DaySectionID] {
+        [.weight, .smoking, .drinking, .feelings, .protein, .checklist, .workouts, .hydration, .supplements]
+    }
+
     var collapsedMessage: String {
         switch self {
         case .weight, .smoking, .drinking:

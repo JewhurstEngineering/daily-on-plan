@@ -3,6 +3,8 @@ import Charts
 
 struct SnapshotReportView: View {
     let snapshot: ReportSnapshot
+    @State private var shareURL: URL?
+    @State private var isRendering = false
 
     var body: some View {
         ScrollView {
@@ -20,6 +22,57 @@ struct SnapshotReportView: View {
         }
         .navigationTitle("Snapshot")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Today card") { share(.today) }
+                    Button("Streak card") { share(.streak) }
+                    Button("Heatmap card") { share(.heatmap) }
+                } label: {
+                    if isRendering {
+                        ProgressView()
+                    } else {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+                .disabled(isRendering || snapshot.logs.isEmpty)
+            }
+        }
+        .sheet(item: Binding(
+            get: { shareURL.map { SnapshotShareItem(url: $0) } },
+            set: { shareURL = $0?.url }
+        )) { item in
+            ShareSheet(items: [item.url])
+        }
+    }
+
+    private enum ShareKind { case today, streak, heatmap }
+
+    @MainActor
+    private func share(_ kind: ShareKind) {
+        isRendering = true
+        Task { @MainActor in
+            defer { isRendering = false }
+            switch kind {
+            case .today:
+                shareURL = ShareCardBuilder.todayURL(from: snapshot)
+            case .streak:
+                shareURL = ShareCardBuilder.streakURL(from: snapshot)
+            case .heatmap:
+                let metric = snapshot.availableHeatmapMetrics.first ?? .followedPlan
+                let month = DateHelpers.startOfDay(snapshot.end)
+                let days = snapshot.heatmapDays(for: metric).filter {
+                    Calendar.current.isDate($0.date, equalTo: month, toGranularity: .month)
+                }
+                let card = HeatmapShareCard(
+                    month: month,
+                    metric: metric,
+                    days: days,
+                    brand: AppIdentity.displayName
+                )
+                shareURL = ShareCardRenderer.writePNG(of: card, size: CGSize(width: 360, height: 420))
+            }
+        }
     }
 
     private var header: some View {
@@ -382,4 +435,9 @@ struct SnapshotReportView: View {
         .background(Color.accentColor.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
+}
+
+private struct SnapshotShareItem: Identifiable {
+    var id: String { url.absoluteString }
+    let url: URL
 }

@@ -601,6 +601,19 @@ final class AppSettings {
     var dailyDrinkLimitStored: Int?
     var alcoholQuitDateStored: Date?
 
+    // Notifications v4 + quotes + section order
+    var smokingCheckInEnabledStored: Bool?
+    var smokingCheckInHourStored: Int?
+    var smokingCheckInMinuteStored: Int?
+    var drinkingCheckInEnabledStored: Bool?
+    var drinkingCheckInHourStored: Int?
+    var drinkingCheckInMinuteStored: Int?
+    var motivationReminderEnabledStored: Bool?
+    var motivationReminderHourStored: Int?
+    var motivationReminderMinuteStored: Int?
+    var customMotivationQuotesJSON: String?
+    var sectionOrderJSON: String?
+
     init() {
         self.id = UUID()
         self.programPhase = ProgramPhase.week1.rawValue
@@ -928,6 +941,83 @@ final class AppSettings {
         set { alcoholQuitDateStored = newValue.map { DateHelpers.startOfDay($0) } }
     }
 
+    var smokingCheckInEnabled: Bool {
+        get { smokingCheckInEnabledStored ?? false }
+        set { smokingCheckInEnabledStored = newValue }
+    }
+
+    var smokingCheckInHour: Int {
+        get { smokingCheckInHourStored ?? 16 }
+        set { smokingCheckInHourStored = newValue }
+    }
+
+    var smokingCheckInMinute: Int {
+        get { smokingCheckInMinuteStored ?? 0 }
+        set { smokingCheckInMinuteStored = newValue }
+    }
+
+    var drinkingCheckInEnabled: Bool {
+        get { drinkingCheckInEnabledStored ?? false }
+        set { drinkingCheckInEnabledStored = newValue }
+    }
+
+    var drinkingCheckInHour: Int {
+        get { drinkingCheckInHourStored ?? 17 }
+        set { drinkingCheckInHourStored = newValue }
+    }
+
+    var drinkingCheckInMinute: Int {
+        get { drinkingCheckInMinuteStored ?? 0 }
+        set { drinkingCheckInMinuteStored = newValue }
+    }
+
+    var motivationReminderEnabled: Bool {
+        get { motivationReminderEnabledStored ?? false }
+        set { motivationReminderEnabledStored = newValue }
+    }
+
+    var motivationReminderHour: Int {
+        get { motivationReminderHourStored ?? 8 }
+        set { motivationReminderHourStored = newValue }
+    }
+
+    var motivationReminderMinute: Int {
+        get { motivationReminderMinuteStored ?? 0 }
+        set { motivationReminderMinuteStored = newValue }
+    }
+
+    var customMotivationQuotes: [String] {
+        get { Self.decodeStringList(customMotivationQuotesJSON) }
+        set { customMotivationQuotesJSON = Self.encodeStringList(newValue) }
+    }
+
+    /// Reorderable day sections (header is always first and not stored here).
+    var sectionOrder: [DaySectionID] {
+        get {
+            let defaults = DaySectionID.defaultReorderableOrder
+            guard let data = sectionOrderJSON?.data(using: .utf8),
+                  let raw = try? JSONDecoder().decode([String].self, from: data) else {
+                return defaults
+            }
+            var parsed = raw.compactMap(DaySectionID.init(rawValue:)).filter { $0 != .dailyStatus }
+            // Append any new sections missing from saved order.
+            for id in defaults where !parsed.contains(id) {
+                parsed.append(id)
+            }
+            // Drop unknown / duplicates
+            var seen = Set<DaySectionID>()
+            parsed = parsed.filter { seen.insert($0).inserted }
+            return parsed.isEmpty ? defaults : parsed
+        }
+        set {
+            let cleaned = newValue.filter { $0 != .dailyStatus }
+            if let data = try? JSONEncoder().encode(cleaned.map(\.rawValue)),
+               let string = String(data: data, encoding: .utf8) {
+                sectionOrderJSON = string
+            }
+        }
+    }
+
     /// Presets + user customs, presets first, no duplicates.
     var allOffPlanReasonOptions: [String] {
         var seen = Set<String>()
@@ -989,6 +1079,12 @@ final class AppSettings {
             // Force OnPlan Default theme (role-based brand accents).
             accentTheme = .onPlan
             notificationsDefaultsVersionStored = 3
+        }
+        if (notificationsDefaultsVersionStored ?? 0) < 4 {
+            smokingCheckInEnabled = false
+            drinkingCheckInEnabled = false
+            motivationReminderEnabled = false
+            notificationsDefaultsVersionStored = 4
         }
     }
 

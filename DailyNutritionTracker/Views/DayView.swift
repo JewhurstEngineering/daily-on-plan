@@ -32,77 +32,26 @@ struct DayView: View {
         let settings = DataStore.settings(in: modelContext)
         let log = DataStore.log(for: selectedDate, in: modelContext, defaultGoal: settings.defaultProteinGoal)
         let todayWeight = DataStore.weight(for: selectedDate, in: modelContext)
+        let recentLogs = DataStore.logs(
+            from: Calendar.current.date(byAdding: .day, value: -120, to: selectedDate) ?? selectedDate,
+            to: selectedDate,
+            in: modelContext
+        )
 
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
                         .id("header")
-                    WeightBMISection(
-                        selectedDate: selectedDate,
-                        weight: todayWeight,
-                        recentWeights: recentWeights,
-                        settings: settings,
-                        onSave: { lbs in
-                            saveWeight(lbs, existing: todayWeight)
-                        },
-                        onOpenSettings: onOpenSettings
-                    )
-                    .id("weight")
-                    if settings.smokingMode.showsSection {
-                        SmokingSection(
-                            log: log,
+
+                    ForEach(settings.sectionOrder, id: \.self) { section in
+                        sectionView(
+                            section,
                             settings: settings,
-                            recentLogs: DataStore.logs(
-                                from: Calendar.current.date(byAdding: .day, value: -120, to: selectedDate) ?? selectedDate,
-                                to: selectedDate,
-                                in: modelContext
-                            ),
-                            onOpenSettings: onOpenSettings
-                        )
-                        .id("smoking")
-                    }
-                    if settings.drinkingMode.showsSection {
-                        DrinkingSection(
                             log: log,
-                            settings: settings,
-                            recentLogs: DataStore.logs(
-                                from: Calendar.current.date(byAdding: .day, value: -120, to: selectedDate) ?? selectedDate,
-                                to: selectedDate,
-                                in: modelContext
-                            ),
-                            onOpenSettings: onOpenSettings
+                            todayWeight: todayWeight,
+                            recentLogs: recentLogs
                         )
-                        .id("drinking")
-                    }
-                    FeelingsSection(log: log, settings: settings)
-                        .id("feelings")
-                    ProteinSection(
-                        log: log,
-                        settings: settings,
-                        scrollAnchor: "protein",
-                        onWillPresentSheet: { requestScroll(to: $0) }
-                    )
-                    .id("protein")
-                    ChecklistSection(
-                        log: log,
-                        settings: settings,
-                        scrollAnchor: "checklist",
-                        onWillPresentSheet: { requestScroll(to: $0) }
-                    )
-                    .id("checklist")
-                    WorkoutSection(log: log, settings: settings)
-                        .id("workouts")
-                    HydrationSection(
-                        log: log,
-                        settings: settings,
-                        date: selectedDate,
-                        onOpenSettings: onOpenSettings
-                    )
-                        .id("hydration")
-                    if settings.showSupplementsSection {
-                        SupplementsSection(log: log, settings: settings)
-                            .id("supplements")
                     }
                 }
                 .padding()
@@ -140,12 +89,92 @@ struct DayView: View {
         }
     }
 
+    @ViewBuilder
+    private func sectionView(
+        _ section: DaySectionID,
+        settings: AppSettings,
+        log: DailyLog,
+        todayWeight: WeightEntry?,
+        recentLogs: [DailyLog]
+    ) -> some View {
+        switch section {
+        case .dailyStatus:
+            EmptyView()
+        case .weight:
+            WeightBMISection(
+                selectedDate: selectedDate,
+                weight: todayWeight,
+                recentWeights: recentWeights,
+                settings: settings,
+                onSave: { lbs in
+                    saveWeight(lbs, existing: todayWeight)
+                },
+                onOpenSettings: onOpenSettings
+            )
+            .id("weight")
+        case .smoking:
+            if settings.smokingMode.showsSection {
+                SmokingSection(
+                    log: log,
+                    settings: settings,
+                    recentLogs: recentLogs,
+                    onOpenSettings: onOpenSettings
+                )
+                .id("smoking")
+            }
+        case .drinking:
+            if settings.drinkingMode.showsSection {
+                DrinkingSection(
+                    log: log,
+                    settings: settings,
+                    recentLogs: recentLogs,
+                    onOpenSettings: onOpenSettings
+                )
+                .id("drinking")
+            }
+        case .feelings:
+            FeelingsSection(log: log, settings: settings)
+                .id("feelings")
+        case .protein:
+            ProteinSection(
+                log: log,
+                settings: settings,
+                scrollAnchor: "protein",
+                onWillPresentSheet: { requestScroll(to: $0) }
+            )
+            .id("protein")
+        case .checklist:
+            ChecklistSection(
+                log: log,
+                settings: settings,
+                scrollAnchor: "checklist",
+                onWillPresentSheet: { requestScroll(to: $0) }
+            )
+            .id("checklist")
+        case .workouts:
+            WorkoutSection(log: log, settings: settings)
+                .id("workouts")
+        case .hydration:
+            HydrationSection(
+                log: log,
+                settings: settings,
+                date: selectedDate,
+                onOpenSettings: onOpenSettings
+            )
+            .id("hydration")
+        case .supplements:
+            if settings.showSupplementsSection {
+                SupplementsSection(log: log, settings: settings)
+                    .id("supplements")
+            }
+        }
+    }
+
     private func syncHealthIfNeeded(log: DailyLog, todayWeight: WeightEntry?) {
         guard !didSyncHealth else { return }
         didSyncHealth = true
         Task {
             if let hkWater = await healthKit.readWaterOunces(on: selectedDate), hkWater > log.waterOz {
-                // Only seed total if we have no per-drink history yet.
                 if log.waterSlots.allSatisfy({ $0 == nil }) && log.waterOz == 0 && hkWater > 0 {
                     let settings = DataStore.settings(in: modelContext)
                     let bottle = max(settings.defaultBottleOz, 1)
@@ -157,6 +186,12 @@ struct DayView: View {
             }
             if todayWeight == nil, let hkWeight = await healthKit.readBodyMassPounds(on: selectedDate) {
                 saveWeight(hkWeight, existing: nil)
+            }
+            if log.drinksLogged == 0,
+               let hkDrinks = await healthKit.readAlcoholicDrinks(on: selectedDate),
+               hkDrinks > 0 {
+                log.addDrinks(hkDrinks, timeLogged: DateHelpers.startOfDay(selectedDate))
+                try? modelContext.save()
             }
         }
     }
