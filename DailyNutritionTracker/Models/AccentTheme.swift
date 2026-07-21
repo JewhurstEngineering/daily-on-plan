@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// User-selectable look. **Default (OnPlan)** uses full brand roles; other options recolor primary only.
 enum AccentTheme: String, CaseIterable, Identifiable, Codable {
     case onPlan
     case cyan
@@ -7,32 +8,34 @@ enum AccentTheme: String, CaseIterable, Identifiable, Codable {
     case lime
     case slate
     case navy
-    case indigo
-    case purple
-    case pink
-    case orange
-    case red
 
     var id: String { rawValue }
 
+    /// Themes shown in Settings (brand-aligned only).
+    static var pickerCases: [AccentTheme] { allCases }
+
     var title: String {
         switch self {
-        case .onPlan: return "OnPlan Blue"
+        case .onPlan: return "Default"
         case .cyan: return "Cyan"
         case .green: return "Green"
         case .lime: return "Lime"
         case .slate: return "Slate"
         case .navy: return "Navy"
-        case .indigo: return "Indigo"
-        case .purple: return "Purple"
-        case .pink: return "Pink"
-        case .orange: return "Orange"
-        case .red: return "Red"
         }
     }
 
-    /// Brand-aligned accents; default is OnPlan Blue from the brand kit.
-    var color: Color {
+    var subtitle: String {
+        switch self {
+        case .onPlan:
+            return "OnPlan brand — blue actions, cyan progress, green for on-plan"
+        default:
+            return "Recolors primary controls; progress & success stay brand-tinted"
+        }
+    }
+
+    /// Primary tint (buttons, links, section icons). Also used for `.tint(...)`.
+    var primary: Color {
         switch self {
         case .onPlan: return .onPlanBlue
         case .cyan: return .onPlanCyan
@@ -40,11 +43,40 @@ enum AccentTheme: String, CaseIterable, Identifiable, Codable {
         case .lime: return .onPlanLime
         case .slate: return .onPlanMuted
         case .navy: return .onPlanSlate
-        case .indigo: return Color(red: 0.35, green: 0.35, blue: 0.75)
-        case .purple: return Color(red: 0.55, green: 0.30, blue: 0.75)
-        case .pink: return Color(red: 0.85, green: 0.30, blue: 0.55)
-        case .orange: return Color(red: 0.90, green: 0.45, blue: 0.15)
-        case .red: return Color(red: 0.80, green: 0.25, blue: 0.25)
         }
+    }
+
+    /// Protein ring, hydration fills — cyan under Default.
+    var progress: Color {
+        switch self {
+        case .onPlan: return .onPlanCyan
+        default: return primary
+        }
+    }
+
+    /// Followed-plan / positive confirmation.
+    var success: Color { .onPlanGreen }
+
+    /// Over protein goal, soft warnings.
+    var warning: Color { Color.orange }
+
+    /// Swatch in the picker (Default shows a blue→cyan blend cue).
+    var color: Color { primary }
+
+    var pickerSecondary: Color? {
+        self == .onPlan ? .onPlanCyan : nil
+    }
+}
+
+// MARK: - Environment
+
+private struct AccentThemeKey: EnvironmentKey {
+    static let defaultValue: AccentTheme = .onPlan
+}
+
+extension EnvironmentValues {
+    var accentTheme: AccentTheme {
+        get { self[AccentThemeKey.self] }
+        set { self[AccentThemeKey.self] = newValue }
     }
 }

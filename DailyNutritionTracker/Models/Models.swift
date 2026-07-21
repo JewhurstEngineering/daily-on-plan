@@ -373,7 +373,7 @@ final class AppSettings {
         self.accentThemeRaw = AccentTheme.onPlan.rawValue
         self.weightSectionCollapsedStored = false
         self.collapsedSectionsJSON = "{}"
-        self.notificationsDefaultsVersionStored = 2
+        self.notificationsDefaultsVersionStored = 3
         self.notificationsPausedStored = false
         self.genericCheckInEnabledStored = true
         self.genericCheckInHourStored = 19
@@ -451,11 +451,12 @@ final class AppSettings {
             if let theme = AccentTheme(rawValue: accentThemeRaw ?? "") {
                 return theme
             }
-            // Legacy accents from before OnPlan brand kit.
+            // Legacy accents from before OnPlan role-based themes.
             switch accentThemeRaw {
-            case "teal", "blue": return .onPlan
-            case "brown": return .slate
-            default: return .onPlan
+            case "teal", "blue", "indigo", "purple", "pink", "orange", "red", "brown":
+                return .onPlan
+            default:
+                return .onPlan
             }
         }
         set { accentThemeRaw = newValue.rawValue }
@@ -639,6 +640,11 @@ final class AppSettings {
                 ketosisCheckInMinute = min(eveningCheckInMinute + 5, 59)
             }
             notificationsDefaultsVersionStored = 2
+        }
+        if (notificationsDefaultsVersionStored ?? 0) < 3 {
+            // Force OnPlan Default theme (role-based brand accents).
+            accentTheme = .onPlan
+            notificationsDefaultsVersionStored = 3
         }
     }
 

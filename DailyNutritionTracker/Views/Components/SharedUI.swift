@@ -75,6 +75,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
 struct CalorieRingView: View {
     let current: Int
     let goal: Int
+    @Environment(\.accentTheme) private var theme
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -89,7 +90,10 @@ struct CalorieRingView: View {
                 .stroke(Color(.systemGray5), lineWidth: 12)
             Circle()
                 .trim(from: 0, to: min(progress, 1))
-                .stroke(isOver ? Color.orange : Color.accentColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                .stroke(
+                    isOver ? theme.warning : theme.progress,
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.3), value: current)
             VStack(spacing: 2) {
@@ -108,13 +112,14 @@ struct GlassButton: View {
     let isFilled: Bool
     let label: String
     let action: () -> Void
+    @Environment(\.accentTheme) private var theme
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: isFilled ? "waterbottle.fill" : "waterbottle")
                     .font(.title3)
-                    .foregroundStyle(isFilled ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isFilled ? theme.progress : Color.secondary)
                 Text(label)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -123,7 +128,7 @@ struct GlassButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isFilled ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemFill))
+            .background(isFilled ? theme.progress.opacity(0.12) : Color(.tertiarySystemFill))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)

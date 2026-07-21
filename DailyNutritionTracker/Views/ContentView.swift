@@ -11,8 +11,8 @@ struct ContentView: View {
     @State private var showReports = false
     @State private var pendingScrollSection: String?
 
-    private var accent: Color {
-        (settingsList.first?.accentTheme ?? .onPlan).color
+    private var theme: AccentTheme {
+        settingsList.first?.accentTheme ?? .onPlan
     }
 
     var body: some View {
@@ -52,15 +52,18 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
-                    .tint(accent)
+                    .tint(theme.primary)
+                    .environment(\.accentTheme, theme)
             }
             .sheet(isPresented: $showExport) {
                 ExportSheetView(selectedDate: selectedDate)
-                    .tint(accent)
+                    .tint(theme.primary)
+                    .environment(\.accentTheme, theme)
             }
             .sheet(isPresented: $showReports) {
                 ReportsView()
-                    .tint(accent)
+                    .tint(theme.primary)
+                    .environment(\.accentTheme, theme)
             }
             .task {
                 _ = DataStore.settings(in: modelContext)
@@ -75,6 +78,7 @@ struct ContentView: View {
                 }
             }
         }
-        .tint(accent)
+        .environment(\.accentTheme, theme)
+        .tint(theme.primary)
     }
 }

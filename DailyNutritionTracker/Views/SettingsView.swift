@@ -18,19 +18,30 @@ struct SettingsView: View {
                             Text(AppIdentity.tagline)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            Text("Accent color")
+                            Text("Theme")
                                 .font(.subheadline)
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                                ForEach(AccentTheme.allCases) { theme in
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
+                                ForEach(AccentTheme.pickerCases) { themeOption in
                                     Button {
-                                        settings.accentTheme = theme
+                                        settings.accentTheme = themeOption
                                         save(settings)
                                     } label: {
                                         ZStack {
-                                            Circle()
-                                                .fill(theme.color)
-                                                .frame(width: 36, height: 36)
-                                            if settings.accentTheme == theme {
+                                            if let secondary = themeOption.pickerSecondary {
+                                                Circle()
+                                                    .fill(
+                                                        AngularGradient(
+                                                            colors: [themeOption.primary, secondary, themeOption.primary],
+                                                            center: .center
+                                                        )
+                                                    )
+                                                    .frame(width: 36, height: 36)
+                                            } else {
+                                                Circle()
+                                                    .fill(themeOption.color)
+                                                    .frame(width: 36, height: 36)
+                                            }
+                                            if settings.accentTheme == themeOption {
                                                 Image(systemName: "checkmark")
                                                     .font(.caption.weight(.bold))
                                                     .foregroundStyle(.white)
@@ -38,11 +49,13 @@ struct SettingsView: View {
                                         }
                                     }
                                     .buttonStyle(.plain)
-                                    .accessibilityLabel(theme.title)
+                                    .accessibilityLabel(themeOption.title)
                                 }
                             }
                             Text(settings.accentTheme.title)
-                                .font(.caption)
+                                .font(.caption.weight(.semibold))
+                            Text(settings.accentTheme.subtitle)
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
 
