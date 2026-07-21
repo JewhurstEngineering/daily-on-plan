@@ -129,6 +129,69 @@ struct CatalogFood: Identifiable, Hashable, Codable {
     }
 }
 
+/// One ingredient in a saved / suggested meal.
+struct MealComponent: Identifiable, Hashable, Codable {
+    var id: String
+    var name: String
+    var category: FoodCategory
+    var servingLabel: String
+    var unitCalories: Int
+    var proteinCategory: String?
+    var servings: Double
+    var amount: String?
+
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        category: FoodCategory,
+        servingLabel: String,
+        unitCalories: Int,
+        proteinCategory: String? = nil,
+        servings: Double = 1,
+        amount: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.category = category
+        self.servingLabel = servingLabel
+        self.unitCalories = unitCalories
+        self.proteinCategory = proteinCategory
+        self.servings = servings
+        self.amount = amount
+    }
+
+    init(from food: CatalogFood, servings: Double = 1, amount: String? = nil) {
+        let unit: Int
+        if let per = food.proteinCategory?.caloriesPerServing {
+            unit = per
+        } else {
+            unit = food.calories
+        }
+        self.init(
+            id: food.id,
+            name: food.name,
+            category: food.category,
+            servingLabel: food.servingLabel,
+            unitCalories: unit,
+            proteinCategory: food.proteinCategory?.rawValue,
+            servings: servings,
+            amount: amount ?? (food.category == .protein ? nil : food.servingLabel)
+        )
+    }
+
+    var totalCalories: Int {
+        Int((Double(unitCalories) * servings).rounded())
+    }
+
+    var displayAmount: String {
+        if category == .protein {
+            return String(format: "%.1f× · %d kcal", servings, totalCalories)
+        }
+        let amt = amount?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return amt.isEmpty ? servingLabel : amt
+    }
+}
+
 struct SupplementDefinition: Identifiable, Codable, Hashable {
     var id: String
     var name: String

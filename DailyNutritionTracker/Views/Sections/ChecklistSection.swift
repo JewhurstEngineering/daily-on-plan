@@ -76,6 +76,7 @@ struct ChecklistSection: View {
             FoodChecklistPicker(
                 category: category,
                 phase: settings.phase,
+                excludedNames: settings.excludedFoodNames,
                 onPick: { food in
                     addFood(food, category: category)
                 }
@@ -241,12 +242,15 @@ struct ChecklistSection: View {
 struct FoodChecklistPicker: View {
     let category: FoodCategory
     let phase: ProgramPhase
+    var excludedNames: [String] = []
     let onPick: (CatalogFood) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
     private var foods: [CatalogFood] {
-        FoodCatalog.foods(category: category, phase: phase, search: search)
+        let excluded = Set(excludedNames.map { $0.lowercased() })
+        return FoodCatalog.foods(category: category, phase: phase, search: search)
+            .filter { !excluded.contains($0.name.lowercased()) }
     }
 
     var body: some View {

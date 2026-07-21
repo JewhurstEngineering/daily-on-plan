@@ -110,6 +110,18 @@ final class DailyLog {
         waterSlots = slots
     }
 
+    /// Fills the first empty slot, or appends if all filled.
+    func fillNextWaterSlot(oz: Double, ensuringMinimumSlots minimum: Int = 1) {
+        var slots = waterSlots
+        while slots.count < minimum { slots.append(nil) }
+        if let empty = slots.firstIndex(where: { $0 == nil }) {
+            slots[empty] = oz
+        } else {
+            slots.append(oz)
+        }
+        waterSlots = slots
+    }
+
     func clearWaterDrinks() {
         waterSlots = []
     }
@@ -223,6 +235,57 @@ final class CustomFoodPreset {
 }
 
 @Model
+final class SavedMeal {
+    var id: UUID
+    var name: String
+    var createdAt: Date
+    var componentsJSON: String
+
+    init(name: String, components: [MealComponent] = [], createdAt: Date = Date()) {
+        self.id = UUID()
+        self.name = name
+        self.createdAt = createdAt
+        if let data = try? JSONEncoder().encode(components),
+           let string = String(data: data, encoding: .utf8) {
+            self.componentsJSON = string
+        } else {
+            self.componentsJSON = "[]"
+        }
+    }
+
+    var components: [MealComponent] {
+        get {
+            guard let data = componentsJSON.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([MealComponent].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                componentsJSON = string
+            } else {
+                componentsJSON = "[]"
+            }
+        }
+    }
+
+    var proteinCalories: Int {
+        components
+            .filter { $0.category == .protein }
+            .reduce(0) { $0 + $1.totalCalories }
+    }
+
+    var summary: String {
+        let names = components.map(\.name)
+        if names.isEmpty { return "Empty meal" }
+        if names.count <= 3 { return names.joined(separator: " · ") }
+        return names.prefix(3).joined(separator: " · ") + " +\(names.count - 3)"
+    }
+}
+
+@Model
 final class AppSettings {
     var id: UUID
     var programPhase: String
@@ -239,6 +302,22 @@ final class AppSettings {
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
     var accentThemeRaw: String?
+    var weightSectionCollapsedStored: Bool?
+
+    // Notifications (v2) — optionals for SwiftData-friendly migration
+    var notificationsDefaultsVersionStored: Int?
+    var notificationsPausedStored: Bool?
+    var genericCheckInEnabledStored: Bool?
+    var genericCheckInHourStored: Int?
+    var genericCheckInMinuteStored: Int?
+    var mealReminderEnabledStored: Bool?
+    var mealReminderHourStored: Int?
+    var mealReminderMinuteStored: Int?
+    var weighReminderEnabledStored: Bool?
+    var weighReminderHourStored: Int?
+    var weighReminderMinuteStored: Int?
+    var excludedFoodsJSON: String?
+    var preferredFoodsJSON: String?
 
     init() {
         self.id = UUID()
@@ -246,8 +325,8 @@ final class AppSettings {
         self.heightInches = 0
         self.usesMetricWeight = false
         self.defaultProteinGoal = 500
-        self.waterReminderEnabled = true
-        self.waterReminderIntervalHours = 2
+        self.waterReminderEnabled = false
+        self.waterReminderIntervalHours = 3
         self.eveningCheckInEnabled = true
         self.eveningCheckInHour = 20
         self.eveningCheckInMinute = 0
@@ -256,6 +335,20 @@ final class AppSettings {
         self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
         self.showSupplementsSectionStored = true
         self.accentThemeRaw = AccentTheme.green.rawValue
+        self.weightSectionCollapsedStored = false
+        self.notificationsDefaultsVersionStored = 1
+        self.notificationsPausedStored = false
+        self.genericCheckInEnabledStored = true
+        self.genericCheckInHourStored = 19
+        self.genericCheckInMinuteStored = 30
+        self.mealReminderEnabledStored = false
+        self.mealReminderHourStored = 12
+        self.mealReminderMinuteStored = 0
+        self.weighReminderEnabledStored = false
+        self.weighReminderHourStored = 7
+        self.weighReminderMinuteStored = 0
+        self.excludedFoodsJSON = "[]"
+        self.preferredFoodsJSON = "[]"
     }
 
     var phase: ProgramPhase {
@@ -315,5 +408,107 @@ final class AppSettings {
     var accentTheme: AccentTheme {
         get { AccentTheme(rawValue: accentThemeRaw ?? "") ?? .green }
         set { accentThemeRaw = newValue.rawValue }
+    }
+
+    var weightSectionCollapsed: Bool {
+        get { weightSectionCollapsedStored ?? false }
+        set { weightSectionCollapsedStored = newValue }
+    }
+
+    var notificationsPaused: Bool {
+        get { notificationsPausedStored ?? false }
+        set { notificationsPausedStored = newValue }
+    }
+
+    var genericCheckInEnabled: Bool {
+        get { genericCheckInEnabledStored ?? true }
+        set { genericCheckInEnabledStored = newValue }
+    }
+
+    var genericCheckInHour: Int {
+        get { genericCheckInHourStored ?? 19 }
+        set { genericCheckInHourStored = newValue }
+    }
+
+    var genericCheckInMinute: Int {
+        get { genericCheckInMinuteStored ?? 30 }
+        set { genericCheckInMinuteStored = newValue }
+    }
+
+    var mealReminderEnabled: Bool {
+        get { mealReminderEnabledStored ?? false }
+        set { mealReminderEnabledStored = newValue }
+    }
+
+    var mealReminderHour: Int {
+        get { mealReminderHourStored ?? 12 }
+        set { mealReminderHourStored = newValue }
+    }
+
+    var mealReminderMinute: Int {
+        get { mealReminderMinuteStored ?? 0 }
+        set { mealReminderMinuteStored = newValue }
+    }
+
+    var weighReminderEnabled: Bool {
+        get { weighReminderEnabledStored ?? false }
+        set { weighReminderEnabledStored = newValue }
+    }
+
+    var weighReminderHour: Int {
+        get { weighReminderHourStored ?? 7 }
+        set { weighReminderHourStored = newValue }
+    }
+
+    var weighReminderMinute: Int {
+        get { weighReminderMinuteStored ?? 0 }
+        set { weighReminderMinuteStored = newValue }
+    }
+
+    var excludedFoodNames: [String] {
+        get { Self.decodeStringList(excludedFoodsJSON) }
+        set { excludedFoodsJSON = Self.encodeStringList(newValue) }
+    }
+
+    var preferredFoodNames: [String] {
+        get { Self.decodeStringList(preferredFoodsJSON) }
+        set { preferredFoodsJSON = Self.encodeStringList(newValue) }
+    }
+
+    func isExcluded(_ name: String) -> Bool {
+        excludedFoodNames.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    func isPreferred(_ name: String) -> Bool {
+        preferredFoodNames.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    /// One-time migration: turn water off; keep evening on; enable generic check-in.
+    func migrateNotificationDefaultsIfNeeded() {
+        if (notificationsDefaultsVersionStored ?? 0) >= 1 { return }
+        waterReminderEnabled = false
+        if waterReminderIntervalHours < 2 { waterReminderIntervalHours = 3 }
+        eveningCheckInEnabled = true
+        genericCheckInEnabled = true
+        mealReminderEnabled = false
+        weighReminderEnabled = false
+        notificationsPaused = false
+        notificationsDefaultsVersionStored = 1
+    }
+
+    private static func decodeStringList(_ json: String?) -> [String] {
+        guard let data = json?.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return decoded
+    }
+
+    private static func encodeStringList(_ list: [String]) -> String {
+        guard let data = try? JSONEncoder().encode(list),
+              let string = String(data: data, encoding: .utf8) else {
+            return "[]"
+        }
+        return string
     }
 }

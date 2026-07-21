@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showExport = false
     @State private var showReports = false
+    @State private var pendingScrollSection: String?
 
     private var accent: Color {
         (settingsList.first?.accentTheme ?? .green).color
@@ -16,53 +17,63 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            DayView(selectedDate: $selectedDate, onOpenSettings: { showSettings = true })
-                .navigationTitle("Daily Nutrition")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
+            DayView(
+                selectedDate: $selectedDate,
+                onOpenSettings: { showSettings = true },
+                pendingScrollSection: $pendingScrollSection
+            )
+            .navigationTitle(AppIdentity.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showExport = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Export")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 12) {
                         Button {
-                            showExport = true
+                            showReports = true
                         } label: {
-                            Image(systemName: "square.and.arrow.up")
+                            Image(systemName: "chart.xyaxis.line")
                         }
-                        .accessibilityLabel("Export")
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 12) {
-                            Button {
-                                showReports = true
-                            } label: {
-                                Image(systemName: "chart.xyaxis.line")
-                            }
-                            .accessibilityLabel("Reports")
-                            Button {
-                                showSettings = true
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
-                            .accessibilityLabel("Settings")
+                        .accessibilityLabel("Reports")
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
                         }
+                        .accessibilityLabel("Settings")
                     }
                 }
-                .sheet(isPresented: $showSettings) {
-                    SettingsView()
-                        .tint(accent)
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .tint(accent)
+            }
+            .sheet(isPresented: $showExport) {
+                ExportSheetView(selectedDate: selectedDate)
+                    .tint(accent)
+            }
+            .sheet(isPresented: $showReports) {
+                ReportsView()
+                    .tint(accent)
+            }
+            .task {
+                _ = DataStore.settings(in: modelContext)
+                await healthKit.requestAuthorization()
+                let settings = DataStore.settings(in: modelContext)
+                await NotificationService.shared.reschedule(using: settings)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openDaySection)) { note in
+                selectedDate = Date()
+                if let section = note.userInfo?["section"] as? String {
+                    pendingScrollSection = section
                 }
-                .sheet(isPresented: $showExport) {
-                    ExportSheetView(selectedDate: selectedDate)
-                        .tint(accent)
-                }
-                .sheet(isPresented: $showReports) {
-                    ReportsView()
-                        .tint(accent)
-                }
-                .task {
-                    _ = DataStore.settings(in: modelContext)
-                    await healthKit.requestAuthorization()
-                    let settings = DataStore.settings(in: modelContext)
-                    await NotificationService.shared.reschedule(using: settings)
-                }
+            }
         }
         .tint(accent)
     }

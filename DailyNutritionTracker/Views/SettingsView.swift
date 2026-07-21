@@ -105,6 +105,28 @@ struct SettingsView: View {
                         .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
                         .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
 
+                        Section {
+                            NavigationLink {
+                                NotificationsSettingsView(settings: settings)
+                            } label: {
+                                Label("Notifications", systemImage: "bell.badge")
+                            }
+                            NavigationLink {
+                                SavedMealsListView(settings: settings)
+                            } label: {
+                                Label("Saved meals", systemImage: "fork.knife")
+                            }
+                            NavigationLink {
+                                FoodPreferencesView(settings: settings)
+                            } label: {
+                                Label("Food preferences", systemImage: "heart.slash")
+                            }
+                        } header: {
+                            Text("Reminders & meals")
+                        } footer: {
+                            Text("Notifications default to evening plan + daily check-in only. Food preferences filter allergies and picky-eater picks.")
+                        }
+
                         Section("Hydration defaults") {
                             Picker("Default bottle", selection: Binding(
                                 get: { settings.defaultBottleOz },
@@ -130,58 +152,6 @@ struct SettingsView: View {
                                 ),
                                 in: 32...200,
                                 step: 8
-                            )
-                        }
-
-                        Section("Notifications") {
-                            Toggle("Water reminders", isOn: Binding(
-                                get: { settings.waterReminderEnabled },
-                                set: {
-                                    settings.waterReminderEnabled = $0
-                                    save(settings)
-                                    Task { await NotificationService.shared.reschedule(using: settings) }
-                                }
-                            ))
-                            Stepper(
-                                "Every \(settings.waterReminderIntervalHours) hours",
-                                value: Binding(
-                                    get: { settings.waterReminderIntervalHours },
-                                    set: {
-                                        settings.waterReminderIntervalHours = $0
-                                        save(settings)
-                                        Task { await NotificationService.shared.reschedule(using: settings) }
-                                    }
-                                ),
-                                in: 1...6
-                            )
-                            Toggle("Evening check-in", isOn: Binding(
-                                get: { settings.eveningCheckInEnabled },
-                                set: {
-                                    settings.eveningCheckInEnabled = $0
-                                    save(settings)
-                                    Task { await NotificationService.shared.reschedule(using: settings) }
-                                }
-                            ))
-                            DatePicker(
-                                "Check-in time",
-                                selection: Binding(
-                                    get: {
-                                        Calendar.current.date(
-                                            bySettingHour: settings.eveningCheckInHour,
-                                            minute: settings.eveningCheckInMinute,
-                                            second: 0,
-                                            of: Date()
-                                        ) ?? Date()
-                                    },
-                                    set: { date in
-                                        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
-                                        settings.eveningCheckInHour = comps.hour ?? 20
-                                        settings.eveningCheckInMinute = comps.minute ?? 0
-                                        save(settings)
-                                        Task { await NotificationService.shared.reschedule(using: settings) }
-                                    }
-                                ),
-                                displayedComponents: .hourAndMinute
                             )
                         }
 

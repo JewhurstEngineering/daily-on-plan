@@ -57,7 +57,7 @@ enum WorkbookExportService {
 
     private static func daySheet(log: DailyLog, weight: WeightEntry?, settings: AppSettings) -> String {
         var xml = ""
-        xml += row(["Daily Nutrition Log"], style: "Header")
+        xml += row(["\(AppIdentity.displayName) Log"], style: "Header")
         xml += row([])
         xml += row(["Date", DateHelpers.formattedDay(log.date)])
         xml += row(["Protein Goal (kcal)", "\(log.proteinGoal)"])

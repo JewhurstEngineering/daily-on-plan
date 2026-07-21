@@ -6,10 +6,11 @@ struct WeightBMISection: View {
     let selectedDate: Date
     let weight: WeightEntry?
     let recentWeights: [WeightEntry]
-    let settings: AppSettings
+    @Bindable var settings: AppSettings
     let onSave: (Double) -> Void
     var onOpenSettings: (() -> Void)? = nil
 
+    @Environment(\.modelContext) private var modelContext
     @State private var draftText = ""
 
     private var displayWeight: String {
@@ -36,90 +37,120 @@ struct WeightBMISection: View {
     }
 
     var body: some View {
-        SectionCard(title: "Weight & BMI", systemImage: "scalemass") {
-            Text("BMI is calculated from today’s weight and your height in Settings.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if !settings.hasHeight {
+        SectionCard(
+            title: "Weight & BMI",
+            systemImage: "scalemass",
+            trailing: {
                 Button {
-                    onOpenSettings?()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        settings.weightSectionCollapsed.toggle()
+                        try? modelContext.save()
+                    }
                 } label: {
-                    Label("Set height to unlock BMI", systemImage: "ruler")
+                    Image(systemName: settings.weightSectionCollapsed ? "chevron.down" : "chevron.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 44, minHeight: 32)
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.bordered)
-            } else {
-                Text("Height: \(settings.heightDisplay)")
-                    .font(.caption)
+                .buttonStyle(.plain)
+                .accessibilityLabel(settings.weightSectionCollapsed ? "Show weight and BMI" : "Hide weight and BMI")
+            }
+        ) {
+            if settings.weightSectionCollapsed {
+                Text("Hidden for privacy — tap the chevron to show.")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
-            }
-
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Weight")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(displayWeight)
-                        .font(.largeTitle.bold().monospacedDigit())
-                    if let deltaText {
-                        Text(deltaText + " vs prior")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("BMI")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let bmi {
-                        Text(String(format: "%.1f", bmi))
-                            .font(.title.bold().monospacedDigit())
-                        Text(BMICalculator.category(for: bmi))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("—")
-                            .font(.title.bold())
-                            .foregroundStyle(.tertiary)
-                        Text(settings.hasHeight ? "Log weight" : "Need height")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            HStack {
-                TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                Button("Save") {
-                    commit()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(parsedDraft == nil)
-            }
-
-            if !recentWeights.isEmpty {
-                Text("Weight trend")
-                    .font(.subheadline.weight(.semibold))
-                Chart(recentWeights.reversed(), id: \.id) { entry in
-                    LineMark(
-                        x: .value("Date", entry.date),
-                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
-                    )
-                    PointMark(
-                        x: .value("Date", entry.date),
-                        y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
-                    )
-                }
-                .frame(height: 140)
-                .chartYAxisLabel(settings.usesMetricWeight ? "kg" : "lb")
+            } else {
+                expandedContent
             }
         }
         .onAppear { syncDraft() }
         .onChange(of: weight?.weightLbs) { _, _ in syncDraft() }
         .onChange(of: settings.usesMetricWeight) { _, _ in syncDraft() }
+    }
+
+    @ViewBuilder
+    private var expandedContent: some View {
+        Text("BMI is calculated from today’s weight and your height in Settings.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+        if !settings.hasHeight {
+            Button {
+                onOpenSettings?()
+            } label: {
+                Label("Set height to unlock BMI", systemImage: "ruler")
+            }
+            .buttonStyle(.bordered)
+        } else {
+            Text("Height: \(settings.heightDisplay)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Weight")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(displayWeight)
+                    .font(.largeTitle.bold().monospacedDigit())
+                if let deltaText {
+                    Text(deltaText + " vs prior")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("BMI")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let bmi {
+                    Text(String(format: "%.1f", bmi))
+                        .font(.title.bold().monospacedDigit())
+                    Text(BMICalculator.category(for: bmi))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("—")
+                        .font(.title.bold())
+                        .foregroundStyle(.tertiary)
+                    Text(settings.hasHeight ? "Log weight" : "Need height")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+        HStack {
+            TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(.roundedBorder)
+            Button("Save") {
+                commit()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(parsedDraft == nil)
+        }
+
+        if !recentWeights.isEmpty {
+            Text("Weight trend")
+                .font(.subheadline.weight(.semibold))
+            Chart(recentWeights.reversed(), id: \.id) { entry in
+                LineMark(
+                    x: .value("Date", entry.date),
+                    y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
+                )
+                PointMark(
+                    x: .value("Date", entry.date),
+                    y: .value("Weight", settings.usesMetricWeight ? entry.weightLbs * 0.453592 : entry.weightLbs)
+                )
+            }
+            .frame(height: 140)
+            .chartYAxisLabel(settings.usesMetricWeight ? "kg" : "lb")
+        }
     }
 
     private var parsedDraft: Double? {

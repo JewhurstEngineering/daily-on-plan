@@ -11,6 +11,7 @@ enum DataStore {
             WorkoutEntry.self,
             WeightEntry.self,
             CustomFoodPreset.self,
+            SavedMeal.self,
             AppSettings.self
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: false)
@@ -25,6 +26,11 @@ enum DataStore {
         var descriptor = FetchDescriptor<AppSettings>()
         descriptor.fetchLimit = 1
         if let existing = try? context.fetch(descriptor).first {
+            let before = existing.notificationsDefaultsVersionStored ?? 0
+            existing.migrateNotificationDefaultsIfNeeded()
+            if before < 1 {
+                try? context.save()
+            }
             return existing
         }
         let created = AppSettings()

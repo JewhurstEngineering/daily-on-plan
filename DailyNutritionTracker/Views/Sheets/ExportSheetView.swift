@@ -105,7 +105,7 @@ struct ExportSheetView: View {
 
     private func export(kind: Kind) {
         let dataPack = fetchData()
-        let title = "Daily Nutrition — \(range.title) Report"
+        let title = "\(AppIdentity.displayName) — \(range.title) Report"
         let data: Data
         let filename: String
         switch kind {

@@ -4,6 +4,7 @@ import SwiftData
 struct DayView: View {
     @Binding var selectedDate: Date
     var onOpenSettings: (() -> Void)? = nil
+    @Binding var pendingScrollSection: String?
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
 
@@ -11,6 +12,16 @@ struct DayView: View {
     @State private var didSyncHealth = false
     @State private var scrollTarget: String?
     @State private var scrollToken = UUID()
+
+    init(
+        selectedDate: Binding<Date>,
+        onOpenSettings: (() -> Void)? = nil,
+        pendingScrollSection: Binding<String?> = .constant(nil)
+    ) {
+        self._selectedDate = selectedDate
+        self.onOpenSettings = onOpenSettings
+        self._pendingScrollSection = pendingScrollSection
+    }
 
     private func requestScroll(to anchor: String) {
         scrollTarget = anchor
@@ -79,10 +90,19 @@ struct DayView: View {
                     }
                 }
             }
+            .onChange(of: pendingScrollSection) { _, section in
+                guard let section else { return }
+                requestScroll(to: section)
+                pendingScrollSection = nil
+            }
         }
         .onAppear {
             recentWeights = DataStore.recentWeights(in: modelContext)
             syncHealthIfNeeded(log: log, todayWeight: todayWeight)
+            if let section = pendingScrollSection {
+                requestScroll(to: section)
+                pendingScrollSection = nil
+            }
         }
         .onChange(of: selectedDate) { _, _ in
             didSyncHealth = false

@@ -7,6 +7,7 @@ struct DailyNutritionTrackerApp: App {
 
     init() {
         container = DataStore.makeContainer()
+        NotificationService.shared.configure(container: container)
     }
 
     var body: some Scene {

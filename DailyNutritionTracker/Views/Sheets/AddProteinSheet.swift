@@ -22,8 +22,10 @@ struct AddProteinSheet: View {
     @State private var showHungerHelp = false
 
     private var catalogItems: [CatalogFood] {
-        FoodCatalog.foods(category: .protein, phase: settings.phase, search: search)
+        let excluded = Set(settings.excludedFoodNames.map { $0.lowercased() })
+        return FoodCatalog.foods(category: .protein, phase: settings.phase, search: search)
             .filter { food in
+                if excluded.contains(food.name.lowercased()) { return false }
                 guard let cat = food.proteinCategory else { return true }
                 return cat == selectedCategory
             }

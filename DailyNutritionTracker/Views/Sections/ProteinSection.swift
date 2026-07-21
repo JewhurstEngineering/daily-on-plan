@@ -9,10 +9,12 @@ struct ProteinSection: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var showAdd = false
+    @State private var showMeals = false
     @State private var editingEntry: ProteinEntry?
     @State private var editMultiplier: Double = 1
     @State private var suggestionChips: [SuggestionItem] = []
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
+    @Query(sort: \SavedMeal.name) private var savedMeals: [SavedMeal]
 
     var body: some View {
         SectionCard(title: "Protein Log", systemImage: "fork.knife.circle") {
@@ -39,16 +41,44 @@ struct ProteinSection: View {
                 }
             }
 
-            Button {
-                onWillPresentSheet?(scrollAnchor)
-                showAdd = true
-            } label: {
-                Label("Add protein", systemImage: "plus.circle.fill")
+            if !savedMeals.isEmpty {
+                Text("Saved meals")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(savedMeals, id: \.id) { meal in
+                            Button(meal.name) {
+                                MealLogger.apply(components: meal.components, to: log, settings: settings)
+                                try? modelContext.save()
+                                refreshChips()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
             }
-            .buttonStyle(.borderedProminent)
+
+            HStack(spacing: 10) {
+                Button {
+                    onWillPresentSheet?(scrollAnchor)
+                    showAdd = true
+                } label: {
+                    Label("Add protein", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    onWillPresentSheet?(scrollAnchor)
+                    showMeals = true
+                } label: {
+                    Label("Meals", systemImage: "square.stack.3d.up")
+                }
+                .buttonStyle(.bordered)
+            }
 
             if log.sortedProteins.isEmpty {
-                Text("Log meals with a multiplier (1×, 3×, 6×…) and hunger before/after.")
+                Text("Log meals with a multiplier (1×, 3×, 6×…) and hunger before/after. Or use Saved meals / Suggest.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -99,6 +129,11 @@ struct ProteinSection: View {
         .sheet(isPresented: $showAdd, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
             AddProteinSheet(log: log, settings: settings) {
                 refreshChips()
+            }
+        }
+        .sheet(isPresented: $showMeals, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
+            NavigationStack {
+                SavedMealsListView(settings: settings, log: log)
             }
         }
         .sheet(item: $editingEntry, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { entry in
@@ -213,3 +248,4 @@ struct ProteinSection: View {
 }
 
 extension ProteinEntry: @retroactive Identifiable {}
+extension SavedMeal: @retroactive Identifiable {}
