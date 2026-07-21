@@ -5,10 +5,12 @@ struct ExportSheetView: View {
     let selectedDate: Date
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+
     @State private var range: ExportRange = .week
     @State private var customStart = Calendar.current.date(byAdding: .day, value: -6, to: Date()) ?? Date()
-    @State private var shareURL: URL?
-    @State private var showShare = false
+    @State private var shareItem: ShareableExport?
+    @State private var isExporting = false
+    @State private var statusMessage: String?
     @State private var errorMessage: String?
 
     enum ExportRange: String, CaseIterable, Identifiable {
@@ -38,43 +40,93 @@ struct ExportSheetView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                } footer: {
+                    Text("Exports include logs and weights in the selected range.")
                 }
 
-                Section("Formats") {
-                    Button {
-                        exportWorkbook()
-                    } label: {
-                        Label("Export workbook (Excel)", systemImage: "tablecells")
-                    }
-                    Text("One sheet per day, laid out like the paper log.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Section {
+                    exportButton(
+                        title: "Excel workbook (.xlsx)",
+                        subtitle: "One sheet per day — opens in Excel, Numbers, and Google Sheets.",
+                        systemImage: "tablecells",
+                        kind: .workbook
+                    )
+                    exportButton(
+                        title: "PDF report",
+                        subtitle: "Printable day-by-day summary.",
+                        systemImage: "doc.richtext",
+                        kind: .pdf
+                    )
+                    exportButton(
+                        title: "CSV spreadsheet",
+                        subtitle: "Flat rows for Numbers, Sheets, or analysis tools.",
+                        systemImage: "tablecells.badge.ellipsis",
+                        kind: .csv
+                    )
+                } header: {
+                    Text("Formats")
+                }
 
-                    Button("Export PDF") { export(kind: .pdf) }
-                    Button("Export CSV") { export(kind: .csv) }
+                if isExporting {
+                    Section {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                            Text("Preparing export…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if let statusMessage {
+                    Section {
+                        Label(statusMessage, systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.footnote)
+                    }
                 }
             }
             .navigationTitle("Export")
+            .disabled(isExporting)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
             }
-            .sheet(isPresented: $showShare) {
-                if let shareURL {
-                    ShareSheet(items: [shareURL])
-                }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.url])
             }
         }
     }
 
-    private enum Kind { case pdf, csv }
+    @ViewBuilder
+    private func exportButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        kind: ExportKind
+    ) -> some View {
+        Button {
+            runExport(kind)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(title, systemImage: systemImage)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private enum ExportKind { case workbook, pdf, csv }
 
     private func dateBounds() -> (Date, Date) {
         let calendar = Calendar.current
@@ -97,71 +149,81 @@ struct ExportSheetView: View {
         let settings = DataStore.settings(in: modelContext)
         let (start, end) = dateBounds()
         let logs = DataStore.logs(from: start, to: end, in: modelContext)
-        let weights = DataStore.recentWeights(limit: 120, in: modelContext)
-            .filter { $0.date >= start && $0.date <= end }
-            .sorted { $0.date < $1.date }
+        let weights = DataStore.weights(from: start, to: end, in: modelContext)
         return (settings, logs, weights, start, end)
     }
 
-    private func export(kind: Kind) {
-        let dataPack = fetchData()
-        let title = "\(AppIdentity.displayName) — \(range.title) Report"
-        let data: Data
-        let filename: String
-        switch kind {
-        case .pdf:
-            data = ExportService.pdfData(
-                logs: dataPack.logs,
-                weights: dataPack.weights,
-                settings: dataPack.settings,
-                title: title
-            )
-            filename = "nutrition-\(range.rawValue).pdf"
-        case .csv:
-            let csv = ExportService.csv(
-                logs: dataPack.logs,
-                weights: dataPack.weights,
-                settings: dataPack.settings
-            )
-            data = Data(csv.utf8)
-            filename = "nutrition-\(range.rawValue).csv"
-        }
-
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        do {
-            try data.write(to: url, options: .atomic)
-            shareURL = url
-            showShare = true
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    private func filenameStem(start: Date, end: Date) -> String {
+        let startText = start.formatted(.iso8601.year().month().day())
+        let endText = end.formatted(.iso8601.year().month().day())
+        return "daily-on-plan-\(startText)-to-\(endText)"
     }
 
-    private func exportWorkbook() {
-        let dataPack = fetchData()
-        let stem = "nutrition-\(dataPack.start.formatted(.iso8601.year().month().day()))-to-\(dataPack.end.formatted(.iso8601.year().month().day()))"
-        do {
-            let url = try WorkbookExportService.writeTemporaryFile(
-                logs: dataPack.logs,
-                weights: dataPack.weights,
-                settings: dataPack.settings,
-                filenameStem: stem
-            )
-            shareURL = url
-            showShare = true
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+    private func runExport(_ kind: ExportKind) {
+        errorMessage = nil
+        statusMessage = nil
+        isExporting = true
+
+        // Yield so the progress row can paint before heavier work.
+        DispatchQueue.main.async {
+            do {
+                let dataPack = fetchData()
+                let stem = filenameStem(start: dataPack.start, end: dataPack.end)
+                let url: URL
+                switch kind {
+                case .workbook:
+                    url = try WorkbookExportService.writeTemporaryFile(
+                        logs: dataPack.logs,
+                        weights: dataPack.weights,
+                        settings: dataPack.settings,
+                        filenameStem: stem
+                    )
+                case .pdf:
+                    let title = "\(AppIdentity.displayName) — \(range.title) Report"
+                    url = try ExportService.writePDFFile(
+                        logs: dataPack.logs,
+                        weights: dataPack.weights,
+                        settings: dataPack.settings,
+                        title: title,
+                        filenameStem: stem
+                    )
+                case .csv:
+                    url = try ExportService.writeCSVFile(
+                        logs: dataPack.logs,
+                        weights: dataPack.weights,
+                        settings: dataPack.settings,
+                        filenameStem: stem
+                    )
+                }
+                isExporting = false
+                statusMessage = "Ready: \(url.lastPathComponent)"
+                // Brief delay so the export form can settle before the share sheet presents.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    shareItem = ShareableExport(url: url)
+                }
+            } catch {
+                isExporting = false
+                errorMessage = error.localizedDescription
+            }
         }
     }
+}
+
+private struct ShareableExport: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let popover = controller.popoverPresentationController {
+            // iPad requires a source; sheet presentation supplies a fallback.
+            popover.sourceView = UIView()
+        }
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}

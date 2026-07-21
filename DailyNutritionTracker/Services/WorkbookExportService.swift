@@ -1,111 +1,103 @@
 import Foundation
 
-/// Builds Excel-compatible SpreadsheetML workbooks (one worksheet per day).
+/// Builds real Office Open XML (`.xlsx`) workbooks — one worksheet per day.
 enum WorkbookExportService {
-    static func spreadsheetML(
-        logs: [DailyLog],
-        weights: [WeightEntry],
-        settings: AppSettings
-    ) -> String {
-        var body = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <?mso-application progid="Excel.Sheet"?>
-        <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-         xmlns:o="urn:schemas-microsoft-com:office:office"
-         xmlns:x="urn:schemas-microsoft-com:office:excel"
-         xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
-         xmlns:html="http://www.w3.org/TR/REC-html40">
-        <Styles>
-          <Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>
-          <Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1"/></Style>
-          <Style ss:ID="Section"><Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1"/></Style>
-          <Style ss:ID="ColHeader"><Font ss:Bold="1"/><Interior ss:Color="#D9EAD3" ss:Pattern="Solid"/></Style>
-        </Styles>
-        """
-
-        if logs.isEmpty {
-            body += worksheet(name: "Empty", content: row(["No daily logs in this range"]))
-        } else {
-            for log in logs {
-                let weight = weights.first(where: { DateHelpers.isSameDay($0.date, log.date) })
-                let sheetName = sheetTitle(for: log.date)
-                body += worksheet(name: sheetName, content: daySheet(log: log, weight: weight, settings: settings))
-            }
-        }
-
-        body += "</Workbook>"
-        return body
-    }
-
     static func writeTemporaryFile(
         logs: [DailyLog],
         weights: [WeightEntry],
         settings: AppSettings,
         filenameStem: String
     ) throws -> URL {
-        let xml = spreadsheetML(logs: logs, weights: weights, settings: settings)
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(filenameStem).xls")
-        guard let data = xml.data(using: .utf8) else {
-            throw NSError(domain: "WorkbookExport", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode workbook"])
-        }
-        try data.write(to: url, options: .atomic)
+        let url = try ExportFileStore.uniqueURL(stem: filenameStem, ext: "xlsx")
+        let package = try buildPackage(logs: logs, weights: weights, settings: settings)
+        try ZipStoreWriter.write(entries: package, to: url)
         return url
     }
 
-    // MARK: - Day layout
+    // MARK: - Package
 
-    private static func daySheet(log: DailyLog, weight: WeightEntry?, settings: AppSettings) -> String {
-        var xml = ""
-        xml += row(["\(AppIdentity.displayName) Log"], style: "Header")
-        xml += row([])
-        xml += row(["Date", DateHelpers.formattedDay(log.date)])
-        xml += row(["Protein Goal (kcal)", "\(log.proteinGoal)"])
-        xml += row(["Total Protein Calories", "\(log.totalProteinCalories)"])
-        xml += row(["Ketosis", log.ketosis ? "Y" : "N"])
-        xml += row(["Followed Plan", log.followedPlan ? "Y" : "N"])
-        if !log.offPlanReasons.isEmpty {
-            xml += row(["Off-plan reasons", log.offPlanReasons.joined(separator: ", ")])
+    private static func buildPackage(
+        logs: [DailyLog],
+        weights: [WeightEntry],
+        settings: AppSettings
+    ) throws -> [(path: String, data: Data)] {
+        let sheets: [(name: String, rows: [[String]])]
+        if logs.isEmpty {
+            sheets = [(name: "Empty", rows: [["No daily logs in this range"]])]
+        } else {
+            sheets = logs.map { log in
+                let weight = weights.first(where: { DateHelpers.isSameDay($0.date, log.date) })
+                return (
+                    name: sheetTitle(for: log.date),
+                    rows: dayRows(log: log, weight: weight, settings: settings)
+                )
+            }
         }
-        xml += row(["Notes", log.notes])
-        xml += row([])
+
+        var entries: [(path: String, data: Data)] = []
+        entries.append(("[Content_Types].xml", data(contentTypesXML(sheetCount: sheets.count))))
+        entries.append(("_rels/.rels", data(rootRelsXML)))
+        entries.append(("xl/workbook.xml", data(workbookXML(sheets: sheets.map(\.name)))))
+        entries.append(("xl/_rels/workbook.xml.rels", data(workbookRelsXML(sheetCount: sheets.count))))
+        entries.append(("xl/styles.xml", data(stylesXML)))
+
+        for (index, sheet) in sheets.enumerated() {
+            let path = "xl/worksheets/sheet\(index + 1).xml"
+            entries.append((path, data(worksheetXML(rows: sheet.rows))))
+        }
+        return entries
+    }
+
+    // MARK: - Day layout (row arrays)
+
+    private static func dayRows(log: DailyLog, weight: WeightEntry?, settings: AppSettings) -> [[String]] {
+        var rows: [[String]] = []
+        rows.append(["\(AppIdentity.displayName) Log"])
+        rows.append([])
+        rows.append(["Date", DateHelpers.formattedDay(log.date)])
+        rows.append(["Protein Goal (kcal)", "\(log.proteinGoal)"])
+        rows.append(["Total Protein Calories", "\(log.totalProteinCalories)"])
+        rows.append(["Ketosis", log.ketosis ? "Y" : "N"])
+        rows.append(["Followed Plan", log.followedPlan ? "Y" : "N"])
+        if !log.offPlanReasons.isEmpty {
+            rows.append(["Off-plan reasons", log.offPlanReasons.joined(separator: ", ")])
+        }
+        rows.append(["Notes", log.notes])
+        rows.append([])
 
         if let weight {
             var bmi = ""
             if let value = BMICalculator.bmi(weightLbs: weight.weightLbs, heightInches: settings.heightInches) {
                 bmi = String(format: "%.1f (%@)", value, BMICalculator.category(for: value))
             }
-            xml += row(["Weight & BMI"], style: "Section")
-            xml += row(["Weight (lb)", String(format: "%.1f", weight.weightLbs)])
-            xml += row(["BMI", bmi])
-            xml += row([])
+            rows.append(["Weight & BMI"])
+            rows.append(["Weight (lb)", String(format: "%.1f", weight.weightLbs)])
+            rows.append(["BMI", bmi])
+            rows.append([])
         }
 
-        xml += row(["Feelings & Cravings"], style: "Section")
-        xml += row(["Type", "Time", "Note"], style: "ColHeader")
+        rows.append(["Feelings & Cravings"])
+        rows.append(["Type", "Time", "Note"])
         if log.sortedFeelings.isEmpty {
-            xml += row(["—", "", ""])
+            rows.append(["—", "", ""])
         } else {
             for feeling in log.sortedFeelings {
-                xml += row([
+                rows.append([
                     feeling.type,
                     DateHelpers.formattedTime(feeling.timeLogged),
                     feeling.note
                 ])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Protein Source"], style: "Section")
-        xml += row(
-            ["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After"],
-            style: "ColHeader"
-        )
+        rows.append(["Protein Source"])
+        rows.append(["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After"])
         if log.sortedProteins.isEmpty {
-            xml += row(["—", "", "", "", "", ""])
+            rows.append(["—", "", "", "", "", ""])
         } else {
             for protein in log.sortedProteins {
-                xml += row([
+                rows.append([
                     protein.name,
                     DateHelpers.formattedTime(protein.time),
                     protein.servingSize,
@@ -115,10 +107,10 @@ enum WorkbookExportService {
                 ])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Fats, Fruits & Vegetables"], style: "Section")
-        xml += row(["Category", "Item", "Amount"], style: "ColHeader")
+        rows.append(["Fats, Fruits & Vegetables"])
+        rows.append(["Category", "Item", "Amount"])
         let veg = log.checkedFatsAndVeggies.filter { raw in
             let name = ChecklistStorage.name(of: raw)
             return FoodCatalog.vegetables.contains(where: { $0.name == name })
@@ -128,94 +120,209 @@ enum WorkbookExportService {
             return FoodCatalog.fats.contains(where: { $0.name == name })
         }
         if veg.isEmpty && fats.isEmpty && log.checkedFruits.isEmpty {
-            xml += row(["—", "", ""])
+            rows.append(["—", "", ""])
         } else {
             for raw in veg {
                 let parsed = ChecklistStorage.parse(raw)
-                xml += row(["Vegetable", parsed.name, parsed.amount])
+                rows.append(["Vegetable", parsed.name, parsed.amount])
             }
             for raw in fats {
                 let parsed = ChecklistStorage.parse(raw)
-                xml += row(["Fat", parsed.name, parsed.amount])
+                rows.append(["Fat", parsed.name, parsed.amount])
             }
             for raw in log.checkedFruits {
                 let parsed = ChecklistStorage.parse(raw)
-                xml += row(["Fruit", parsed.name, parsed.amount])
+                rows.append(["Fruit", parsed.name, parsed.amount])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Miscellaneous Items"], style: "Section")
-        xml += row(["Item", "Amount"], style: "ColHeader")
+        rows.append(["Miscellaneous Items"])
+        rows.append(["Item", "Amount"])
         if log.checkedMiscItems.isEmpty {
-            xml += row(["—", ""])
+            rows.append(["—", ""])
         } else {
             for raw in log.checkedMiscItems {
                 let parsed = ChecklistStorage.parse(raw)
-                xml += row([parsed.name, parsed.amount])
+                rows.append([parsed.name, parsed.amount])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Activity / Workout"], style: "Section")
-        xml += row(["Activity", "Duration (minutes)", "Time"], style: "ColHeader")
+        rows.append(["Activity / Workout"])
+        rows.append(["Activity", "Duration (minutes)", "Time"])
         if log.sortedWorkouts.isEmpty {
-            xml += row(["—", "", ""])
+            rows.append(["—", "", ""])
         } else {
             for workout in log.sortedWorkouts {
-                xml += row([
+                rows.append([
                     workout.activityName,
                     "\(workout.durationMinutes)",
                     DateHelpers.formattedTime(workout.timeLogged)
                 ])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Supplements"], style: "Section")
-        xml += row(["Supplement", "Completed", "Planned"], style: "ColHeader")
+        rows.append(["Supplements"])
+        rows.append(["Supplement", "Completed", "Planned"])
         let defs = settings.supplements.filter(\.isEnabled)
         if defs.isEmpty {
-            xml += row(["—", "", ""])
+            rows.append(["—", "", ""])
         } else {
             for def in defs {
                 let done = (0..<def.dosesPerDay).filter { log.completedSupplements.contains(def.doseKey($0)) }.count
-                xml += row([def.name, "\(done)", "\(def.dosesPerDay)"])
+                rows.append([def.name, "\(done)", "\(def.dosesPerDay)"])
             }
         }
-        xml += row([])
+        rows.append([])
 
-        xml += row(["Hydration"], style: "Section")
-        xml += row(["Total oz", "\(log.waterOz)"])
-        xml += row(["Target oz", "\(settings.hydrationTargetOz)"])
+        rows.append(["Hydration"])
+        rows.append(["Total oz", "\(log.waterOz)"])
+        rows.append(["Target oz", "\(settings.hydrationTargetOz)"])
         let drinks = log.waterDrinks.map { formatOz($0) }.joined(separator: ", ")
-        xml += row(["Drinks", drinks.isEmpty ? "—" : drinks])
-
-        return xml
+        rows.append(["Drinks", drinks.isEmpty ? "—" : drinks])
+        return rows
     }
 
-    // MARK: - XML helpers
+    // MARK: - OOXML fragments
 
-    private static func worksheet(name: String, content: String) -> String {
+    private static func contentTypesXML(sheetCount: Int) -> String {
+        var overrides = """
+        <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+        <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
         """
-        <Worksheet ss:Name="\(escapeAttr(sanitizeSheetName(name)))">
-        <Table>
-        \(content)
-        </Table>
-        </Worksheet>
+        for index in 1...max(sheetCount, 1) {
+            overrides += """
+            <Override PartName="/xl/worksheets/sheet\(index).xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+            """
+        }
+        return """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+          <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+          <Default Extension="xml" ContentType="application/xml"/>
+          \(overrides)
+        </Types>
         """
     }
 
-    private static func row(_ values: [String], style: String? = nil) -> String {
-        let cells = values.map { value -> String in
-            let styleAttr = style.map { " ss:StyleID=\"\($0)\"" } ?? ""
-            return "<Cell\(styleAttr)><Data ss:Type=\"String\">\(escapeXML(value))</Data></Cell>"
-        }.joined()
-        return "<Row>\(cells)</Row>\n"
+    private static let rootRelsXML = """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+    </Relationships>
+    """
+
+    private static func workbookXML(sheets: [String]) -> String {
+        var sheetTags = ""
+        for (index, name) in sheets.enumerated() {
+            let sheetId = index + 1
+            sheetTags += """
+            <sheet name="\(escapeXML(sanitizeSheetName(name)))" sheetId="\(sheetId)" r:id="rId\(sheetId)"/>
+            """
+        }
+        return """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+         xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+          <sheets>
+            \(sheetTags)
+          </sheets>
+        </workbook>
+        """
     }
+
+    private static func workbookRelsXML(sheetCount: Int) -> String {
+        var relationships = ""
+        for index in 1...max(sheetCount, 1) {
+            relationships += """
+            <Relationship Id="rId\(index)" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet\(index).xml"/>
+            """
+        }
+        let stylesId = sheetCount + 1
+        relationships += """
+        <Relationship Id="rId\(stylesId)" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+        """
+        return """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+          \(relationships)
+        </Relationships>
+        """
+    }
+
+    private static let stylesXML = """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+      <fonts count="2">
+        <font><sz val="11"/><name val="Calibri"/></font>
+        <font><b/><sz val="11"/><name val="Calibri"/></font>
+      </fonts>
+      <fills count="2">
+        <fill><patternFill patternType="none"/></fill>
+        <fill><patternFill patternType="gray125"/></fill>
+      </fills>
+      <borders count="1"><border/></borders>
+      <cellStyleXfs count="1"><xf/></cellStyleXfs>
+      <cellXfs count="2">
+        <xf fontId="0" fillId="0" borderId="0"/>
+        <xf fontId="1" fillId="0" borderId="0" applyFont="1"/>
+      </cellXfs>
+    </styleSheet>
+    """
+
+    private static func worksheetXML(rows: [[String]]) -> String {
+        var sheetData = ""
+        for (rowIndex, values) in rows.enumerated() {
+            let r = rowIndex + 1
+            var cells = ""
+            for (colIndex, value) in values.enumerated() {
+                let ref = cellReference(column: colIndex, row: r)
+                let bold = rowIndex == 0 || looksLikeSectionHeader(values) || looksLikeColumnHeader(values)
+                let styleAttr = bold ? " s=\"1\"" : ""
+                cells += "<c r=\"\(ref)\" t=\"inlineStr\"\(styleAttr)><is><t xml:space=\"preserve\">\(escapeXML(value))</t></is></c>"
+            }
+            sheetData += "<row r=\"\(r)\">\(cells)</row>"
+        }
+        return """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <sheetData>
+            \(sheetData)
+          </sheetData>
+        </worksheet>
+        """
+    }
+
+    private static func looksLikeSectionHeader(_ values: [String]) -> Bool {
+        guard values.count == 1 else { return false }
+        let title = values[0]
+        return [
+            "Weight & BMI",
+            "Feelings & Cravings",
+            "Protein Source",
+            "Fats, Fruits & Vegetables",
+            "Miscellaneous Items",
+            "Activity / Workout",
+            "Supplements",
+            "Hydration"
+        ].contains(title)
+    }
+
+    private static func looksLikeColumnHeader(_ values: [String]) -> Bool {
+        values == ["Type", "Time", "Note"]
+            || values == ["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After"]
+            || values == ["Category", "Item", "Amount"]
+            || values == ["Item", "Amount"]
+            || values == ["Activity", "Duration (minutes)", "Time"]
+            || values == ["Supplement", "Completed", "Planned"]
+    }
+
+    // MARK: - Helpers
 
     private static func sheetTitle(for date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).day())
+        date.formatted(.iso8601.year().month().day())
     }
 
     private static func sanitizeSheetName(_ name: String) -> String {
@@ -238,10 +345,37 @@ enum WorkbookExportService {
             .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
-    private static func escapeAttr(_ value: String) -> String { escapeXML(value) }
+    private static func cellReference(column: Int, row: Int) -> String {
+        var index = column
+        var letters = ""
+        repeat {
+            letters = String(UnicodeScalar(65 + (index % 26))!) + letters
+            index = index / 26 - 1
+        } while index >= 0
+        return "\(letters)\(row)"
+    }
 
     private static func formatOz(_ oz: Double) -> String {
         if abs(oz.rounded() - oz) < 0.05 { return "\(Int(oz.rounded()))oz" }
         return String(format: "%.1foz", oz)
+    }
+
+    private static func data(_ string: String) -> Data {
+        Data(string.utf8)
+    }
+}
+
+enum ExportFileStore {
+    static func exportsDirectory() throws -> URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let dir = base.appendingPathComponent("Exports", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    static func uniqueURL(stem: String, ext: String) throws -> URL {
+        let stamp = Int(Date().timeIntervalSince1970)
+        return try exportsDirectory().appendingPathComponent("\(stem)-\(stamp).\(ext)")
     }
 }

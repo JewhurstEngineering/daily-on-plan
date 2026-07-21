@@ -77,6 +77,18 @@ enum DataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    static func weights(from start: Date, to end: Date, in context: ModelContext) -> [WeightEntry] {
+        let startDay = DateHelpers.startOfDay(start)
+        let endExclusive = Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(end)) ?? end
+        let descriptor = FetchDescriptor<WeightEntry>(
+            predicate: #Predicate { entry in
+                entry.date >= startDay && entry.date < endExclusive
+            },
+            sortBy: [SortDescriptor(\.date, order: .forward)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     static func logs(from start: Date, to end: Date, in context: ModelContext) -> [DailyLog] {
         let startDay = DateHelpers.startOfDay(start)
         let endDay = DateHelpers.startOfDay(end)
