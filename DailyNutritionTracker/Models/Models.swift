@@ -370,7 +370,7 @@ final class AppSettings {
         self.defaultBottleOzStored = AppLimits.defaultBottleOz
         self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
         self.showSupplementsSectionStored = true
-        self.accentThemeRaw = AccentTheme.green.rawValue
+        self.accentThemeRaw = AccentTheme.onPlan.rawValue
         self.weightSectionCollapsedStored = false
         self.collapsedSectionsJSON = "{}"
         self.notificationsDefaultsVersionStored = 2
@@ -447,7 +447,17 @@ final class AppSettings {
     }
 
     var accentTheme: AccentTheme {
-        get { AccentTheme(rawValue: accentThemeRaw ?? "") ?? .green }
+        get {
+            if let theme = AccentTheme(rawValue: accentThemeRaw ?? "") {
+                return theme
+            }
+            // Legacy accents from before OnPlan brand kit.
+            switch accentThemeRaw {
+            case "teal", "blue": return .onPlan
+            case "brown": return .slate
+            default: return .onPlan
+            }
+        }
         set { accentThemeRaw = newValue.rawValue }
     }
 

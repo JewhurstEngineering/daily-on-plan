@@ -12,6 +12,8 @@ enum AppIdentity {
            !name.isEmpty {
             return name
         }
-        return "Daily Nutrition"
+        return "OnPlan"
     }
+
+    static let tagline = "Stay on plan. One day at a time."
 }

@@ -24,7 +24,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailynutrition.tracker
-        PRODUCT_DISPLAY_NAME: Daily Nutrition
+        PRODUCT_DISPLAY_NAME: OnPlan
         INFOPLIST_FILE: DailyNutritionTracker/Info.plist
         CODE_SIGN_ENTITLEMENTS: DailyNutritionTracker/DailyNutritionTracker.entitlements
         DEVELOPMENT_TEAM: ""

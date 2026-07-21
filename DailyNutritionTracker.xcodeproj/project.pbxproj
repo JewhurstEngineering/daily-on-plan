@@ -40,6 +40,7 @@
 		F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */; };
 		793B43FE165A4F7584246BA3 /* MealSuggestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AF6F6EDC804A95A15789FF /* MealSuggestor.swift */; };
 		F81F4DE5A6764E6D8E139DAD /* AppIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C96F293D0714A239E954C78 /* AppIdentity.swift */; };
+		0B0B6570C671406F8B9AC41D /* OnPlanColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CF722A52844889BDF9002 /* OnPlanColors.swift */; };
 		D7078D2EC79F4EA4AFD763ED /* NotificationsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D6924881644A089F24D7D2 /* NotificationsSettingsView.swift */; };
 		0F56377267084FF387D69D6E /* FoodPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6182EF7950C84F7CAB7FA77F /* FoodPreferencesView.swift */; };
 		7A5B704775B84432B5BA427F /* SavedMealsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA121FAFDE544E178C38842C /* SavedMealsListView.swift */; };
@@ -82,6 +83,7 @@
 		FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightBMISection.swift; sourceTree = "<group>"; };
 		C3AF6F6EDC804A95A15789FF /* MealSuggestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSuggestor.swift; sourceTree = "<group>"; };
 		8C96F293D0714A239E954C78 /* AppIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIdentity.swift; sourceTree = "<group>"; };
+		E98CF722A52844889BDF9002 /* OnPlanColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnPlanColors.swift; sourceTree = "<group>"; };
 		D7D6924881644A089F24D7D2 /* NotificationsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSettingsView.swift; sourceTree = "<group>"; };
 		6182EF7950C84F7CAB7FA77F /* FoodPreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodPreferencesView.swift; sourceTree = "<group>"; };
 		DA121FAFDE544E178C38842C /* SavedMealsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedMealsListView.swift; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 			isa = PBXGroup;
 			children = (
 				8C96F293D0714A239E954C78 /* AppIdentity.swift */,
+				E98CF722A52844889BDF9002 /* OnPlanColors.swift */,
 				26F24410868D1BC623CDA3AE /* UsageSuggestions.swift */,
 				C3AF6F6EDC804A95A15789FF /* MealSuggestor.swift */,
 			);
@@ -340,6 +343,7 @@
 				19A77925BB9BB04B288DA118 /* UsageSuggestions.swift in Sources */,
 				793B43FE165A4F7584246BA3 /* MealSuggestor.swift in Sources */,
 				F81F4DE5A6764E6D8E139DAD /* AppIdentity.swift in Sources */,
+				0B0B6570C671406F8B9AC41D /* OnPlanColors.swift in Sources */,
 				D7078D2EC79F4EA4AFD763ED /* NotificationsSettingsView.swift in Sources */,
 				0F56377267084FF387D69D6E /* FoodPreferencesView.swift in Sources */,
 				7A5B704775B84432B5BA427F /* SavedMealsListView.swift in Sources */,
@@ -425,7 +429,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dailynutrition.tracker;
-				PRODUCT_DISPLAY_NAME = "Daily Nutrition";
+				PRODUCT_DISPLAY_NAME = OnPlan;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -512,7 +516,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dailynutrition.tracker;
-				PRODUCT_DISPLAY_NAME = "Daily Nutrition";
+				PRODUCT_DISPLAY_NAME = OnPlan;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";

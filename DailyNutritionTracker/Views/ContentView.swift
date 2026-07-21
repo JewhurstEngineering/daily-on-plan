@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var pendingScrollSection: String?
 
     private var accent: Color {
-        (settingsList.first?.accentTheme ?? .green).color
+        (settingsList.first?.accentTheme ?? .onPlan).color
     }
 
     var body: some View {

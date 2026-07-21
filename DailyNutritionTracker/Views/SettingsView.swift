@@ -15,6 +15,9 @@ struct SettingsView: View {
                 if let settings {
                     Form {
                         Section("Appearance") {
+                            Text(AppIdentity.tagline)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                             Text("Accent color")
                                 .font(.subheadline)
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
