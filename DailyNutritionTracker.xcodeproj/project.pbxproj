@@ -47,6 +47,7 @@
 		F8E8A22FD08D41A80A32A788 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BDC180AAA53528DC411DC8 /* HealthKitService.swift */; };
 		F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */; };
 		C4A81E29B0D74F6A8E3C1A55 /* SmokingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */; };
+		E2F19A70C8D54B2F9A1E6D33 /* DrinkingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -93,6 +94,7 @@
 		FCBBDEBB6F446A4F9D228238 /* ProteinSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProteinSection.swift; sourceTree = "<group>"; };
 		FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightBMISection.swift; sourceTree = "<group>"; };
 		9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokingSection.swift; sourceTree = "<group>"; };
+		6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkingSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -238,6 +240,7 @@
 				42C285AE838B778EDA46B2A8 /* SupplementsSection.swift */,
 				FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */,
 				9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */,
+				6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */,
 				12455EC302B95E4C91AA758F /* WorkoutSection.swift */,
 			);
 			path = Sections;
@@ -357,6 +360,7 @@
 				7A5B704775B84432B5BA427F /* SavedMealsListView.swift in Sources */,
 				F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */,
 				C4A81E29B0D74F6A8E3C1A55 /* SmokingSection.swift in Sources */,
+				E2F19A70C8D54B2F9A1E6D33 /* DrinkingSection.swift in Sources */,
 				8D44BF1AF9CF7089E6BC9807 /* WorkbookExportService.swift in Sources */,
 				B7E41C92A0F84D1E9C2A6B10 /* ZipStoreWriter.swift in Sources */,
 				3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */,

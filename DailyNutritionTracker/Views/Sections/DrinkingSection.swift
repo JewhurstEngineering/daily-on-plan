@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-struct SmokingSection: View {
+struct DrinkingSection: View {
     @Bindable var log: DailyLog
     @Bindable var settings: AppSettings
     let recentLogs: [DailyLog]
@@ -12,15 +12,15 @@ struct SmokingSection: View {
     @State private var urgeNote = ""
     @State private var showEventList = false
 
-    private var limit: Int? { settings.effectiveDailyCigaretteLimit }
+    private var limit: Int? { settings.effectiveDailyDrinkLimit }
 
     private var underLimit: Bool {
         guard let limit else { return true }
-        return log.cigarettesSmoked <= limit
+        return log.drinksLogged <= limit
     }
 
-    private var smokeFreeStreak: Int {
-        Self.trailingSmokeFreeDays(from: log.date, logs: recentLogs, quitDate: settings.quitDate)
+    private var alcoholFreeStreak: Int {
+        Self.trailingAlcoholFreeDays(from: log.date, logs: recentLogs, quitDate: settings.alcoholQuitDate)
     }
 
     private var reduceStreak: Int {
@@ -28,26 +28,12 @@ struct SmokingSection: View {
         return Self.trailingUnderLimitDays(from: log.date, logs: recentLogs, limit: limit)
     }
 
-    private var moneySavedText: String? {
-        guard settings.smokingMode == .quit,
-              let quit = settings.quitDate,
-              settings.cigarettePackPrice != nil else { return nil }
-        let avoided = Self.cigarettesAvoidedSinceQuit(
-            quitDate: quit,
-            through: log.date,
-            logs: recentLogs,
-            baselinePerDay: max(settings.dailyCigaretteLimit, CigarettePackMath.perPack)
-        )
-        guard let saved = settings.estimatedMoneySaved(cigarettesAvoided: avoided), saved > 0 else { return nil }
-        return String(format: "Est. $%.2f saved", saved)
-    }
-
     var body: some View {
         SectionCard(
-            title: "Smoking",
-            systemImage: "smoke",
-            isCollapsed: settings.sectionCollapsedBinding(.smoking, context: modelContext),
-            collapsedMessage: DaySectionID.smoking.collapsedMessage
+            title: "Drinking",
+            systemImage: "wineglass",
+            isCollapsed: settings.sectionCollapsedBinding(.drinking, context: modelContext),
+            collapsedMessage: DaySectionID.drinking.collapsedMessage
         ) {
             Text(modeBlurb)
                 .font(.footnote)
@@ -58,56 +44,53 @@ struct SmokingSection: View {
                     Text("Today")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(log.cigarettesSmoked)")
+                    Text("\(log.drinksLogged)")
                         .font(.largeTitle.bold().monospacedDigit())
                         .foregroundStyle(countColor)
-                    Text(CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     if let limit {
-                        Text(
-                            limit == 0
-                            ? "Target: 0"
-                            : "\(log.cigarettesSmoked) / \(limit) cigs · max \(CigarettePackMath.packsLabel(cigarettes: limit))"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(limit == 0 ? "Target: 0" : "\(log.drinksLogged) / \(limit) drinks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(log.drinksLogged == 1 ? "1 drink" : "\(log.drinksLogged) drinks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
                 HStack(spacing: 12) {
                     Button {
-                        log.removeLastCigaretteEvent()
+                        log.removeLastDrinkEvent()
                         try? modelContext.save()
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .font(.title)
                     }
-                    .disabled(log.cigaretteEvents.isEmpty)
-                    .accessibilityLabel("Undo last smoke log")
+                    .disabled(log.drinkEvents.isEmpty)
+                    .accessibilityLabel("Undo last drink")
 
                     Button {
-                        log.addCigarette()
+                        log.addDrinks(1)
                         try? modelContext.save()
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title)
                     }
-                    .accessibilityLabel("Log one cigarette")
+                    .accessibilityLabel("Log one drink")
                 }
                 .buttonStyle(.plain)
             }
 
-            Text("Quick add packs")
+            Text("Quick add")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
-                ForEach(CigarettePackMath.quickPackOptions, id: \.self) { packs in
+                ForEach([2, 3, 4], id: \.self) { count in
                     Button {
-                        log.addCigarettes(CigarettePackMath.cigarettes(forPacks: packs))
+                        log.addDrinks(count)
                         try? modelContext.save()
                     } label: {
-                        Text(packChipLabel(packs))
+                        Text("+\(count)")
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
@@ -118,9 +101,9 @@ struct SmokingSection: View {
                 }
             }
 
-            if !log.cigaretteEvents.isEmpty {
-                DisclosureGroup("Log (\(log.cigaretteEvents.count))", isExpanded: $showEventList) {
-                    ForEach(log.cigaretteEvents.reversed()) { event in
+            if !log.drinkEvents.isEmpty {
+                DisclosureGroup("Log (\(log.drinkEvents.count))", isExpanded: $showEventList) {
+                    ForEach(log.drinkEvents.reversed()) { event in
                         HStack {
                             Text(DateHelpers.formattedTime(event.timeLogged))
                                 .font(.caption.monospacedDigit())
@@ -128,7 +111,7 @@ struct SmokingSection: View {
                                 .font(.caption)
                             Spacer()
                             Button(role: .destructive) {
-                                log.removeCigaretteEvent(id: event.id)
+                                log.removeDrinkEvent(id: event.id)
                                 try? modelContext.save()
                             } label: {
                                 Image(systemName: "trash")
@@ -141,7 +124,7 @@ struct SmokingSection: View {
                 .font(.caption)
             }
 
-            if settings.smokingMode == .reduce {
+            if settings.drinkingMode == .reduce {
                 Text(reduceStreak == 1
                      ? "1 day at or under max"
                      : "\(reduceStreak) days at or under max")
@@ -149,22 +132,17 @@ struct SmokingSection: View {
                     .foregroundStyle(.secondary)
             }
 
-            if settings.smokingMode == .quit {
+            if settings.drinkingMode == .quit {
                 VStack(alignment: .leading, spacing: 6) {
-                    if let quit = settings.quitDate {
+                    if let quit = settings.alcoholQuitDate {
                         Text("Quit date \(DateHelpers.formattedDay(quit))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Text(smokeFreeStreak == 1
-                         ? "1 smoke-free day in a row"
-                         : "\(smokeFreeStreak) smoke-free days in a row")
+                    Text(alcoholFreeStreak == 1
+                         ? "1 alcohol-free day in a row"
+                         : "\(alcoholFreeStreak) alcohol-free days in a row")
                         .font(.subheadline.weight(.semibold))
-                    if let moneySavedText {
-                        Text(moneySavedText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
 
                     Button {
                         urgeNote = ""
@@ -174,12 +152,12 @@ struct SmokingSection: View {
                     }
                     .buttonStyle(.bordered)
 
-                    if !log.cigaretteUrges.isEmpty {
+                    if !log.drinkUrges.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Urges today")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                            ForEach(log.cigaretteUrges) { urge in
+                            ForEach(log.drinkUrges) { urge in
                                 HStack {
                                     Text(DateHelpers.formattedTime(urge.timeLogged))
                                         .font(.caption.monospacedDigit())
@@ -189,7 +167,7 @@ struct SmokingSection: View {
                                         .lineLimit(2)
                                     Spacer()
                                     Button(role: .destructive) {
-                                        log.removeUrge(id: urge.id)
+                                        log.removeDrinkUrge(id: urge.id)
                                         try? modelContext.save()
                                     } label: {
                                         Image(systemName: "trash")
@@ -204,7 +182,7 @@ struct SmokingSection: View {
             }
 
             if onOpenSettings != nil {
-                Button("Smoking settings…") {
+                Button("Drinking settings…") {
                     onOpenSettings?()
                 }
                 .font(.caption)
@@ -217,7 +195,7 @@ struct SmokingSection: View {
                         TextField("Optional note", text: $urgeNote, axis: .vertical)
                             .lineLimit(2...4)
                     } footer: {
-                        Text("Log the urge even if you didn’t smoke.")
+                        Text("Log the urge even if you didn’t drink.")
                     }
                 }
                 .navigationTitle("Log urge")
@@ -228,7 +206,7 @@ struct SmokingSection: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
-                            log.addUrge(note: urgeNote.trimmingCharacters(in: .whitespacesAndNewlines))
+                            log.addDrinkUrge(note: urgeNote.trimmingCharacters(in: .whitespacesAndNewlines))
                             try? modelContext.save()
                             showUrgeSheet = false
                         }
@@ -239,22 +217,12 @@ struct SmokingSection: View {
         }
     }
 
-    private func packChipLabel(_ packs: Double) -> String {
-        if packs == 0.5 { return "½" }
-        if abs(packs - packs.rounded()) < 0.01 { return "\(Int(packs.rounded()))" }
-        return String(format: "%.1f", packs)
-    }
-
     private var modeBlurb: String {
-        switch settings.smokingMode {
-        case .off:
-            return ""
-        case .count:
-            return "Log each cigarette or a pack amount. Every entry gets a timestamp."
-        case .reduce:
-            return "Stay at or under your daily max. Log by cig or pack."
-        case .quit:
-            return "Target is zero. Log slips with time stamps and urges when cravings hit."
+        switch settings.drinkingMode {
+        case .off: return ""
+        case .count: return "Log each drink with a timestamp. Keep it simple — standard drinks."
+        case .reduce: return "Stay at or under your daily drink max."
+        case .quit: return "Target is zero. Log slips and urges with times."
         }
     }
 
@@ -263,15 +231,14 @@ struct SmokingSection: View {
         return underLimit ? .primary : .orange
     }
 
-    static func trailingSmokeFreeDays(from day: Date, logs: [DailyLog], quitDate: Date?) -> Int {
+    static func trailingAlcoholFreeDays(from day: Date, logs: [DailyLog], quitDate: Date?) -> Int {
         let startBound = quitDate.map { DateHelpers.startOfDay($0) }
         let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
         var cursor = DateHelpers.startOfDay(day)
         var streak = 0
         while true {
             if let startBound, cursor < startBound { break }
-            let smoked = byDay[cursor]?.cigarettesSmoked ?? 0
-            if smoked > 0 { break }
+            if (byDay[cursor]?.drinksLogged ?? 0) > 0 { break }
             streak += 1
             guard let previous = Calendar.current.date(byAdding: .day, value: -1, to: cursor) else { break }
             cursor = previous
@@ -288,35 +255,14 @@ struct SmokingSection: View {
         var cursor = DateHelpers.startOfDay(day)
         var streak = 0
         while let entry = byDay[cursor] {
-            if entry.cigarettesSmoked > limit { break }
+            if entry.drinksLogged > limit { break }
             streak += 1
             guard let previous = Calendar.current.date(byAdding: .day, value: -1, to: cursor) else { break }
             cursor = previous
         }
-        if streak == 0, (byDay[DateHelpers.startOfDay(day)]?.cigarettesSmoked ?? 0) <= limit {
+        if streak == 0, (byDay[DateHelpers.startOfDay(day)]?.drinksLogged ?? 0) <= limit {
             return 1
         }
         return streak
-    }
-
-    static func cigarettesAvoidedSinceQuit(
-        quitDate: Date,
-        through: Date,
-        logs: [DailyLog],
-        baselinePerDay: Int
-    ) -> Int {
-        let start = DateHelpers.startOfDay(quitDate)
-        let end = DateHelpers.startOfDay(through)
-        guard end >= start else { return 0 }
-        let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
-        var avoided = 0
-        var cursor = start
-        while cursor <= end {
-            let smoked = byDay[cursor]?.cigarettesSmoked ?? 0
-            avoided += max(0, baselinePerDay - smoked)
-            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
-        }
-        return avoided
     }
 }

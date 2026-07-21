@@ -23,13 +23,44 @@ enum ExportService {
             lines.append(csvRow(["day", day, "", "waterOz", "\(log.waterOz)", ""]))
             lines.append(csvRow(["day", day, "", "notes", log.notes, ""]))
             lines.append(csvRow(["day", day, "", "cigarettes", "\(log.cigarettesSmoked)", ""]))
-
+            for event in log.cigaretteEvents {
+                lines.append(csvRow([
+                    "cigarette",
+                    day,
+                    DateHelpers.formattedTime(event.timeLogged),
+                    event.label,
+                    "\(event.count)",
+                    ""
+                ]))
+            }
             for urge in log.cigaretteUrges {
                 lines.append(csvRow([
                     "urge",
                     day,
                     DateHelpers.formattedTime(urge.timeLogged),
                     "cigarette",
+                    "",
+                    urge.note
+                ]))
+            }
+
+            lines.append(csvRow(["day", day, "", "drinks", "\(log.drinksLogged)", ""]))
+            for event in log.drinkEvents {
+                lines.append(csvRow([
+                    "drink",
+                    day,
+                    DateHelpers.formattedTime(event.timeLogged),
+                    event.label,
+                    "\(event.count)",
+                    ""
+                ]))
+            }
+            for urge in log.drinkUrges {
+                lines.append(csvRow([
+                    "urge",
+                    day,
+                    DateHelpers.formattedTime(urge.timeLogged),
+                    "drink",
                     "",
                     urge.note
                 ]))
@@ -178,9 +209,21 @@ enum ExportService {
                 drawLine("Protein \(log.totalProteinCalories)/\(log.proteinGoal) kcal  |  Ketosis: \(log.ketosis ? "Y" : "N")  |  Plan: \(log.followedPlan ? "Y" : "N")")
                 drawLine("Water: \(log.waterOz) / \(settings.hydrationTargetOz) oz")
                 if settings.smokingMode.showsSection || log.cigarettesSmoked > 0 || !log.cigaretteUrges.isEmpty {
-                    drawLine("Cigarettes: \(log.cigarettesSmoked)\(settings.effectiveDailyCigaretteLimit.map { " / max \($0)" } ?? "")")
+                    drawLine("Cigarettes: \(log.cigarettesSmoked) (\(CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked)))\(settings.effectiveDailyCigaretteLimit.map { " / max \($0)" } ?? "")")
+                    for event in log.cigaretteEvents {
+                        drawLine("\(DateHelpers.formattedTime(event.timeLogged)) — \(event.label)", indent: 12)
+                    }
                     if !log.cigaretteUrges.isEmpty {
                         drawLine("Urges: \(log.cigaretteUrges.count)", indent: 12)
+                    }
+                }
+                if settings.drinkingMode.showsSection || log.drinksLogged > 0 || !log.drinkUrges.isEmpty {
+                    drawLine("Drinks: \(log.drinksLogged)\(settings.effectiveDailyDrinkLimit.map { " / max \($0)" } ?? "")")
+                    for event in log.drinkEvents {
+                        drawLine("\(DateHelpers.formattedTime(event.timeLogged)) — \(event.label)", indent: 12)
+                    }
+                    if !log.drinkUrges.isEmpty {
+                        drawLine("Urges: \(log.drinkUrges.count)", indent: 12)
                     }
                 }
                 if !log.offPlanReasons.isEmpty {

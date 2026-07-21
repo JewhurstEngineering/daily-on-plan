@@ -190,17 +190,20 @@ struct SettingsView: View {
 
                             if settings.smokingMode == .reduce {
                                 Stepper(
-                                    "Daily max: \(settings.dailyCigaretteLimit)",
+                                    "Daily max: \(CigarettePackMath.packsLabel(cigarettes: settings.dailyCigaretteLimit)) (\(settings.dailyCigaretteLimit) cigs)",
                                     value: Binding(
-                                        get: { settings.dailyCigaretteLimit },
+                                        get: { Int((settings.dailyCigaretteLimitPacks * 2).rounded()) },
                                         set: {
-                                            settings.dailyCigaretteLimit = $0
+                                            settings.dailyCigaretteLimitPacks = Double($0) / 2.0
                                             save(settings)
                                         }
                                     ),
-                                    in: 0...AppLimits.cigaretteLimitMax,
+                                    in: 0...(AppLimits.cigaretteLimitMax * 2 / CigarettePackMath.perPack),
                                     step: 1
                                 )
+                                Text("Adjusts in ½-pack steps (20 cigs per pack).")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                             }
 
                             if settings.smokingMode == .quit {
@@ -217,17 +220,20 @@ struct SettingsView: View {
                                     displayedComponents: .date
                                 )
                                 Stepper(
-                                    "Cigs per pack: \(settings.cigarettesPerPack)",
+                                    "Was smoking: \(CigarettePackMath.packsLabel(cigarettes: settings.dailyCigaretteLimit))/day",
                                     value: Binding(
-                                        get: { settings.cigarettesPerPack },
+                                        get: { Int((settings.dailyCigaretteLimitPacks * 2).rounded()) },
                                         set: {
-                                            settings.cigarettesPerPack = $0
+                                            settings.dailyCigaretteLimitPacks = max(0.5, Double($0) / 2.0)
                                             save(settings)
                                         }
                                     ),
-                                    in: 1...40,
+                                    in: 1...(AppLimits.cigaretteLimitMax * 2 / CigarettePackMath.perPack),
                                     step: 1
                                 )
+                                Text("Used for the money-saved estimate (packs are always 20 cigs).")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                                 HStack {
                                     TextField("Pack price (optional)", text: $packPriceText)
                                         .keyboardType(.decimalPad)
@@ -242,10 +248,66 @@ struct SettingsView: View {
                         } header: {
                             Text("Smoking")
                         } footer: {
-                            Text("Off hides the section. Count is a simple tap counter. Reduce adds a daily max. Quit adds smoke-free days and an urge log.")
+                            Text("Off hides the section. Log by cigarette or pack (½ / 1 / 1½ / 2). Each entry is timestamped.")
                         }
                         .onChange(of: packPriceFocused) { _, focused in
                             if !focused { commitPackPrice(settings) }
+                        }
+
+                        Section {
+                            Picker("Mode", selection: Binding(
+                                get: { settings.drinkingMode },
+                                set: {
+                                    settings.drinkingMode = $0
+                                    if $0 == .quit, settings.alcoholQuitDate == nil {
+                                        settings.alcoholQuitDate = Date()
+                                    }
+                                    save(settings)
+                                }
+                            )) {
+                                ForEach(DrinkingMode.allCases) { mode in
+                                    Text(mode.title).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
+                            Text(settings.drinkingMode.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            if settings.drinkingMode == .reduce {
+                                Stepper(
+                                    "Daily max: \(settings.dailyDrinkLimit) drinks",
+                                    value: Binding(
+                                        get: { settings.dailyDrinkLimit },
+                                        set: {
+                                            settings.dailyDrinkLimit = $0
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: 0...AppLimits.drinkLimitMax,
+                                    step: 1
+                                )
+                            }
+
+                            if settings.drinkingMode == .quit {
+                                DatePicker(
+                                    "Quit date",
+                                    selection: Binding(
+                                        get: { settings.alcoholQuitDate ?? Date() },
+                                        set: {
+                                            settings.alcoholQuitDate = $0
+                                            save(settings)
+                                        }
+                                    ),
+                                    in: ...Date(),
+                                    displayedComponents: .date
+                                )
+                            }
+                        } header: {
+                            Text("Drinking")
+                        } footer: {
+                            Text("Same idea as smoking: count, reduce toward a max, or quit with urges. Each drink is timestamped.")
                         }
 
                         Section {

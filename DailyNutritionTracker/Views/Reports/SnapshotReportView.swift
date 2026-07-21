@@ -136,6 +136,26 @@ struct SnapshotReportView: View {
                 }
                 .frame(height: 140)
             }
+
+            if snapshot.showsDrinkingReport, !snapshot.drinkSeries.isEmpty {
+                Text("Drinks")
+                    .font(.subheadline.weight(.semibold))
+                Chart {
+                    ForEach(snapshot.drinkSeries) { point in
+                        BarMark(
+                            x: .value("Day", point.date),
+                            y: .value("Drinks", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                    }
+                    if let limit = snapshot.settings.effectiveDailyDrinkLimit {
+                        RuleMark(y: .value("Max", Double(limit)))
+                            .foregroundStyle(.orange)
+                            .lineStyle(StrokeStyle(dash: [4, 3]))
+                    }
+                }
+                .frame(height: 140)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,11 +226,21 @@ struct SnapshotReportView: View {
             if snapshot.showsSmokingReport {
                 ReportMetricRow(
                     title: "Avg cigarettes / day",
-                    value: String(format: "%.1f", snapshot.avgCigarettesPerDay)
+                    value: String(format: "%.1f (%@)", snapshot.avgCigarettesPerDay, CigarettePackMath.packsLabel(cigarettes: Int(snapshot.avgCigarettesPerDay.rounded())))
                 )
                 ReportMetricRow(
                     title: "Smoke-free days",
                     value: "\(snapshot.smokeFreeDaysInRange)/\(snapshot.logs.count)"
+                )
+            }
+            if snapshot.showsDrinkingReport {
+                ReportMetricRow(
+                    title: "Avg drinks / day",
+                    value: String(format: "%.1f", snapshot.avgDrinksPerDay)
+                )
+                ReportMetricRow(
+                    title: "Alcohol-free days",
+                    value: "\(snapshot.alcoholFreeDaysInRange)/\(snapshot.logs.count)"
                 )
             }
             if let bmi = snapshot.latestBMI {

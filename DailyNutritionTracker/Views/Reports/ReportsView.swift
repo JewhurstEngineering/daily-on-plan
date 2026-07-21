@@ -80,6 +80,13 @@ struct ReportsView: View {
                             Label("Smoking", systemImage: "smoke")
                         }
                     }
+                    if currentSnapshot.showsDrinkingReport {
+                        NavigationLink {
+                            DrinkingReportView(snapshot: currentSnapshot)
+                        } label: {
+                            Label("Drinking", systemImage: "wineglass")
+                        }
+                    }
                     NavigationLink {
                         SupplementsReportView(snapshot: currentSnapshot)
                     } label: {
@@ -538,6 +545,61 @@ struct SmokingReportView: View {
             .padding()
         }
         .navigationTitle("Smoking")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct DrinkingReportView: View {
+    let snapshot: ReportSnapshot
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ReportMetricRow(title: "Mode", value: snapshot.settings.drinkingMode.title)
+                ReportMetricRow(title: "Total drinks", value: "\(snapshot.totalDrinks)")
+                ReportMetricRow(
+                    title: "Avg / day",
+                    value: String(format: "%.1f", snapshot.avgDrinksPerDay)
+                )
+                ReportMetricRow(
+                    title: "Alcohol-free days",
+                    value: "\(snapshot.alcoholFreeDaysInRange)/\(snapshot.logs.count)"
+                )
+                if snapshot.settings.effectiveDailyDrinkLimit != nil {
+                    ReportMetricRow(
+                        title: "Days at/under max",
+                        value: "\(snapshot.daysUnderDrinkLimit)/\(snapshot.logs.count)"
+                    )
+                }
+                if snapshot.totalDrinkUrges > 0 {
+                    ReportMetricRow(title: "Urges logged", value: "\(snapshot.totalDrinkUrges)")
+                }
+
+                if !snapshot.drinkSeries.isEmpty {
+                    Text("Daily drinks")
+                        .font(.headline)
+                    Chart {
+                        ForEach(snapshot.drinkSeries) { point in
+                            BarMark(
+                                x: .value("Day", point.date),
+                                y: .value("Drinks", point.value)
+                            )
+                            .foregroundStyle(Color.accentColor)
+                        }
+                        if let limit = snapshot.settings.effectiveDailyDrinkLimit {
+                            RuleMark(y: .value("Max", Double(limit)))
+                                .foregroundStyle(.orange)
+                                .lineStyle(StrokeStyle(dash: [4, 3]))
+                        }
+                    }
+                    .frame(height: 200)
+                } else {
+                    EmptyReportHint()
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Drinking")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

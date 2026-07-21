@@ -228,6 +228,38 @@ struct ReportSnapshot {
         settings.smokingMode.showsSection || totalCigarettes > 0 || totalUrges > 0
     }
 
+    // MARK: Drinking
+
+    var drinkSeries: [DailyMetricPoint] {
+        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.drinksLogged)) }
+    }
+
+    var totalDrinks: Int {
+        logs.reduce(0) { $0 + $1.drinksLogged }
+    }
+
+    var avgDrinksPerDay: Double {
+        guard !logs.isEmpty else { return 0 }
+        return Double(totalDrinks) / Double(logs.count)
+    }
+
+    var daysUnderDrinkLimit: Int {
+        guard let limit = settings.effectiveDailyDrinkLimit else { return 0 }
+        return logs.filter { $0.drinksLogged <= limit }.count
+    }
+
+    var alcoholFreeDaysInRange: Int {
+        logs.filter { $0.drinksLogged == 0 }.count
+    }
+
+    var totalDrinkUrges: Int {
+        logs.reduce(0) { $0 + $1.drinkUrges.count }
+    }
+
+    var showsDrinkingReport: Bool {
+        settings.drinkingMode.showsSection || totalDrinks > 0 || totalDrinkUrges > 0
+    }
+
     // MARK: Supplements
 
     struct SupplementAdherence: Identifiable {

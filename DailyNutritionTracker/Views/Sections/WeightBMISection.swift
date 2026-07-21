@@ -13,6 +13,7 @@ struct WeightBMISection: View {
     @Environment(\.modelContext) private var modelContext
     @State private var draftText = ""
     @State private var showGoalEditor = false
+    @State private var isEditingWeight = false
     @FocusState private var weightFocused: Bool
 
     private var unitLabel: String { settings.usesMetricWeight ? "kg" : "lb" }
@@ -117,16 +118,34 @@ struct WeightBMISection: View {
 
             goalBlock
 
-            HStack {
-                TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($weightFocused)
-                Button("Save") {
-                    commit()
+            if isEditingWeight {
+                HStack {
+                    TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($weightFocused)
+                    Button("Save") {
+                        commit()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(parsedDraft == nil)
+                    Button("Cancel") {
+                        isEditingWeight = false
+                        weightFocused = false
+                        Keyboard.dismiss()
+                        draftText = ""
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(parsedDraft == nil)
+            } else {
+                Button {
+                    syncDraftForEdit()
+                    isEditingWeight = true
+                    weightFocused = true
+                } label: {
+                    Label(weight == nil ? "Log weight" : "Update weight", systemImage: "pencil")
+                }
+                .buttonStyle(.bordered)
             }
 
             if !recentWeights.isEmpty {
@@ -162,11 +181,16 @@ struct WeightBMISection: View {
         .sheet(isPresented: $showGoalEditor) {
             GoalWeightConfigSheet(settings: settings)
         }
-        .onAppear { syncDraft() }
-        .onChange(of: weight?.weightLbs) { _, _ in
-            if !weightFocused { syncDraft() }
+        .onAppear {
+            // Keep input hidden unless user is actively editing.
+            if weight != nil { isEditingWeight = false }
         }
-        .onChange(of: settings.usesMetricWeight) { _, _ in syncDraft() }
+        .onChange(of: weight?.weightLbs) { _, _ in
+            if !isEditingWeight { draftText = "" }
+        }
+        .onChange(of: settings.usesMetricWeight) { _, _ in
+            if isEditingWeight { syncDraftForEdit() }
+        }
     }
 
     @ViewBuilder
@@ -214,9 +238,11 @@ struct WeightBMISection: View {
         settings.usesMetricWeight ? lbs * 0.453592 : lbs
     }
 
-    private func syncDraft() {
+    private func syncDraftForEdit() {
         if let weight {
             draftText = String(format: "%.1f", displayValue(lbs: weight.weightLbs))
+        } else {
+            draftText = ""
         }
     }
 
@@ -226,7 +252,8 @@ struct WeightBMISection: View {
         Keyboard.dismiss()
         let lbs = settings.usesMetricWeight ? value / 0.453592 : value
         onSave(lbs)
-        draftText = String(format: "%.1f", value)
+        draftText = ""
+        isEditingWeight = false
     }
 }
 

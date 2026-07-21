@@ -191,17 +191,54 @@ enum WorkbookExportService {
         if settings.smokingMode.showsSection || log.cigarettesSmoked > 0 || !log.cigaretteUrges.isEmpty {
             rows.append(["Smoking"])
             rows.append(["Cigarettes", "\(log.cigarettesSmoked)"])
+            rows.append(["Packs", CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked)])
             if let limit = settings.effectiveDailyCigaretteLimit {
-                rows.append(["Daily max", "\(limit)"])
+                rows.append(["Daily max", "\(limit) cigs"])
             }
             if settings.smokingMode == .quit, let quit = settings.quitDate {
                 rows.append(["Quit date", DateHelpers.formattedDay(quit)])
+            }
+            rows.append(["Entry", "Time", "Amount"])
+            if log.cigaretteEvents.isEmpty {
+                rows.append(["—", "", ""])
+            } else {
+                for event in log.cigaretteEvents {
+                    rows.append(["Smoke", DateHelpers.formattedTime(event.timeLogged), event.label])
+                }
             }
             rows.append(["Urge", "Time", "Note"])
             if log.cigaretteUrges.isEmpty {
                 rows.append(["—", "", ""])
             } else {
                 for urge in log.cigaretteUrges {
+                    rows.append(["Urge", DateHelpers.formattedTime(urge.timeLogged), urge.note])
+                }
+            }
+            rows.append([])
+        }
+
+        if settings.drinkingMode.showsSection || log.drinksLogged > 0 || !log.drinkUrges.isEmpty {
+            rows.append(["Drinking"])
+            rows.append(["Drinks", "\(log.drinksLogged)"])
+            if let limit = settings.effectiveDailyDrinkLimit {
+                rows.append(["Daily max", "\(limit)"])
+            }
+            if settings.drinkingMode == .quit, let quit = settings.alcoholQuitDate {
+                rows.append(["Quit date", DateHelpers.formattedDay(quit)])
+            }
+            rows.append(["Entry", "Time", "Amount"])
+            if log.drinkEvents.isEmpty {
+                rows.append(["—", "", ""])
+            } else {
+                for event in log.drinkEvents {
+                    rows.append(["Drink", DateHelpers.formattedTime(event.timeLogged), event.label])
+                }
+            }
+            rows.append(["Urge", "Time", "Note"])
+            if log.drinkUrges.isEmpty {
+                rows.append(["—", "", ""])
+            } else {
+                for urge in log.drinkUrges {
                     rows.append(["Urge", DateHelpers.formattedTime(urge.timeLogged), urge.note])
                 }
             }
@@ -331,7 +368,8 @@ enum WorkbookExportService {
             "Activity / Workout",
             "Supplements",
             "Hydration",
-            "Smoking"
+            "Smoking",
+            "Drinking"
         ].contains(title)
     }
 
@@ -343,6 +381,7 @@ enum WorkbookExportService {
             || values == ["Activity", "Duration (minutes)", "Time"]
             || values == ["Supplement", "Completed", "Planned"]
             || values == ["Urge", "Time", "Note"]
+            || values == ["Entry", "Time", "Amount"]
     }
 
     // MARK: - Helpers

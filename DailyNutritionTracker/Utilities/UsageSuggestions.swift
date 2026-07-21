@@ -9,9 +9,11 @@ enum AppLimits {
     static let miscDailyLimit = 4
     static let defaultBottleOz = 16.9
     static let hydrationTargetOz = 64
-    static let defaultDailyCigaretteLimit = 5
+    static let defaultDailyCigaretteLimit = 20 // 1 pack
     static let defaultCigarettesPerPack = 20
     static let cigaretteLimitMax = 60
+    static let defaultDailyDrinkLimit = 2
+    static let drinkLimitMax = 20
 }
 
 /// Encodes checklist rows as `name|||amount` (legacy plain names still parse).

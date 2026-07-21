@@ -62,6 +62,19 @@ struct DayView: View {
                         )
                         .id("smoking")
                     }
+                    if settings.drinkingMode.showsSection {
+                        DrinkingSection(
+                            log: log,
+                            settings: settings,
+                            recentLogs: DataStore.logs(
+                                from: Calendar.current.date(byAdding: .day, value: -120, to: selectedDate) ?? selectedDate,
+                                to: selectedDate,
+                                in: modelContext
+                            ),
+                            onOpenSettings: onOpenSettings
+                        )
+                        .id("drinking")
+                    }
                     FeelingsSection(log: log, settings: settings)
                         .id("feelings")
                     ProteinSection(

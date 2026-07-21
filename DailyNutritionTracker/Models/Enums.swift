@@ -4,6 +4,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
     case dailyStatus
     case weight
     case smoking
+    case drinking
     case feelings
     case protein
     case checklist
@@ -15,7 +16,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
 
     var collapsedMessage: String {
         switch self {
-        case .weight, .smoking:
+        case .weight, .smoking, .drinking:
             return "Hidden for privacy — tap the chevron to show."
         default:
             return "Collapsed — tap the chevron to show."
@@ -43,13 +44,72 @@ enum SmokingMode: String, CaseIterable, Identifiable, Codable {
     var subtitle: String {
         switch self {
         case .off: return "Hide the smoking section"
-        case .count: return "Daily cigarette counter only"
-        case .reduce: return "Counter plus a daily max"
+        case .count: return "Log each cig or pack with a time"
+        case .reduce: return "Log cigs/packs against a daily max"
         case .quit: return "Quit date, smoke-free days, and urge log"
         }
     }
 
     var showsSection: Bool { self != .off }
+}
+
+enum DrinkingMode: String, CaseIterable, Identifiable, Codable {
+    case off
+    case count
+    case reduce
+    case quit
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: return "Off"
+        case .count: return "Count"
+        case .reduce: return "Reduce"
+        case .quit: return "Quit"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .off: return "Hide the drinking section"
+        case .count: return "Log each drink with a time"
+        case .reduce: return "Log drinks against a daily max"
+        case .quit: return "Quit date, alcohol-free days, and urge log"
+        }
+    }
+
+    var showsSection: Bool { self != .off }
+}
+
+enum CigarettePackMath {
+    static let perPack = 20
+
+    static func cigarettes(forPacks packs: Double) -> Int {
+        max(0, Int((packs * Double(perPack)).rounded()))
+    }
+
+    static func packs(forCigarettes cigs: Int) -> Double {
+        Double(cigs) / Double(perPack)
+    }
+
+    static func packsLabel(cigarettes: Int) -> String {
+        let packs = packs(forCigarettes: cigarettes)
+        if abs(packs * 2 - (packs * 2).rounded()) < 0.01 {
+            let halves = Int((packs * 2).rounded())
+            if halves == 0 { return "0 packs" }
+            if halves == 1 { return "½ pack" }
+            if halves % 2 == 0 {
+                let whole = halves / 2
+                return whole == 1 ? "1 pack" : "\(whole) packs"
+            }
+            let whole = halves / 2
+            return whole == 0 ? "½ pack" : "\(whole)½ packs"
+        }
+        return String(format: "%.1f packs", packs)
+    }
+
+    static let quickPackOptions: [Double] = [0.5, 1, 1.5, 2]
 }
 
 /// Preset off-plan reasons — countable in reports. Users can add custom chips that stick.

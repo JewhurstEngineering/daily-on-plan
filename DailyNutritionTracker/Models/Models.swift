@@ -22,8 +22,14 @@ final class DailyLog {
     /// JSON array of off-plan reason tags (e.g. Pizza, Beer). Meaningful when followedPlan is false.
     var offPlanReasonsJSON: String?
     var cigarettesSmokedStored: Int?
+    /// JSON array of `{id,timeLogged,count}` smoke events (preferred).
+    var cigaretteEventsJSON: String?
     /// JSON array of `{id,timeLogged,note}` urge records (quit mode).
     var cigaretteUrgesJSON: String?
+    /// JSON array of `{id,timeLogged,count}` drink events.
+    var drinkEventsJSON: String?
+    /// JSON array of `{id,timeLogged,note}` drinking urge records.
+    var drinkUrgesJSON: String?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
@@ -42,7 +48,10 @@ final class DailyLog {
         self.completedSupplements = []
         self.offPlanReasonsJSON = "[]"
         self.cigarettesSmokedStored = 0
+        self.cigaretteEventsJSON = "[]"
         self.cigaretteUrgesJSON = "[]"
+        self.drinkEventsJSON = "[]"
+        self.drinkUrgesJSON = "[]"
     }
 
     var offPlanReasons: [String] {
@@ -117,9 +126,38 @@ final class DailyLog {
         waterSlots.compactMap { $0 }
     }
 
+    var cigaretteEvents: [CigaretteEventRecord] {
+        get {
+            if let data = cigaretteEventsJSON?.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode([CigaretteEventRecord].self, from: data),
+               !decoded.isEmpty {
+                return decoded.sorted { $0.timeLogged < $1.timeLogged }
+            }
+            // Migrate legacy bare count into a single undated-today event once.
+            let legacy = max(0, cigarettesSmokedStored ?? 0)
+            if legacy > 0 {
+                return [CigaretteEventRecord(timeLogged: date, count: legacy)]
+            }
+            return []
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                cigaretteEventsJSON = string
+            } else {
+                cigaretteEventsJSON = "[]"
+            }
+            let total = newValue.reduce(0) { $0 + max(0, $1.count) }
+            cigarettesSmokedStored = total
+        }
+    }
+
     var cigarettesSmoked: Int {
-        get { max(0, cigarettesSmokedStored ?? 0) }
-        set { cigarettesSmokedStored = max(0, newValue) }
+        cigaretteEvents.reduce(0) { $0 + max(0, $1.count) }
+    }
+
+    var packsSmoked: Double {
+        CigarettePackMath.packs(forCigarettes: cigarettesSmoked)
     }
 
     var cigaretteUrges: [CigaretteUrgeRecord] {
@@ -140,12 +178,26 @@ final class DailyLog {
         }
     }
 
-    func addCigarette() {
-        cigarettesSmoked += 1
+    func addCigarettes(_ count: Int = 1, timeLogged: Date = Date()) {
+        guard count > 0 else { return }
+        var list = cigaretteEvents
+        list.append(CigaretteEventRecord(timeLogged: timeLogged, count: count))
+        cigaretteEvents = list
     }
 
-    func removeCigarette() {
-        cigarettesSmoked = max(0, cigarettesSmoked - 1)
+    func addCigarette() {
+        addCigarettes(1)
+    }
+
+    func removeLastCigaretteEvent() {
+        var list = cigaretteEvents
+        guard !list.isEmpty else { return }
+        list.removeLast()
+        cigaretteEvents = list
+    }
+
+    func removeCigaretteEvent(id: UUID) {
+        cigaretteEvents = cigaretteEvents.filter { $0.id != id }
     }
 
     func addUrge(note: String = "", timeLogged: Date = Date()) {
@@ -156,6 +208,74 @@ final class DailyLog {
 
     func removeUrge(id: UUID) {
         cigaretteUrges = cigaretteUrges.filter { $0.id != id }
+    }
+
+    var drinkEvents: [DrinkEventRecord] {
+        get {
+            guard let data = drinkEventsJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([DrinkEventRecord].self, from: data) else {
+                return []
+            }
+            return decoded.sorted { $0.timeLogged < $1.timeLogged }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                drinkEventsJSON = string
+            } else {
+                drinkEventsJSON = "[]"
+            }
+        }
+    }
+
+    var drinksLogged: Int {
+        drinkEvents.reduce(0) { $0 + max(0, $1.count) }
+    }
+
+    var drinkUrges: [DrinkUrgeRecord] {
+        get {
+            guard let data = drinkUrgesJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([DrinkUrgeRecord].self, from: data) else {
+                return []
+            }
+            return decoded.sorted { $0.timeLogged < $1.timeLogged }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                drinkUrgesJSON = string
+            } else {
+                drinkUrgesJSON = "[]"
+            }
+        }
+    }
+
+    func addDrinks(_ count: Int = 1, timeLogged: Date = Date()) {
+        guard count > 0 else { return }
+        var list = drinkEvents
+        list.append(DrinkEventRecord(timeLogged: timeLogged, count: count))
+        drinkEvents = list
+    }
+
+    func removeLastDrinkEvent() {
+        var list = drinkEvents
+        guard !list.isEmpty else { return }
+        list.removeLast()
+        drinkEvents = list
+    }
+
+    func removeDrinkEvent(id: UUID) {
+        drinkEvents = drinkEvents.filter { $0.id != id }
+    }
+
+    func addDrinkUrge(note: String = "", timeLogged: Date = Date()) {
+        var list = drinkUrges
+        list.append(DrinkUrgeRecord(timeLogged: timeLogged, note: note))
+        drinkUrges = list
+    }
+
+    func removeDrinkUrge(id: UUID) {
+        drinkUrges = drinkUrges.filter { $0.id != id }
     }
 
     func ensureWaterSlotCount(_ count: Int) {
@@ -295,6 +415,61 @@ struct CigaretteUrgeRecord: Codable, Identifiable, Hashable {
     }
 }
 
+struct CigaretteEventRecord: Codable, Identifiable, Hashable {
+    var id: UUID
+    var timeLogged: Date
+    /// Cigarettes in this log action (1 for a single cig; 10 for ½ pack, etc.).
+    var count: Int
+
+    init(id: UUID = UUID(), timeLogged: Date = Date(), count: Int = 1) {
+        self.id = id
+        self.timeLogged = timeLogged
+        self.count = max(1, count)
+    }
+
+    var label: String {
+        if count == 1 { return "1 cig" }
+        if count == CigarettePackMath.perPack { return "1 pack" }
+        if count * 2 == CigarettePackMath.perPack { return "½ pack" }
+        if count % CigarettePackMath.perPack == 0 {
+            let packs = count / CigarettePackMath.perPack
+            return packs == 1 ? "1 pack" : "\(packs) packs"
+        }
+        if CigarettePackMath.perPack % 2 == 0, count % (CigarettePackMath.perPack / 2) == 0 {
+            return CigarettePackMath.packsLabel(cigarettes: count)
+        }
+        return "\(count) cigs"
+    }
+}
+
+struct DrinkEventRecord: Codable, Identifiable, Hashable {
+    var id: UUID
+    var timeLogged: Date
+    var count: Int
+
+    init(id: UUID = UUID(), timeLogged: Date = Date(), count: Int = 1) {
+        self.id = id
+        self.timeLogged = timeLogged
+        self.count = max(1, count)
+    }
+
+    var label: String {
+        count == 1 ? "1 drink" : "\(count) drinks"
+    }
+}
+
+struct DrinkUrgeRecord: Codable, Identifiable, Hashable {
+    var id: UUID
+    var timeLogged: Date
+    var note: String
+
+    init(id: UUID = UUID(), timeLogged: Date = Date(), note: String = "") {
+        self.id = id
+        self.timeLogged = timeLogged
+        self.note = note
+    }
+}
+
 @Model
 final class CustomFoodPreset {
     var id: UUID
@@ -419,8 +594,12 @@ final class AppSettings {
     var smokingModeRaw: String?
     var dailyCigaretteLimitStored: Int?
     var quitDateStored: Date?
-    var cigarettesPerPackStored: Int?
+    var cigarettesPerPackStored: Int? // unused; packs are always 20
     var cigarettePackPriceStored: Double?
+
+    var drinkingModeRaw: String?
+    var dailyDrinkLimitStored: Int?
+    var alcoholQuitDateStored: Date?
 
     init() {
         self.id = UUID()
@@ -683,6 +862,12 @@ final class AppSettings {
         set { dailyCigaretteLimitStored = max(0, newValue) }
     }
 
+    /// Reduce max in pack increments (½ pack steps); stored as cigarettes.
+    var dailyCigaretteLimitPacks: Double {
+        get { CigarettePackMath.packs(forCigarettes: dailyCigaretteLimit) }
+        set { dailyCigaretteLimit = CigarettePackMath.cigarettes(forPacks: max(0, newValue)) }
+    }
+
     /// Effective daily max for UI: reduce uses limit; quit targets 0; count/off have none.
     var effectiveDailyCigaretteLimit: Int? {
         switch smokingMode {
@@ -697,10 +882,8 @@ final class AppSettings {
         set { quitDateStored = newValue.map { DateHelpers.startOfDay($0) } }
     }
 
-    var cigarettesPerPack: Int {
-        get { max(1, cigarettesPerPackStored ?? AppLimits.defaultCigarettesPerPack) }
-        set { cigarettesPerPackStored = max(1, newValue) }
-    }
+    /// Always 20 — packs are a fixed size.
+    var cigarettesPerPack: Int { CigarettePackMath.perPack }
 
     var cigarettePackPrice: Double? {
         get {
@@ -716,10 +899,33 @@ final class AppSettings {
         }
     }
 
-    /// Money saved estimate for quit mode when pack price is set (cigs avoided × price/cig).
+    /// Money saved estimate for quit mode when pack price is set.
     func estimatedMoneySaved(cigarettesAvoided: Int) -> Double? {
-        guard let price = cigarettePackPrice, cigarettesPerPack > 0, cigarettesAvoided > 0 else { return nil }
-        return Double(cigarettesAvoided) / Double(cigarettesPerPack) * price
+        guard let price = cigarettePackPrice, cigarettesAvoided > 0 else { return nil }
+        return Double(cigarettesAvoided) / Double(CigarettePackMath.perPack) * price
+    }
+
+    var drinkingMode: DrinkingMode {
+        get { DrinkingMode(rawValue: drinkingModeRaw ?? "") ?? .off }
+        set { drinkingModeRaw = newValue.rawValue }
+    }
+
+    var dailyDrinkLimit: Int {
+        get { max(0, dailyDrinkLimitStored ?? AppLimits.defaultDailyDrinkLimit) }
+        set { dailyDrinkLimitStored = max(0, newValue) }
+    }
+
+    var effectiveDailyDrinkLimit: Int? {
+        switch drinkingMode {
+        case .off, .count: return nil
+        case .reduce: return dailyDrinkLimit
+        case .quit: return 0
+        }
+    }
+
+    var alcoholQuitDate: Date? {
+        get { alcoholQuitDateStored.map { DateHelpers.startOfDay($0) } }
+        set { alcoholQuitDateStored = newValue.map { DateHelpers.startOfDay($0) } }
     }
 
     /// Presets + user customs, presets first, no duplicates.
