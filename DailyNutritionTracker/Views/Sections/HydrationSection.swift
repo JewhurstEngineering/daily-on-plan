@@ -150,6 +150,8 @@ struct HydrationConfigSheet: View {
     var onOpenFullSettings: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var targetFocused: Bool
+    @State private var targetText = ""
 
     private var bottleOptions: [(label: String, value: Double)] {
         [
@@ -165,24 +167,40 @@ struct HydrationConfigSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Set your daily water target and default drink size. The bottle grid updates from these values.")
+                    Text("Set your daily water target and default drink size. The bottle grid size comes from the target; drink size is only how big each tap is.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Daily goal") {
+                Section {
+                    HStack {
+                        TextField("Target", text: $targetText)
+                            .keyboardType(.numberPad)
+                            .focused($targetFocused)
+                            .onChange(of: targetText) { _, newValue in
+                                let digits = newValue.filter(\.isNumber)
+                                if digits != newValue { targetText = digits }
+                            }
+                        Text("oz")
+                            .foregroundStyle(.secondary)
+                    }
                     Stepper(
                         "\(settings.hydrationTargetOz) oz",
                         value: Binding(
                             get: { settings.hydrationTargetOz },
                             set: {
                                 settings.hydrationTargetOz = $0
+                                targetText = "\($0)"
                                 try? modelContext.save()
                             }
                         ),
-                        in: 32...200,
-                        step: 8
+                        in: 16...400,
+                        step: 1
                     )
+                } header: {
+                    Text("Daily goal")
+                } footer: {
+                    Text("Type any number like 180. Not locked to bottle-size multiples.")
                 }
 
                 Section("Default drink size") {
@@ -210,11 +228,30 @@ struct HydrationConfigSheet: View {
                 }
             }
             .navigationTitle("Hydration Goals")
+            .keyboardDoneToolbar(focus: $targetFocused)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        commitTarget()
+                        Keyboard.dismiss()
+                        dismiss()
+                    }
                 }
             }
+            .onAppear {
+                targetText = "\(settings.hydrationTargetOz)"
+            }
+            .onChange(of: targetFocused) { _, focused in
+                if !focused { commitTarget() }
+            }
+        }
+    }
+
+    private func commitTarget() {
+        if let value = Int(targetText.filter(\.isNumber)) {
+            settings.hydrationTargetOz = min(max(value, 16), 400)
+            targetText = "\(settings.hydrationTargetOz)"
+            try? modelContext.save()
         }
     }
 }

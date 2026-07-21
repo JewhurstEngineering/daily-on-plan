@@ -15,6 +15,10 @@ struct ContentView: View {
         settingsList.first?.accentTheme ?? .onPlan
     }
 
+    private var appearanceMode: AppearanceMode {
+        settingsList.first?.appearanceMode ?? .system
+    }
+
     var body: some View {
         NavigationStack {
             DayView(
@@ -54,16 +58,19 @@ struct ContentView: View {
                 SettingsView()
                     .tint(theme.primary)
                     .environment(\.accentTheme, theme)
+                    .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .sheet(isPresented: $showExport) {
                 ExportSheetView(selectedDate: selectedDate)
                     .tint(theme.primary)
                     .environment(\.accentTheme, theme)
+                    .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .sheet(isPresented: $showReports) {
                 ReportsView()
                     .tint(theme.primary)
                     .environment(\.accentTheme, theme)
+                    .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
             .task {
                 _ = DataStore.settings(in: modelContext)
@@ -80,5 +87,6 @@ struct ContentView: View {
         }
         .environment(\.accentTheme, theme)
         .tint(theme.primary)
+        .preferredColorScheme(appearanceMode.preferredColorScheme)
     }
 }

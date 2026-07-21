@@ -172,23 +172,27 @@ struct SuggestionChipRow: View {
 
 struct MultiplierPicker: View {
     @Binding var multiplier: Double
-    let options: [Double] = [1, 2, 3, 4, 6]
+    var options: [Double] = [1, 2, 3, 4, 5, 6]
+    var onSelect: ((Double) -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(options, id: \.self) { value in
                 let selected = abs(multiplier - value) < 0.01
-                Button("\(Int(value))×") {
+                Button {
                     multiplier = value
+                    onSelect?(value)
+                } label: {
+                    Text("\(Int(value))×")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(selected ? Color.accentColor : Color(.tertiarySystemFill))
+                        .foregroundStyle(selected ? Color.white : Color.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(selected ? Color.accentColor : Color(.tertiarySystemFill))
-                .foregroundStyle(selected ? Color.white : Color.primary)
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
             }
-            Spacer()
         }
     }
 }

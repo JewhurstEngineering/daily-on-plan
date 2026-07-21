@@ -333,6 +333,7 @@ final class AppSettings {
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
     var accentThemeRaw: String?
+    var appearanceModeRaw: String?
     var weightSectionCollapsedStored: Bool?
     var collapsedSectionsJSON: String?
 
@@ -371,6 +372,7 @@ final class AppSettings {
         self.hydrationTargetOzStored = AppLimits.hydrationTargetOz
         self.showSupplementsSectionStored = true
         self.accentThemeRaw = AccentTheme.onPlan.rawValue
+        self.appearanceModeRaw = AppearanceMode.system.rawValue
         self.weightSectionCollapsedStored = false
         self.collapsedSectionsJSON = "{}"
         self.notificationsDefaultsVersionStored = 3
@@ -460,6 +462,11 @@ final class AppSettings {
             }
         }
         set { accentThemeRaw = newValue.rawValue }
+    }
+
+    var appearanceMode: AppearanceMode {
+        get { AppearanceMode(rawValue: appearanceModeRaw ?? "") ?? .system }
+        set { appearanceModeRaw = newValue.rawValue }
     }
 
     var weightSectionCollapsed: Bool {

@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var settings: AppSettings?
     @State private var heightFeet = 5
     @State private var heightInchesPart = 8
+    @State private var hydrationTargetText = ""
+    @FocusState private var hydrationTargetFocused: Bool
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
     var body: some View {
@@ -18,7 +20,25 @@ struct SettingsView: View {
                             Text(AppIdentity.tagline)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            Text("Theme")
+
+                            Picker("Appearance", selection: Binding(
+                                get: { settings.appearanceMode },
+                                set: {
+                                    settings.appearanceMode = $0
+                                    save(settings)
+                                }
+                            )) {
+                                ForEach(AppearanceMode.allCases) { mode in
+                                    Text(mode.title).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
+                            Text("System follows your iPhone’s Light/Dark setting.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+
+                            Text("Color theme")
                                 .font(.subheadline)
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
                                 ForEach(AccentTheme.pickerCases) { themeOption in
@@ -143,7 +163,7 @@ struct SettingsView: View {
                             Text("Notifications default to evening plan, ketosis check, and daily check-in. Food preferences filter allergies and picky-eater picks.")
                         }
 
-                        Section("Hydration defaults") {
+                        Section {
                             Picker("Default bottle", selection: Binding(
                                 get: { settings.defaultBottleOz },
                                 set: {
@@ -157,18 +177,34 @@ struct SettingsView: View {
                                 Text("20 oz").tag(20.0)
                                 Text("24 oz").tag(24.0)
                             }
+                            HStack {
+                                TextField("Daily target", text: $hydrationTargetText)
+                                    .keyboardType(.numberPad)
+                                    .focused($hydrationTargetFocused)
+                                    .onChange(of: hydrationTargetText) { _, newValue in
+                                        let digits = newValue.filter(\.isNumber)
+                                        if digits != newValue { hydrationTargetText = digits }
+                                    }
+                                Text("oz")
+                                    .foregroundStyle(.secondary)
+                            }
                             Stepper(
-                                "Daily target: \(settings.hydrationTargetOz) oz",
+                                "Adjust: \(settings.hydrationTargetOz) oz",
                                 value: Binding(
                                     get: { settings.hydrationTargetOz },
                                     set: {
                                         settings.hydrationTargetOz = $0
+                                        hydrationTargetText = "\($0)"
                                         save(settings)
                                     }
                                 ),
-                                in: 32...200,
-                                step: 8
+                                in: 16...400,
+                                step: 1
                             )
+                        } header: {
+                            Text("Hydration defaults")
+                        } footer: {
+                            Text("Type any whole number (e.g. 180). Bottle size only sets the drink taps, not the goal.")
                         }
 
                         Section("Supplements") {
@@ -249,20 +285,43 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .keyboardDoneToolbar(focus: $hydrationTargetFocused)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if let settings {
+                            commitHydrationTarget(settings)
+                        }
+                        Keyboard.dismiss()
+                        dismiss()
+                    }
                 }
             }
             .onAppear {
                 let s = DataStore.settings(in: modelContext)
                 settings = s
+                hydrationTargetText = "\(s.hydrationTargetOz)"
                 let total = Int(s.heightInches)
                 if total > 0 {
                     heightFeet = total / 12
                     heightInchesPart = total % 12
                 }
             }
+            .onChange(of: hydrationTargetFocused) { _, focused in
+                if !focused, let settings {
+                    commitHydrationTarget(settings)
+                }
+            }
+        }
+    }
+
+    private func commitHydrationTarget(_ settings: AppSettings) {
+        if let value = Int(hydrationTargetText.filter(\.isNumber)) {
+            settings.hydrationTargetOz = min(max(value, 16), 400)
+            hydrationTargetText = "\(settings.hydrationTargetOz)"
+            save(settings)
+        } else {
+            hydrationTargetText = "\(settings.hydrationTargetOz)"
         }
     }
 

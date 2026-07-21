@@ -11,7 +11,6 @@ struct ProteinSection: View {
     @State private var showAdd = false
     @State private var showMeals = false
     @State private var editingEntry: ProteinEntry?
-    @State private var editMultiplier: Double = 1
     @State private var suggestionChips: [SuggestionItem] = []
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
     @Query(sort: \SavedMeal.name) private var savedMeals: [SavedMeal]
@@ -93,7 +92,6 @@ struct ProteinSection: View {
                             Button {
                                 onWillPresentSheet?(scrollAnchor)
                                 editingEntry = entry
-                                editMultiplier = max(entry.servings, 1)
                             } label: {
                                 HStack(alignment: .top) {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -142,43 +140,20 @@ struct ProteinSection: View {
             }
         }
         .sheet(item: $editingEntry, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { entry in
-            NavigationStack {
-                Form {
-                    Section("\(entry.name)") {
-                        Text("Unit: \(unitCalories(for: entry)) kcal per serving")
-                        MultiplierPicker(multiplier: $editMultiplier)
-                        Stepper(
-                            value: $editMultiplier,
-                            in: 0.5...20,
-                            step: 0.5
-                        ) {
-                            Text(String(format: "Amount: %.1f×", editMultiplier))
-                        }
-                        Text("New total: \(Int((Double(unitCalories(for: entry)) * editMultiplier).rounded())) kcal")
-                            .font(.headline.monospacedDigit())
-                    }
-                }
-                .navigationTitle("Update amount")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { editingEntry = nil }
-                    }
-                    ToolbarItem(placement: .destructiveAction) {
-                        Button("Delete", role: .destructive) {
-                            delete(entry)
-                            editingEntry = nil
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            applyMultiplier(to: entry, multiplier: editMultiplier)
-                            editingEntry = nil
-                            refreshChips()
-                        }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
+            EditProteinAmountSheet(
+                entry: entry,
+                onSave: { multiplier, calories in
+                    applyAmount(to: entry, multiplier: multiplier, calories: calories)
+                    editingEntry = nil
+                    refreshChips()
+                },
+                onDelete: {
+                    delete(entry)
+                    editingEntry = nil
+                },
+                onCancel: { editingEntry = nil }
+            )
+            .presentationDetents([.medium, .large])
         }
         .onAppear { refreshChips() }
     }
@@ -198,20 +173,9 @@ struct ProteinSection: View {
         refreshChips()
     }
 
-    private func unitCalories(for entry: ProteinEntry) -> Int {
-        if entry.servings > 0 {
-            return max(1, Int((Double(entry.calories) / entry.servings).rounded()))
-        }
-        if let cat = ProteinCategory(rawValue: entry.proteinCategory), let per = cat.caloriesPerServing {
-            return per
-        }
-        return entry.calories
-    }
-
-    private func applyMultiplier(to entry: ProteinEntry, multiplier: Double) {
-        let unit = unitCalories(for: entry)
+    private func applyAmount(to entry: ProteinEntry, multiplier: Double, calories: Int) {
         entry.servings = multiplier
-        entry.calories = Int((Double(unit) * multiplier).rounded())
+        entry.calories = max(calories, 1)
         if abs(multiplier - 1) < 0.01 {
             if entry.servingSize.contains("×") {
                 entry.servingSize = "1 serving"
@@ -254,3 +218,115 @@ struct ProteinSection: View {
 
 extension ProteinEntry: @retroactive Identifiable {}
 extension SavedMeal: @retroactive Identifiable {}
+
+struct EditProteinAmountSheet: View {
+    let entry: ProteinEntry
+    var onSave: (Double, Int) -> Void
+    var onDelete: () -> Void
+    var onCancel: () -> Void
+
+    @State private var servings: Double = 1
+    @State private var caloriesText = ""
+    @State private var totalCalories = 0
+    @FocusState private var caloriesFocused: Bool
+
+    private var unitCalories: Int {
+        if entry.servings > 0 {
+            return max(1, Int((Double(entry.calories) / entry.servings).rounded()))
+        }
+        if let cat = ProteinCategory(rawValue: entry.proteinCategory), let per = cat.caloriesPerServing {
+            return per
+        }
+        return max(entry.calories, 1)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Unit reference: \(unitCalories) kcal per 1×")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Text("Quick multipliers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    MultiplierPicker(multiplier: $servings) { value in
+                        servings = value
+                        syncCaloriesFromServings()
+                        caloriesFocused = false
+                        Keyboard.dismiss()
+                    }
+
+                    Stepper(value: $servings, in: 0.5...20, step: 0.5) {
+                        Text(String(format: "Servings: %.1f×", servings))
+                    }
+                    .onChange(of: servings) { _, _ in
+                        if !caloriesFocused {
+                            syncCaloriesFromServings()
+                        }
+                    }
+
+                    HStack {
+                        Text("Total calories")
+                        Spacer()
+                        TextField("kcal", text: $caloriesText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .focused($caloriesFocused)
+                            .frame(maxWidth: 100)
+                            .onChange(of: caloriesText) { _, newValue in
+                                let filtered = newValue.filter(\.isNumber)
+                                if filtered != newValue { caloriesText = filtered }
+                                if let value = Int(filtered), value > 0 {
+                                    totalCalories = value
+                                }
+                            }
+                        Text("kcal")
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text(entry.name)
+                } footer: {
+                    Text("Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
+                }
+            }
+            .navigationTitle("Update amount")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar(focus: $caloriesFocused)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        Keyboard.dismiss()
+                        onCancel()
+                    }
+                }
+                ToolbarItem(placement: .destructiveAction) {
+                    Button("Delete", role: .destructive) {
+                        Keyboard.dismiss()
+                        onDelete()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Keyboard.dismiss()
+                        if let typed = Int(caloriesText.filter(\.isNumber)), typed > 0 {
+                            totalCalories = typed
+                        }
+                        onSave(servings, max(totalCalories, 1))
+                    }
+                }
+            }
+            .onAppear {
+                servings = max(entry.servings, 0.5)
+                totalCalories = max(entry.calories, 1)
+                caloriesText = "\(totalCalories)"
+            }
+        }
+    }
+
+    private func syncCaloriesFromServings() {
+        totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        caloriesText = "\(totalCalories)"
+    }
+}

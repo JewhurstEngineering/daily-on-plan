@@ -12,6 +12,7 @@ struct WeightBMISection: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var draftText = ""
+    @FocusState private var weightFocused: Bool
 
     private var displayWeight: String {
         guard let weight else { return "—" }
@@ -99,6 +100,7 @@ struct WeightBMISection: View {
                 TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
+                    .focused($weightFocused)
                 Button("Save") {
                     commit()
                 }
@@ -123,8 +125,11 @@ struct WeightBMISection: View {
                 .chartYAxisLabel(settings.usesMetricWeight ? "kg" : "lb")
             }
         }
+        .keyboardDoneToolbar(focus: $weightFocused)
         .onAppear { syncDraft() }
-        .onChange(of: weight?.weightLbs) { _, _ in syncDraft() }
+        .onChange(of: weight?.weightLbs) { _, _ in
+            if !weightFocused { syncDraft() }
+        }
         .onChange(of: settings.usesMetricWeight) { _, _ in syncDraft() }
     }
 
@@ -143,7 +148,13 @@ struct WeightBMISection: View {
 
     private func commit() {
         guard let value = parsedDraft else { return }
+        weightFocused = false
+        Keyboard.dismiss()
         let lbs = settings.usesMetricWeight ? value / 0.453592 : value
         onSave(lbs)
+        // Keep the typed value visible; sync from saved entry next appear/change.
+        draftText = settings.usesMetricWeight
+            ? String(format: "%.1f", value)
+            : String(format: "%.1f", value)
     }
 }

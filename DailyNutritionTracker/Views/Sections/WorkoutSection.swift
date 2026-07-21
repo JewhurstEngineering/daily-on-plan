@@ -121,6 +121,7 @@ struct AddWorkoutSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        Keyboard.dismiss()
                         let entry = WorkoutEntry(activityName: name, durationMinutes: minutes)
                         modelContext.insert(entry)
                         log.workoutEntries.append(entry)

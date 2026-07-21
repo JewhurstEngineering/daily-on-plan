@@ -12,7 +12,7 @@ enum AppIdentity {
            !name.isEmpty {
             return name
         }
-        return "OnPlan"
+        return "Daily On Plan"
     }
 
     static let tagline = "Stay on plan. One day at a time."

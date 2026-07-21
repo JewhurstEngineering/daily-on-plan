@@ -1,5 +1,30 @@
 import SwiftUI
 
+enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    /// `nil` means follow the iPhone’s Light/Dark setting.
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 /// User-selectable look. **Default (OnPlan)** uses full brand roles; other options recolor primary only.
 enum AccentTheme: String, CaseIterable, Identifiable, Codable {
     case onPlan

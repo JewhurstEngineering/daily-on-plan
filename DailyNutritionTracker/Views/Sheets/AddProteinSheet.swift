@@ -12,6 +12,8 @@ struct AddProteinSheet: View {
     @State private var selectedCategory: ProteinCategory = .veryLean
     @State private var selected: CatalogFood?
     @State private var servings: Double = 1
+    @State private var totalCalories: Int = 35
+    @State private var caloriesText = "35"
     @State private var hungerBefore = 4
     @State private var hungerAfter = 6
     @State private var time = Date()
@@ -20,6 +22,7 @@ struct AddProteinSheet: View {
     @State private var customUnitCalories = 35
     @State private var useCustom = false
     @State private var showHungerHelp = false
+    @FocusState private var caloriesFocused: Bool
 
     private var catalogItems: [CatalogFood] {
         let excluded = Set(settings.excludedFoodNames.map { $0.lowercased() })
@@ -32,16 +35,12 @@ struct AddProteinSheet: View {
     }
 
     private var unitCalories: Int {
-        if useCustom { return customUnitCalories }
-        guard let selected else { return 0 }
+        if useCustom { return max(customUnitCalories, 1) }
+        guard let selected else { return 35 }
         if let per = selected.proteinCategory?.caloriesPerServing {
             return per
         }
-        return selected.calories
-    }
-
-    private var computedCalories: Int {
-        Int((Double(unitCalories) * servings).rounded())
+        return max(selected.calories, 1)
     }
 
     private var servingLabel: String {
@@ -85,13 +84,46 @@ struct AddProteinSheet: View {
                     Text("Very lean 35 / lean 55 / medium fat 75 kcal per serving unit.")
                 }
 
-                Section("Amount") {
-                    MultiplierPicker(multiplier: $servings)
-                    Stepper(value: $servings, in: 0.5...20, step: 0.5) {
-                        Text(String(format: "Multiplier: %.1f×", servings))
+                Section {
+                    Text("Quick multipliers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    MultiplierPicker(multiplier: $servings) { value in
+                        applyMultiplier(value)
                     }
-                    Text("Protein calories: \(computedCalories)")
-                        .font(.headline.monospacedDigit())
+
+                    Stepper(value: $servings, in: 0.5...20, step: 0.5) {
+                        Text(String(format: "Servings: %.1f×", servings))
+                    }
+                    .onChange(of: servings) { _, newValue in
+                        // Keep calories in sync when using stepper (not when typing calories).
+                        if !caloriesFocused {
+                            syncCaloriesFromServings()
+                        }
+                    }
+
+                    HStack {
+                        Text("Total calories")
+                        Spacer()
+                        TextField("kcal", text: $caloriesText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .focused($caloriesFocused)
+                            .frame(maxWidth: 100)
+                            .onChange(of: caloriesText) { _, newValue in
+                                let filtered = newValue.filter(\.isNumber)
+                                if filtered != newValue { caloriesText = filtered }
+                                if let value = Int(filtered), value > 0 {
+                                    totalCalories = value
+                                }
+                            }
+                        Text("kcal")
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Amount")
+                } footer: {
+                    Text("Multipliers are shortcuts. Edit total calories anytime — that’s what gets logged.")
                 }
 
                 Section("Details") {
@@ -124,9 +156,13 @@ struct AddProteinSheet: View {
                 }
             }
             .navigationTitle("Add Protein")
+            .keyboardDoneToolbar(focus: $caloriesFocused)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        Keyboard.dismiss()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
@@ -138,22 +174,51 @@ struct AddProteinSheet: View {
             } message: {
                 Text(HungerScale.guidance)
             }
-            .onChange(of: selected) { _, newValue in
-                if let newValue {
-                    servings = max(newValue.servingsPerUnit, 1)
-                }
+            .onChange(of: selected) { _, _ in
+                servings = 1
+                syncCaloriesFromServings()
+            }
+            .onChange(of: useCustom) { _, _ in
+                syncCaloriesFromServings()
+            }
+            .onChange(of: customUnitCalories) { _, _ in
+                if useCustom { syncCaloriesFromServings() }
+            }
+            .onChange(of: selectedCategory) { _, _ in
+                selected = nil
+            }
+            .onAppear {
+                syncCaloriesFromServings()
             }
         }
     }
 
     private var canSave: Bool {
         if useCustom {
-            return !customName.trimmingCharacters(in: .whitespaces).isEmpty && customUnitCalories > 0
+            return !customName.trimmingCharacters(in: .whitespaces).isEmpty && totalCalories > 0
         }
-        return selected != nil
+        return selected != nil && totalCalories > 0
+    }
+
+    private func applyMultiplier(_ value: Double) {
+        servings = value
+        syncCaloriesFromServings()
+        caloriesFocused = false
+        Keyboard.dismiss()
+    }
+
+    private func syncCaloriesFromServings() {
+        totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        caloriesText = "\(totalCalories)"
     }
 
     private func save() {
+        Keyboard.dismiss()
+        // Prefer typed calories if valid.
+        if let typed = Int(caloriesText.filter(\.isNumber)), typed > 0 {
+            totalCalories = typed
+        }
+
         let name: String
         let category: String
         if useCustom {
@@ -170,7 +235,7 @@ struct AddProteinSheet: View {
             name: name,
             time: time,
             servingSize: servingLabel.isEmpty ? "1 serving" : servingLabel,
-            calories: computedCalories,
+            calories: totalCalories,
             hungerBefore: hungerBefore,
             hungerAfter: hungerAfter,
             proteinCategory: category,
@@ -183,7 +248,7 @@ struct AddProteinSheet: View {
             let preset = CustomFoodPreset(
                 name: name,
                 servingLabel: entry.servingSize,
-                calories: computedCalories,
+                calories: totalCalories,
                 proteinCategory: category,
                 servingsPerUnit: servings
             )
