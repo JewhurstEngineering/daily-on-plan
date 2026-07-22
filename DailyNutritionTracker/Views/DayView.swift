@@ -4,6 +4,7 @@ import SwiftData
 struct DayView: View {
     @Binding var selectedDate: Date
     var onOpenSettings: (() -> Void)? = nil
+    var onOpenBodyComposition: (() -> Void)? = nil
     @Binding var pendingScrollSection: String?
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
@@ -16,10 +17,12 @@ struct DayView: View {
     init(
         selectedDate: Binding<Date>,
         onOpenSettings: (() -> Void)? = nil,
+        onOpenBodyComposition: (() -> Void)? = nil,
         pendingScrollSection: Binding<String?> = .constant(nil)
     ) {
         self._selectedDate = selectedDate
         self.onOpenSettings = onOpenSettings
+        self.onOpenBodyComposition = onOpenBodyComposition
         self._pendingScrollSection = pendingScrollSection
     }
 
@@ -109,7 +112,8 @@ struct DayView: View {
                 onSave: { lbs in
                     saveWeight(lbs, existing: todayWeight)
                 },
-                onOpenSettings: onOpenSettings
+                onOpenSettings: onOpenSettings,
+                onOpenBodyComposition: onOpenBodyComposition
             )
             .id("weight")
         case .smoking:
@@ -133,7 +137,7 @@ struct DayView: View {
                 .id("drinking")
             }
         case .feelings:
-            FeelingsSection(log: log, settings: settings)
+            FeelingsSection(log: log)
                 .id("feelings")
         case .protein:
             ProteinSection(
@@ -162,6 +166,11 @@ struct DayView: View {
                 onOpenSettings: onOpenSettings
             )
             .id("hydration")
+        case .bathroom:
+            if settings.showBathroomSection {
+                BathroomSection(log: log, settings: settings)
+                    .id("bathroom")
+            }
         case .supplements:
             if settings.showSupplementsSection {
                 SupplementsSection(log: log, settings: settings)

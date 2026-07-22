@@ -5,11 +5,12 @@ enum WorkbookExportService {
     static func writeTemporaryFile(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading] = [],
         settings: AppSettings,
         filenameStem: String
     ) throws -> URL {
         let url = try ExportFileStore.uniqueURL(stem: filenameStem, ext: "xlsx")
-        let package = try buildPackage(logs: logs, weights: weights, settings: settings)
+        let package = try buildPackage(logs: logs, weights: weights, bodyComps: bodyComps, settings: settings)
         try ZipStoreWriter.write(entries: package, to: url)
         return url
     }
@@ -19,9 +20,10 @@ enum WorkbookExportService {
     private static func buildPackage(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading],
         settings: AppSettings
     ) throws -> [(path: String, data: Data)] {
-        let sheets: [(name: String, rows: [[String]])]
+        var sheets: [(name: String, rows: [[String]])]
         if logs.isEmpty {
             sheets = [(name: "Empty", rows: [["No daily logs in this range"]])]
         } else {
@@ -32,6 +34,10 @@ enum WorkbookExportService {
                     rows: dayRows(log: log, weight: weight, settings: settings)
                 )
             }
+        }
+
+        if !bodyComps.isEmpty {
+            sheets.append((name: "BodyComp", rows: bodyCompRows(bodyComps)))
         }
 
         var entries: [(path: String, data: Data)] = []
@@ -46,6 +52,41 @@ enum WorkbookExportService {
             entries.append((path, data(worksheetXML(rows: sheet.rows))))
         }
         return entries
+    }
+
+    private static func bodyCompRows(_ readings: [BodyCompositionReading]) -> [[String]] {
+        var rows: [[String]] = [[
+            "Date", "Protein goal", "Water target", "Body type", "Gender", "Age",
+            "Height in", "Weight lb", "BMI", "BMR kcal", "Impedance",
+            "Fat %", "Fat mass lb", "FFM lb", "TBW lb",
+            "Desirable fat % low", "Desirable fat % high",
+            "Desirable fat mass low", "Desirable fat mass high", "Notes"
+        ]]
+        for reading in readings.sorted(by: { $0.date < $1.date }) {
+            rows.append([
+                reading.date.formatted(.iso8601.year().month().day()),
+                reading.proteinGoalText,
+                reading.waterTargetText,
+                reading.bodyType.rawValue,
+                reading.gender.rawValue,
+                "\(reading.age)",
+                String(format: "%.1f", reading.heightInches),
+                String(format: "%.1f", reading.weightLbs),
+                String(format: "%.1f", reading.bmi),
+                "\(reading.bmrKcal)",
+                String(format: "%.1f", reading.impedance),
+                String(format: "%.1f", reading.fatPercent),
+                String(format: "%.1f", reading.fatMassLbs),
+                String(format: "%.1f", reading.ffmLbs),
+                String(format: "%.1f", reading.tbwLbs),
+                String(format: "%.1f", reading.desirableFatPercentLow),
+                String(format: "%.1f", reading.desirableFatPercentHigh),
+                String(format: "%.1f", reading.desirableFatMassLow),
+                String(format: "%.1f", reading.desirableFatMassHigh),
+                reading.notes
+            ])
+        }
+        return rows
     }
 
     // MARK: - Day layout (row arrays)
@@ -263,6 +304,25 @@ enum WorkbookExportService {
                     rows.append(["Urge", DateHelpers.formattedTime(urge.timeLogged), urge.note])
                 }
             }
+            rows.append([])
+        }
+
+        if settings.showBathroomSection || !log.bathroomEvents.isEmpty {
+            rows.append(["Bathroom"])
+            rows.append(["Urination count", "\(log.urineCount)"])
+            rows.append(["Bowel movement count", "\(log.stoolCount)"])
+            rows.append(["Kind", "Time", "Note"])
+            if log.bathroomEvents.isEmpty {
+                rows.append(["—", "", ""])
+            } else {
+                for event in log.bathroomEvents {
+                    rows.append([
+                        event.kind.title,
+                        DateHelpers.formattedTime(event.timeLogged),
+                        event.note
+                    ])
+                }
+            }
         }
         return rows
     }
@@ -390,13 +450,16 @@ enum WorkbookExportService {
             "Supplements",
             "Hydration",
             "Smoking",
-            "Drinking"
+            "Drinking",
+            "Bathroom"
         ].contains(title)
     }
 
     private static func looksLikeColumnHeader(_ values: [String]) -> Bool {
         values == ["Type", "Time", "Note"]
+            || values == ["Kind", "Time", "Note"]
             || values == ["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After"]
+            || values == ["Protein Source", "Time", "Serving Size", "Protein Calories", "Hunger Before", "Hunger After", "Hydration oz"]
             || values == ["Category", "Item", "Amount"]
             || values == ["Item", "Amount"]
             || values == ["Activity", "Duration (minutes)", "Time"]

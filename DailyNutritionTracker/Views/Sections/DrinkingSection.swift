@@ -8,10 +8,13 @@ struct DrinkingSection: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accentPrimary) private var accentPrimary
     @EnvironmentObject private var healthKit: HealthKitService
     @State private var showUrgeSheet = false
     @State private var urgeNote = ""
     @State private var showEventList = false
+    @State private var editDrinkID: UUID?
+    @State private var editUrgeID: UUID?
 
     private var limit: Int? { settings.effectiveDailyDrinkLimit }
 
@@ -111,8 +114,12 @@ struct DrinkingSection: View {
                 DisclosureGroup("Log (\(log.drinkEvents.count))", isExpanded: $showEventList) {
                     ForEach(log.drinkEvents.reversed()) { event in
                         HStack {
-                            Text(DateHelpers.formattedTime(event.timeLogged))
-                                .font(.caption.monospacedDigit())
+                            Button(DateHelpers.formattedTime(event.timeLogged)) {
+                                editDrinkID = event.id
+                            }
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(accentPrimary)
+                            .buttonStyle(.plain)
                             Text(event.label)
                                 .font(.caption)
                             Spacer()
@@ -165,8 +172,12 @@ struct DrinkingSection: View {
                                 .foregroundStyle(.secondary)
                             ForEach(log.drinkUrges) { urge in
                                 HStack {
-                                    Text(DateHelpers.formattedTime(urge.timeLogged))
-                                        .font(.caption.monospacedDigit())
+                                    Button(DateHelpers.formattedTime(urge.timeLogged)) {
+                                        editUrgeID = urge.id
+                                    }
+                                    .font(.caption.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(accentPrimary)
+                                    .buttonStyle(.plain)
                                     Text(urge.note.isEmpty ? "Urge logged" : urge.note)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -221,6 +232,72 @@ struct DrinkingSection: View {
             }
             .presentationDetents([.medium])
         }
+        .sheet(item: drinkEditBinding) { event in
+            EditTimestampSheet(
+                title: event.label,
+                initialDate: event.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveDrinkEvent(id: event.id, to: newDate)
+                editDrinkID = nil
+            }
+        }
+        .sheet(item: urgeEditBinding) { urge in
+            EditTimestampSheet(
+                title: urge.note.isEmpty ? "Urge" : urge.note,
+                initialDate: urge.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveDrinkUrge(id: urge.id, to: newDate)
+                editUrgeID = nil
+            }
+        }
+    }
+
+    private var drinkEditBinding: Binding<DrinkEventRecord?> {
+        Binding(
+            get: {
+                guard let id = editDrinkID else { return nil }
+                return log.drinkEvents.first { $0.id == id }
+            },
+            set: { if $0 == nil { editDrinkID = nil } }
+        )
+    }
+
+    private var urgeEditBinding: Binding<DrinkUrgeRecord?> {
+        Binding(
+            get: {
+                guard let id = editUrgeID else { return nil }
+                return log.drinkUrges.first { $0.id == id }
+            },
+            set: { if $0 == nil { editUrgeID = nil } }
+        )
+    }
+
+    private func moveDrinkEvent(id: UUID, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        if targetDay == sourceDay {
+            log.updateDrinkEventTime(id: id, timeLogged: newDate)
+        } else if var event = log.takeDrinkEvent(id: id) {
+            event.timeLogged = newDate
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.insertDrinkEvent(event)
+        }
+        persistDrinks()
+    }
+
+    private func moveDrinkUrge(id: UUID, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        if targetDay == sourceDay {
+            log.updateDrinkUrgeTime(id: id, timeLogged: newDate)
+        } else if var urge = log.takeDrinkUrge(id: id) {
+            urge.timeLogged = newDate
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.insertDrinkUrge(urge)
+        }
+        try? modelContext.save()
     }
 
     private func persistDrinks() {

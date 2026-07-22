@@ -8,10 +8,12 @@ struct ProteinSection: View {
     var onWillPresentSheet: ((String) -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accentPrimary) private var accentPrimary
     @State private var showAdd = false
     @State private var showSnack = false
     @State private var showMeals = false
     @State private var editingEntry: ProteinEntry?
+    @State private var editTimeEntry: ProteinEntry?
     @State private var suggestionChips: [SuggestionItem] = []
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
     @Query(sort: \SavedMeal.name) private var savedMeals: [SavedMeal]
@@ -103,36 +105,43 @@ struct ProteinSection: View {
                 VStack(spacing: 0) {
                     ForEach(log.sortedProteins, id: \.id) { entry in
                         HStack(alignment: .top) {
-                            Button {
-                                onWillPresentSheet?(scrollAnchor)
-                                editingEntry = entry
-                            } label: {
-                                HStack(alignment: .top) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(entry.name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.primary)
-                                        Text("\(DateHelpers.formattedTime(entry.time)) · \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
-                                            Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Text(settings.proteinDrinksCountTowardHydration
-                                             ? "Tap to edit calories & fl oz"
-                                             : "Tap to edit amount")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer(minLength: 8)
-                                    Text("\(entry.calories) kcal")
-                                        .font(.subheadline.monospacedDigit())
+                            VStack(alignment: .leading, spacing: 4) {
+                                Button {
+                                    onWillPresentSheet?(scrollAnchor)
+                                    editingEntry = entry
+                                } label: {
+                                    Text(entry.name)
+                                        .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(.primary)
                                 }
+                                .buttonStyle(.plain)
+
+                                HStack(spacing: 4) {
+                                    Button(DateHelpers.formattedTime(entry.time)) {
+                                        editTimeEntry = entry
+                                    }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(accentPrimary)
+                                    .buttonStyle(.plain)
+                                    Text("· \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
+                                    Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(settings.proteinDrinksCountTowardHydration
+                                     ? "Tap name to edit calories & fl oz"
+                                     : "Tap name to edit amount")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            Spacer(minLength: 8)
+                            Text("\(entry.calories) kcal")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(.primary)
 
                             Button(role: .destructive) {
                                 delete(entry)
@@ -183,6 +192,15 @@ struct ProteinSection: View {
             )
             .presentationDetents([.medium, .large])
         }
+        .sheet(item: $editTimeEntry) { entry in
+            EditTimestampSheet(
+                title: entry.name,
+                initialDate: entry.time,
+                includesDate: true
+            ) { newDate in
+                moveProtein(entry, to: newDate)
+            }
+        }
         .onAppear { refreshChips() }
     }
 
@@ -197,6 +215,19 @@ struct ProteinSection: View {
     private func delete(_ entry: ProteinEntry) {
         log.proteinEntries.removeAll { $0.id == entry.id }
         modelContext.delete(entry)
+        try? modelContext.save()
+        refreshChips()
+    }
+
+    private func moveProtein(_ entry: ProteinEntry, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        entry.time = newDate
+        if targetDay != sourceDay {
+            log.proteinEntries.removeAll { $0.id == entry.id }
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.proteinEntries.append(entry)
+        }
         try? modelContext.save()
         refreshChips()
     }

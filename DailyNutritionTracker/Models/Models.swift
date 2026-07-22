@@ -30,6 +30,8 @@ final class DailyLog {
     var drinkEventsJSON: String?
     /// JSON array of `{id,timeLogged,note}` drinking urge records.
     var drinkUrgesJSON: String?
+    /// JSON array of bathroom events `{id,kind,timeLogged,note}`.
+    var bathroomEventsJSON: String?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
@@ -52,6 +54,7 @@ final class DailyLog {
         self.cigaretteUrgesJSON = "[]"
         self.drinkEventsJSON = "[]"
         self.drinkUrgesJSON = "[]"
+        self.bathroomEventsJSON = "[]"
     }
 
     var offPlanReasons: [String] {
@@ -305,6 +308,157 @@ final class DailyLog {
         drinkUrges = drinkUrges.filter { $0.id != id }
     }
 
+    var bathroomEvents: [BathroomEventRecord] {
+        get {
+            guard let data = bathroomEventsJSON?.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([BathroomEventRecord].self, from: data) else {
+                return []
+            }
+            return decoded.sorted { $0.timeLogged < $1.timeLogged }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                bathroomEventsJSON = string
+            } else {
+                bathroomEventsJSON = "[]"
+            }
+        }
+    }
+
+    var urineCount: Int {
+        bathroomEvents.filter { $0.kind == .urine }.count
+    }
+
+    var stoolCount: Int {
+        bathroomEvents.filter { $0.kind == .stool }.count
+    }
+
+    @discardableResult
+    func addBathroomEvent(kind: BathroomKind, note: String = "", timeLogged: Date = Date()) -> BathroomEventRecord {
+        let event = BathroomEventRecord(kind: kind, timeLogged: timeLogged, note: note)
+        var list = bathroomEvents
+        list.append(event)
+        bathroomEvents = list
+        return event
+    }
+
+    func updateBathroomEventNote(id: UUID, note: String) {
+        var list = bathroomEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].note = note
+        bathroomEvents = list
+    }
+
+    func removeBathroomEvent(id: UUID) {
+        bathroomEvents = bathroomEvents.filter { $0.id != id }
+    }
+
+    func updateCigaretteEventTime(id: UUID, timeLogged: Date) {
+        var list = cigaretteEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].timeLogged = timeLogged
+        cigaretteEvents = list
+    }
+
+    func updateCigaretteUrgeTime(id: UUID, timeLogged: Date) {
+        var list = cigaretteUrges
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].timeLogged = timeLogged
+        cigaretteUrges = list
+    }
+
+    func takeCigaretteEvent(id: UUID) -> CigaretteEventRecord? {
+        var list = cigaretteEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return nil }
+        let event = list.remove(at: idx)
+        cigaretteEvents = list
+        return event
+    }
+
+    func takeCigaretteUrge(id: UUID) -> CigaretteUrgeRecord? {
+        var list = cigaretteUrges
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return nil }
+        let urge = list.remove(at: idx)
+        cigaretteUrges = list
+        return urge
+    }
+
+    func insertCigaretteEvent(_ event: CigaretteEventRecord) {
+        var list = cigaretteEvents
+        list.append(event)
+        cigaretteEvents = list
+    }
+
+    func insertCigaretteUrge(_ urge: CigaretteUrgeRecord) {
+        var list = cigaretteUrges
+        list.append(urge)
+        cigaretteUrges = list
+    }
+
+    func updateDrinkEventTime(id: UUID, timeLogged: Date) {
+        var list = drinkEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].timeLogged = timeLogged
+        drinkEvents = list
+    }
+
+    func updateDrinkUrgeTime(id: UUID, timeLogged: Date) {
+        var list = drinkUrges
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].timeLogged = timeLogged
+        drinkUrges = list
+    }
+
+    func takeDrinkEvent(id: UUID) -> DrinkEventRecord? {
+        var list = drinkEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return nil }
+        let event = list.remove(at: idx)
+        drinkEvents = list
+        return event
+    }
+
+    func takeDrinkUrge(id: UUID) -> DrinkUrgeRecord? {
+        var list = drinkUrges
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return nil }
+        let urge = list.remove(at: idx)
+        drinkUrges = list
+        return urge
+    }
+
+    func insertDrinkEvent(_ event: DrinkEventRecord) {
+        var list = drinkEvents
+        list.append(event)
+        drinkEvents = list
+    }
+
+    func insertDrinkUrge(_ urge: DrinkUrgeRecord) {
+        var list = drinkUrges
+        list.append(urge)
+        drinkUrges = list
+    }
+
+    func updateBathroomEventTime(id: UUID, timeLogged: Date) {
+        var list = bathroomEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].timeLogged = timeLogged
+        bathroomEvents = list
+    }
+
+    func takeBathroomEvent(id: UUID) -> BathroomEventRecord? {
+        var list = bathroomEvents
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return nil }
+        let event = list.remove(at: idx)
+        bathroomEvents = list
+        return event
+    }
+
+    func insertBathroomEvent(_ event: BathroomEventRecord) {
+        var list = bathroomEvents
+        list.append(event)
+        bathroomEvents = list
+    }
+
     func ensureWaterSlotCount(_ count: Int) {
         var slots = waterSlots
         while slots.count < count { slots.append(nil) }
@@ -454,6 +608,115 @@ final class WeightEntry {
     }
 }
 
+enum BodyCompositionBodyType: String, CaseIterable, Identifiable, Codable {
+    case standard = "Standard"
+    case athletic = "Athletic"
+
+    var id: String { rawValue }
+}
+
+enum BodyCompositionGender: String, CaseIterable, Identifiable, Codable {
+    case male = "Male"
+    case female = "Female"
+
+    var id: String { rawValue }
+}
+
+enum BodyCompReminderCadence: String, CaseIterable, Identifiable {
+    case weekly = "Weekly"
+    case monthly = "Monthly"
+
+    var id: String { rawValue }
+}
+
+@Model
+final class BodyCompositionReading {
+    var id: UUID
+    var date: Date
+    var proteinGoalText: String
+    var waterTargetText: String
+    var bodyTypeRaw: String
+    var genderRaw: String
+    var age: Int
+    var heightInches: Double
+    var weightLbs: Double
+    var bmi: Double
+    var bmrKcal: Int
+    var impedance: Double
+    var fatPercent: Double
+    var fatMassLbs: Double
+    var ffmLbs: Double
+    var tbwLbs: Double
+    var desirableFatPercentLow: Double
+    var desirableFatPercentHigh: Double
+    var desirableFatMassLow: Double
+    var desirableFatMassHigh: Double
+    var notes: String
+    var createdAt: Date
+
+    init(
+        date: Date = Date(),
+        proteinGoalText: String = "",
+        waterTargetText: String = "",
+        bodyType: BodyCompositionBodyType = .standard,
+        gender: BodyCompositionGender = .male,
+        age: Int = 30,
+        heightInches: Double = 0,
+        weightLbs: Double = 0,
+        bmi: Double = 0,
+        bmrKcal: Int = 0,
+        impedance: Double = 0,
+        fatPercent: Double = 0,
+        fatMassLbs: Double = 0,
+        ffmLbs: Double = 0,
+        tbwLbs: Double = 0,
+        desirableFatPercentLow: Double = 0,
+        desirableFatPercentHigh: Double = 0,
+        desirableFatMassLow: Double = 0,
+        desirableFatMassHigh: Double = 0,
+        notes: String = ""
+    ) {
+        self.id = UUID()
+        self.date = Calendar.current.startOfDay(for: date)
+        self.proteinGoalText = proteinGoalText
+        self.waterTargetText = waterTargetText
+        self.bodyTypeRaw = bodyType.rawValue
+        self.genderRaw = gender.rawValue
+        self.age = age
+        self.heightInches = heightInches
+        self.weightLbs = weightLbs
+        self.bmi = bmi
+        self.bmrKcal = bmrKcal
+        self.impedance = impedance
+        self.fatPercent = fatPercent
+        self.fatMassLbs = fatMassLbs
+        self.ffmLbs = ffmLbs
+        self.tbwLbs = tbwLbs
+        self.desirableFatPercentLow = desirableFatPercentLow
+        self.desirableFatPercentHigh = desirableFatPercentHigh
+        self.desirableFatMassLow = desirableFatMassLow
+        self.desirableFatMassHigh = desirableFatMassHigh
+        self.notes = notes
+        self.createdAt = Date()
+    }
+
+    var bodyType: BodyCompositionBodyType {
+        get { BodyCompositionBodyType(rawValue: bodyTypeRaw) ?? .standard }
+        set { bodyTypeRaw = newValue.rawValue }
+    }
+
+    var gender: BodyCompositionGender {
+        get { BodyCompositionGender(rawValue: genderRaw) ?? .male }
+        set { genderRaw = newValue.rawValue }
+    }
+
+    var summaryLine: String {
+        let fat = String(format: "%.1f%% fat", fatPercent)
+        let weight = String(format: "%.1f lb", weightLbs)
+        return "\(weight) · \(fat) · BMI \(String(format: "%.1f", bmi))"
+    }
+}
+
 struct WaterSlotRecord: Codable, Equatable, Hashable {
     var oz: Double
     var isElectrolyte: Bool
@@ -556,6 +819,41 @@ struct DrinkUrgeRecord: Codable, Identifiable, Hashable {
     }
 }
 
+enum BathroomKind: String, Codable, CaseIterable, Identifiable {
+    case urine
+    case stool
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .urine: return "Urination"
+        case .stool: return "Bowel movement"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .urine: return "Urination"
+        case .stool: return "Bowel"
+        }
+    }
+}
+
+struct BathroomEventRecord: Codable, Identifiable, Hashable {
+    var id: UUID
+    var kind: BathroomKind
+    var timeLogged: Date
+    var note: String
+
+    init(id: UUID = UUID(), kind: BathroomKind, timeLogged: Date = Date(), note: String = "") {
+        self.id = id
+        self.kind = kind
+        self.timeLogged = timeLogged
+        self.note = note
+    }
+}
+
 @Model
 final class CustomFoodPreset {
     var id: UUID
@@ -651,6 +949,7 @@ final class AppSettings {
     var defaultBottleOzStored: Double?
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
+    var showBathroomSectionStored: Bool?
     var accentThemeRaw: String?
     var customAccentHexStored: String?
     var appearanceModeRaw: String?
@@ -704,6 +1003,14 @@ final class AppSettings {
     // Protein drinks → hydration
     var proteinDrinksCountTowardHydrationStored: Bool?
     var defaultShakeHydrationOzStored: Double?
+
+    // Body composition reminders
+    var bodyCompReminderEnabledStored: Bool?
+    var bodyCompReminderCadenceRaw: String?
+    var bodyCompReminderWeekdayStored: Int?
+    var bodyCompReminderDayOfMonthStored: Int?
+    var bodyCompReminderHourStored: Int?
+    var bodyCompReminderMinuteStored: Int?
 
     init() {
         self.id = UUID()
@@ -797,6 +1104,11 @@ final class AppSettings {
         set { showSupplementsSectionStored = newValue }
     }
 
+    var showBathroomSection: Bool {
+        get { showBathroomSectionStored ?? true }
+        set { showBathroomSectionStored = newValue }
+    }
+
     /// When on, protein shakes / RTDs with hydration oz add to the day’s water total.
     var proteinDrinksCountTowardHydration: Bool {
         get { proteinDrinksCountTowardHydrationStored ?? true }
@@ -806,6 +1118,37 @@ final class AppSettings {
     var defaultShakeHydrationOz: Double {
         get { defaultShakeHydrationOzStored ?? 8 }
         set { defaultShakeHydrationOzStored = max(1, min(newValue, 64)) }
+    }
+
+    var bodyCompReminderEnabled: Bool {
+        get { bodyCompReminderEnabledStored ?? false }
+        set { bodyCompReminderEnabledStored = newValue }
+    }
+
+    var bodyCompReminderCadence: BodyCompReminderCadence {
+        get { BodyCompReminderCadence(rawValue: bodyCompReminderCadenceRaw ?? "") ?? .monthly }
+        set { bodyCompReminderCadenceRaw = newValue.rawValue }
+    }
+
+    /// Calendar weekday: 1 = Sunday … 7 = Saturday (matches `Calendar.Component.weekday`).
+    var bodyCompReminderWeekday: Int {
+        get { bodyCompReminderWeekdayStored ?? 2 }
+        set { bodyCompReminderWeekdayStored = min(max(newValue, 1), 7) }
+    }
+
+    var bodyCompReminderDayOfMonth: Int {
+        get { bodyCompReminderDayOfMonthStored ?? 1 }
+        set { bodyCompReminderDayOfMonthStored = min(max(newValue, 1), 31) }
+    }
+
+    var bodyCompReminderHour: Int {
+        get { bodyCompReminderHourStored ?? 9 }
+        set { bodyCompReminderHourStored = newValue }
+    }
+
+    var bodyCompReminderMinute: Int {
+        get { bodyCompReminderMinuteStored ?? 0 }
+        set { bodyCompReminderMinuteStored = newValue }
     }
 
     /// Suggested fluid oz when logging a protein shake / RTD (nil if setting off or not a shake).
@@ -868,6 +1211,10 @@ final class AppSettings {
         // Legacy single-flag migration for weight privacy collapse.
         if section == .weight {
             return weightSectionCollapsedStored ?? false
+        }
+        // Bathroom defaults collapsed for privacy until the user expands it once.
+        if section == .bathroom {
+            return true
         }
         return false
     }
@@ -1200,6 +1547,15 @@ final class AppSettings {
             drinkingCheckInEnabled = false
             motivationReminderEnabled = false
             notificationsDefaultsVersionStored = 4
+        }
+        if (notificationsDefaultsVersionStored ?? 0) < 5 {
+            bodyCompReminderEnabled = false
+            bodyCompReminderCadence = .monthly
+            bodyCompReminderDayOfMonth = 1
+            bodyCompReminderWeekday = 2
+            bodyCompReminderHour = 9
+            bodyCompReminderMinute = 0
+            notificationsDefaultsVersionStored = 5
         }
     }
 

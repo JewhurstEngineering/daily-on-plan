@@ -10,6 +10,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
     case checklist
     case workouts
     case hydration
+    case bathroom
     case supplements
 
     var id: String { rawValue }
@@ -25,18 +26,19 @@ enum DaySectionID: String, CaseIterable, Identifiable {
         case .checklist: return "Fats, veggies & more"
         case .workouts: return "Workouts"
         case .hydration: return "Hydration"
+        case .bathroom: return "Bathroom"
         case .supplements: return "Supplements"
         }
     }
 
     /// Sections the user can reorder (header stays pinned).
     static var defaultReorderableOrder: [DaySectionID] {
-        [.weight, .smoking, .drinking, .feelings, .protein, .checklist, .workouts, .hydration, .supplements]
+        [.weight, .smoking, .drinking, .feelings, .protein, .checklist, .workouts, .hydration, .bathroom, .supplements]
     }
 
     var collapsedMessage: String {
         switch self {
-        case .weight, .smoking, .drinking:
+        case .weight, .smoking, .drinking, .bathroom:
             return "Hidden for privacy — tap the chevron to show."
         default:
             return "Collapsed — tap the chevron to show."
@@ -222,25 +224,99 @@ enum ProteinCategory: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-enum FeelingType: String, CaseIterable, Identifiable {
-    case hungry = "Hungry"
-    case cravingSweets = "Craving Sweets"
-    case cravingSalty = "Craving Salty"
-    case lowEnergy = "Low Energy"
-    case anxiousStressed = "Anxious/Stressed"
-    case fullSatisfied = "Full/Satisfied"
+enum FeelingCategory: String, CaseIterable, Identifiable {
+    case mood = "Mood"
+    case energy = "Energy"
+    case hunger = "Hunger"
+    case cravings = "Cravings"
+    case emotions = "Emotions"
+
+    var id: String { rawValue }
+}
+
+enum FeelingIntensity: String, CaseIterable, Identifiable {
+    case small = "S"
+    case medium = "M"
+    case large = "L"
 
     var id: String { rawValue }
 
+    var label: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        }
+    }
+}
+
+enum FeelingType: String, CaseIterable, Identifiable {
+    case feelingGood = "Feeling good"
+    case feelNormal = "Feel normal"
+    case energetic = "Energetic"
+    case highEnergy = "High Energy"
+    case sleepy = "Sleepy"
+    case foggy = "Foggy"
+    case fatigued = "Fatigued"
+    case exhausted = "Exhausted"
+    case hungerPang = "Hunger pang"
+    case fullSatisfied = "Full/Satisfied"
+    case cravingSweets = "Craving Sweets"
+    case cravingSalty = "Craving Salty"
+    case anxious = "Anxious"
+    case stressed = "Stressed"
+    case frenetic = "Frenetic"
+
+    /// Legacy labels still present in historical logs.
+    static let legacyHungry = "Hungry"
+    static let legacyLowEnergy = "Low Energy"
+    static let legacyAnxiousStressed = "Anxious/Stressed"
+
+    var id: String { rawValue }
+
+    var category: FeelingCategory {
+        switch self {
+        case .feelingGood, .feelNormal: return .mood
+        case .energetic, .highEnergy, .sleepy, .foggy, .fatigued, .exhausted: return .energy
+        case .hungerPang, .fullSatisfied: return .hunger
+        case .cravingSweets, .cravingSalty: return .cravings
+        case .anxious, .stressed, .frenetic: return .emotions
+        }
+    }
+
+    var needsIntensity: Bool {
+        self == .hungerPang
+    }
+
     var systemImage: String {
         switch self {
-        case .hungry: return "fork.knife"
+        case .feelingGood: return "sun.max.fill"
+        case .feelNormal: return "face.smiling"
+        case .energetic: return "bolt.fill"
+        case .highEnergy: return "bolt.circle.fill"
+        case .sleepy: return "moon.zzz.fill"
+        case .foggy: return "cloud.fog.fill"
+        case .fatigued: return "battery.25"
+        case .exhausted: return "battery.0"
+        case .hungerPang: return "fork.knife"
+        case .fullSatisfied: return "checkmark.circle"
         case .cravingSweets: return "birthday.cake"
         case .cravingSalty: return "drop.fill"
-        case .lowEnergy: return "battery.25"
-        case .anxiousStressed: return "brain.head.profile"
-        case .fullSatisfied: return "checkmark.circle"
+        case .anxious: return "brain.head.profile"
+        case .stressed: return "exclamationmark.triangle"
+        case .frenetic: return "arrow.triangle.2.circlepath"
         }
+    }
+
+    static func items(in category: FeelingCategory) -> [FeelingType] {
+        allCases.filter { $0.category == category }
+    }
+
+    func displayType(intensity: FeelingIntensity?) -> String {
+        if needsIntensity, let intensity {
+            return "\(rawValue) (\(intensity.rawValue))"
+        }
+        return rawValue
     }
 }
 

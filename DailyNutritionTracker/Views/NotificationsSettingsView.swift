@@ -245,6 +245,74 @@ struct NotificationsSettingsView: View {
                 ),
                 showTime: settings.motivationReminderEnabled
             )
+
+            Section {
+                Toggle("Body composition", isOn: Binding(
+                    get: { settings.bodyCompReminderEnabled },
+                    set: {
+                        settings.bodyCompReminderEnabled = $0
+                        persist()
+                    }
+                ))
+                Text("Reminder to log a clinic receipt. Off by default. Opens Body composition when tapped.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if settings.bodyCompReminderEnabled {
+                    Picker("Cadence", selection: Binding(
+                        get: { settings.bodyCompReminderCadence },
+                        set: {
+                            settings.bodyCompReminderCadence = $0
+                            persist()
+                        }
+                    )) {
+                        ForEach(BodyCompReminderCadence.allCases) { cadence in
+                            Text(cadence.rawValue).tag(cadence)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    DatePicker(
+                        "Time",
+                        selection: Binding(
+                            get: { date(hour: settings.bodyCompReminderHour, minute: settings.bodyCompReminderMinute) },
+                            set: { d in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                                settings.bodyCompReminderHour = c.hour ?? 9
+                                settings.bodyCompReminderMinute = c.minute ?? 0
+                                persist()
+                            }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    )
+
+                    if settings.bodyCompReminderCadence == .weekly {
+                        Picker("Weekday", selection: Binding(
+                            get: { settings.bodyCompReminderWeekday },
+                            set: {
+                                settings.bodyCompReminderWeekday = $0
+                                persist()
+                            }
+                        )) {
+                            ForEach(1...7, id: \.self) { weekday in
+                                Text(weekdayName(weekday)).tag(weekday)
+                            }
+                        }
+                    } else {
+                        Text("Day of month")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Short months use the last day when your preferred day doesn’t exist (e.g. 31 → Feb 28/29).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        DayOfMonthPicker(selectedDay: Binding(
+                            get: { settings.bodyCompReminderDayOfMonth },
+                            set: {
+                                settings.bodyCompReminderDayOfMonth = $0
+                                persist()
+                            }
+                        ))
+                    }
+                }
+            }
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
@@ -278,8 +346,86 @@ struct NotificationsSettingsView: View {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
     }
 
+    private func weekdayName(_ weekday: Int) -> String {
+        let symbols = Calendar.current.weekdaySymbols
+        let index = weekday - 1
+        guard symbols.indices.contains(index) else { return "Day \(weekday)" }
+        return symbols[index]
+    }
+
     private func persist() {
         try? modelContext.save()
         Task { await NotificationService.shared.reschedule(using: settings) }
+    }
+}
+
+/// Month-grid picker for day-of-month (1–31), not a specific calendar date.
+struct DayOfMonthPicker: View {
+    @Binding var selectedDay: Int
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+
+    /// Fixed 31-day template month so every day number is always available.
+    private var templateMonth: Date {
+        Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 1)) ?? Date()
+    }
+
+    private var cells: [Int?] {
+        let calendar = Calendar.current
+        guard let interval = calendar.dateInterval(of: .month, for: templateMonth) else { return [] }
+        let firstWeekday = calendar.component(.weekday, from: interval.start)
+        let leading = (firstWeekday - calendar.firstWeekday + 7) % 7
+        var result: [Int?] = Array(repeating: nil, count: leading)
+        for day in 1...31 {
+            result.append(day)
+        }
+        while result.count % 7 != 0 {
+            result.append(nil)
+        }
+        return result
+    }
+
+    private var weekdaySymbols: [String] {
+        let symbols = Calendar.current.veryShortWeekdaySymbols
+        let first = Calendar.current.firstWeekday - 1
+        return Array(symbols[first...]) + Array(symbols[..<first])
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(weekdaySymbols, id: \.self) { symbol in
+                    Text(symbol)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        Button {
+                            selectedDay = day
+                        } label: {
+                            Text("\(day)")
+                                .font(.caption.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(selectedDay == day ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemFill))
+                                .foregroundStyle(selectedDay == day ? Color.accentColor : .primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                }
+            }
+            Text("Selected: day \(selectedDay)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }

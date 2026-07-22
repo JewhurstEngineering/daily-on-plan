@@ -3,12 +3,14 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var healthKit: HealthKitService
     @Query private var settingsList: [AppSettings]
     @State private var selectedDate = Date()
     @State private var showSettings = false
     @State private var showExport = false
     @State private var showReports = false
+    @State private var showBodyComposition = false
     @State private var pendingScrollSection: String?
 
     private var theme: AccentTheme {
@@ -32,6 +34,7 @@ struct ContentView: View {
             DayView(
                 selectedDate: $selectedDate,
                 onOpenSettings: { showSettings = true },
+                onOpenBodyComposition: { showBodyComposition = true },
                 pendingScrollSection: $pendingScrollSection
             )
             .navigationTitle(AppIdentity.displayName)
@@ -86,16 +89,40 @@ struct ContentView: View {
                     .environment(\.accentProgress, accentProgress)
                     .preferredColorScheme(appearanceMode.preferredColorScheme)
             }
+            .sheet(isPresented: $showBodyComposition) {
+                NavigationStack {
+                    BodyCompositionListView()
+                }
+                .tint(accentPrimary)
+                .environment(\.accentTheme, theme)
+                .environment(\.accentPrimary, accentPrimary)
+                .environment(\.accentProgress, accentProgress)
+                .preferredColorScheme(appearanceMode.preferredColorScheme)
+            }
             .task {
+                snapToTodayIfNeeded()
                 _ = DataStore.settings(in: modelContext)
                 await healthKit.requestAuthorization()
                 let settings = DataStore.settings(in: modelContext)
                 await NotificationService.shared.reschedule(using: settings)
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    snapToTodayIfNeeded()
+                    Task {
+                        let settings = DataStore.settings(in: modelContext)
+                        await NotificationService.shared.reschedule(using: settings)
+                    }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .openDaySection)) { note in
                 selectedDate = Date()
                 if let section = note.userInfo?["section"] as? String {
-                    pendingScrollSection = section
+                    if section == "bodyComposition" {
+                        showBodyComposition = true
+                    } else {
+                        pendingScrollSection = section
+                    }
                 }
             }
         }
@@ -104,5 +131,13 @@ struct ContentView: View {
         .environment(\.accentProgress, accentProgress)
         .tint(accentPrimary)
         .preferredColorScheme(appearanceMode.preferredColorScheme)
+    }
+
+    /// Roll forward when the app resumes on a later calendar day (left open overnight).
+    private func snapToTodayIfNeeded() {
+        let startOfToday = DateHelpers.startOfDay(Date())
+        if DateHelpers.startOfDay(selectedDate) < startOfToday {
+            selectedDate = Date()
+        }
     }
 }

@@ -145,12 +145,13 @@ struct ExportSheetView: View {
         return (start, end)
     }
 
-    private func fetchData() -> (settings: AppSettings, logs: [DailyLog], weights: [WeightEntry], start: Date, end: Date) {
+    private func fetchData() -> (settings: AppSettings, logs: [DailyLog], weights: [WeightEntry], bodyComps: [BodyCompositionReading], start: Date, end: Date) {
         let settings = DataStore.settings(in: modelContext)
         let (start, end) = dateBounds()
         let logs = DataStore.logs(from: start, to: end, in: modelContext)
         let weights = DataStore.weights(from: start, to: end, in: modelContext)
-        return (settings, logs, weights, start, end)
+        let bodyComps = DataStore.bodyCompositions(from: start, to: end, in: modelContext)
+        return (settings, logs, weights, bodyComps, start, end)
     }
 
     private func filenameStem(start: Date, end: Date) -> String {
@@ -175,6 +176,7 @@ struct ExportSheetView: View {
                     url = try WorkbookExportService.writeTemporaryFile(
                         logs: dataPack.logs,
                         weights: dataPack.weights,
+                        bodyComps: dataPack.bodyComps,
                         settings: dataPack.settings,
                         filenameStem: stem
                     )
@@ -183,6 +185,7 @@ struct ExportSheetView: View {
                     url = try ExportService.writePDFFile(
                         logs: dataPack.logs,
                         weights: dataPack.weights,
+                        bodyComps: dataPack.bodyComps,
                         settings: dataPack.settings,
                         title: title,
                         filenameStem: stem
@@ -191,6 +194,7 @@ struct ExportSheetView: View {
                     url = try ExportService.writeCSVFile(
                         logs: dataPack.logs,
                         weights: dataPack.weights,
+                        bodyComps: dataPack.bodyComps,
                         settings: dataPack.settings,
                         filenameStem: stem
                     )

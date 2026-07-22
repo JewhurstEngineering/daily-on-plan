@@ -53,31 +53,55 @@ struct DayHeaderSection: View {
                 .disabled(Calendar.current.isDateInToday(selectedDate) || selectedDate > Date())
             }
 
-            HStack(alignment: .center, spacing: 20) {
-                CalorieRingView(current: log.totalProteinCalories, goal: log.proteinGoal)
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Protein Goal")
-                            .font(.subheadline.weight(.semibold))
-                        Text("\(log.proteinGoal) kcal")
-                            .font(.title3.monospacedDigit().weight(.semibold))
-                        Text("Change in Settings")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Toggle(isOn: $log.ketosis) {
-                        Text("Ketosis")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .tint(accentPrimary)
-
-                    Toggle(isOn: $log.followedPlan) {
-                        Text("Followed Plan")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .tint(theme.success)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: 8) {
+                    GoalRingView(
+                        current: log.totalProteinCalories,
+                        goal: log.proteinGoal,
+                        unit: "kcal",
+                        treatOverAsWarning: true
+                    )
+                    Text("Protein")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+
+                VStack(spacing: 8) {
+                    GoalRingView(
+                        current: log.totalHydrationOz(settings: settings),
+                        goal: settings.hydrationTargetOz,
+                        unit: "oz",
+                        successWhenMet: true,
+                        electrolyteSegments: HydrationRingSegments.electrolyteSegments(
+                            slots: log.waterSlots,
+                            goalOz: settings.hydrationTargetOz
+                        )
+                    )
+                    Text("Hydration")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    if log.hasElectrolyteDrink {
+                        Label("Electrolytes", systemImage: "bolt.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.yellow.opacity(0.9))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $log.ketosis) {
+                    Text("Ketosis")
+                        .font(.subheadline.weight(.medium))
+                }
+                .tint(accentPrimary)
+
+                Toggle(isOn: $log.followedPlan) {
+                    Text("Followed Plan")
+                        .font(.subheadline.weight(.medium))
+                }
+                .tint(theme.success)
             }
 
             Text("Ketosis is usually checked with urine strips, a blood ketone meter, or breath — or logged as your best guess if you don’t test. This app doesn’t measure it for you.")

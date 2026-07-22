@@ -5,6 +5,7 @@ enum ExportService {
     static func csv(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading] = [],
         settings: AppSettings
     ) -> String {
         var lines: [String] = [
@@ -77,6 +78,19 @@ enum ExportService {
                     "drink",
                     "",
                     urge.note
+                ]))
+            }
+
+            lines.append(csvRow(["day", day, "", "urineCount", "\(log.urineCount)", ""]))
+            lines.append(csvRow(["day", day, "", "stoolCount", "\(log.stoolCount)", ""]))
+            for event in log.bathroomEvents {
+                lines.append(csvRow([
+                    "bathroom",
+                    day,
+                    DateHelpers.formattedTime(event.timeLogged),
+                    event.kind.rawValue,
+                    "",
+                    event.note
                 ]))
             }
 
@@ -153,16 +167,59 @@ enum ExportService {
             ]))
         }
 
+        for reading in bodyComps {
+            let day = reading.date.formatted(.iso8601.year().month().day())
+            lines.append(csvRow([
+                "bodyComp",
+                day,
+                "",
+                "summary",
+                reading.summaryLine,
+                reading.notes
+            ]))
+            lines.append(csvRow(["bodyComp", day, "", "proteinGoal", reading.proteinGoalText, ""]))
+            lines.append(csvRow(["bodyComp", day, "", "waterTarget", reading.waterTargetText, ""]))
+            lines.append(csvRow(["bodyComp", day, "", "bodyType", reading.bodyType.rawValue, ""]))
+            lines.append(csvRow(["bodyComp", day, "", "gender", reading.gender.rawValue, ""]))
+            lines.append(csvRow(["bodyComp", day, "", "age", "\(reading.age)", ""]))
+            lines.append(csvRow(["bodyComp", day, "", "heightInches", String(format: "%.1f", reading.heightInches), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "weightLbs", String(format: "%.1f", reading.weightLbs), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "bmi", String(format: "%.1f", reading.bmi), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "bmrKcal", "\(reading.bmrKcal)", ""]))
+            lines.append(csvRow(["bodyComp", day, "", "impedance", String(format: "%.1f", reading.impedance), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "fatPercent", String(format: "%.1f", reading.fatPercent), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "fatMassLbs", String(format: "%.1f", reading.fatMassLbs), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "ffmLbs", String(format: "%.1f", reading.ffmLbs), ""]))
+            lines.append(csvRow(["bodyComp", day, "", "tbwLbs", String(format: "%.1f", reading.tbwLbs), ""]))
+            lines.append(csvRow([
+                "bodyComp",
+                day,
+                "",
+                "desirableFatPercent",
+                String(format: "%.1f-%.1f", reading.desirableFatPercentLow, reading.desirableFatPercentHigh),
+                ""
+            ]))
+            lines.append(csvRow([
+                "bodyComp",
+                day,
+                "",
+                "desirableFatMassLbs",
+                String(format: "%.1f-%.1f", reading.desirableFatMassLow, reading.desirableFatMassHigh),
+                ""
+            ]))
+        }
+
         return lines.joined(separator: "\n") + "\n"
     }
 
     static func writeCSVFile(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading] = [],
         settings: AppSettings,
         filenameStem: String
     ) throws -> URL {
-        let csv = csv(logs: logs, weights: weights, settings: settings)
+        let csv = csv(logs: logs, weights: weights, bodyComps: bodyComps, settings: settings)
         let url = try ExportFileStore.uniqueURL(stem: filenameStem, ext: "csv")
         try Data(csv.utf8).write(to: url, options: .atomic)
         return url
@@ -171,11 +228,12 @@ enum ExportService {
     static func writePDFFile(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading] = [],
         settings: AppSettings,
         title: String,
         filenameStem: String
     ) throws -> URL {
-        let data = pdfData(logs: logs, weights: weights, settings: settings, title: title)
+        let data = pdfData(logs: logs, weights: weights, bodyComps: bodyComps, settings: settings, title: title)
         let url = try ExportFileStore.uniqueURL(stem: filenameStem, ext: "pdf")
         try data.write(to: url, options: .atomic)
         return url
@@ -184,6 +242,7 @@ enum ExportService {
     static func pdfData(
         logs: [DailyLog],
         weights: [WeightEntry],
+        bodyComps: [BodyCompositionReading] = [],
         settings: AppSettings,
         title: String
     ) -> Data {
@@ -254,6 +313,14 @@ enum ExportService {
                     }
                     if !log.drinkUrges.isEmpty {
                         drawLine("Urges: \(log.drinkUrges.count)", indent: 12)
+                    }
+                }
+                if settings.showBathroomSection || !log.bathroomEvents.isEmpty {
+                    drawLine("Bathroom: urination \(log.urineCount) · bowel \(log.stoolCount)")
+                    for event in log.bathroomEvents {
+                        var line = "\(DateHelpers.formattedTime(event.timeLogged)) — \(event.kind.title)"
+                        if !event.note.isEmpty { line += " (\(event.note))" }
+                        drawLine(line, indent: 12)
                     }
                 }
                 if !log.offPlanReasons.isEmpty {
@@ -340,6 +407,26 @@ enum ExportService {
                 }
 
                 y += 10
+            }
+
+            if !bodyComps.isEmpty {
+                drawLine("Body composition", font: .boldSystemFont(ofSize: 14))
+                for reading in bodyComps.sorted(by: { $0.date < $1.date }) {
+                    drawLine(DateHelpers.formattedDay(reading.date), font: .boldSystemFont(ofSize: 12))
+                    drawLine(reading.summaryLine, indent: 12)
+                    if !reading.proteinGoalText.isEmpty {
+                        drawLine("Protein goal: \(reading.proteinGoalText)", indent: 12)
+                    }
+                    if !reading.waterTargetText.isEmpty {
+                        drawLine("Water target: \(reading.waterTargetText)", indent: 12)
+                    }
+                    drawLine("Body type: \(reading.bodyType.rawValue) · \(reading.gender.rawValue) · age \(reading.age)", indent: 12)
+                    drawLine(String(format: "Impedance %.1f · Fat %.1f%% · FFM %.1f lb · TBW %.1f lb",
+                                    reading.impedance, reading.fatPercent, reading.ffmLbs, reading.tbwLbs), indent: 12)
+                    if !reading.notes.isEmpty {
+                        drawLine("Notes: \(reading.notes)", indent: 12)
+                    }
+                }
             }
         }
     }

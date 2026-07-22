@@ -52,6 +52,9 @@
 		F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */; };
 		C4A81E29B0D74F6A8E3C1A55 /* SmokingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */; };
 		E2F19A70C8D54B2F9A1E6D33 /* DrinkingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */; };
+		F1A2B3C4D5E6F708192A3B4C /* BathroomSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B8C7D6E5F4039281A0B9C8 /* BathroomSection.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* EditTimestampSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F50617283A4B5C6D /* EditTimestampSheet.swift */; };
+		C1D2E3F4A5B60718293A4B5C /* BodyCompositionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C60718293A4B5C /* BodyCompositionViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -103,6 +106,9 @@
 		FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightBMISection.swift; sourceTree = "<group>"; };
 		9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokingSection.swift; sourceTree = "<group>"; };
 		6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkingSection.swift; sourceTree = "<group>"; };
+		A9B8C7D6E5F4039281A0B9C8 /* BathroomSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BathroomSection.swift; sourceTree = "<group>"; };
+		B1C2D3E4F50617283A4B5C6D /* EditTimestampSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimestampSheet.swift; sourceTree = "<group>"; };
+		D1E2F3A4B5C60718293A4B5C /* BodyCompositionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyCompositionViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,6 +159,7 @@
 				C3D4E5F60718293A4B5C6D7E /* DayLayoutSettingsView.swift */,
 				6182EF7950C84F7CAB7FA77F /* FoodPreferencesView.swift */,
 				DA121FAFDE544E178C38842C /* SavedMealsListView.swift */,
+				D1E2F3A4B5C60718293A4B5C /* BodyCompositionViews.swift */,
 				6FBDC7D6EFA6A2776CB5DF99 /* Components */,
 				627FA96E5ABD987E860197FB /* Reports */,
 				C24C0B28B280C761CC7297D6 /* Sections */,
@@ -216,6 +223,7 @@
 			children = (
 				7C08CD0A2F48C76A91863410 /* AddProteinSheet.swift */,
 				8D2C9B2DE60D6200D2F62CF7 /* ExportSheetView.swift */,
+				B1C2D3E4F50617283A4B5C6D /* EditTimestampSheet.swift */,
 			);
 			path = Sheets;
 			sourceTree = "<group>";
@@ -253,6 +261,7 @@
 				FF6B3C18F4E0CA2EDEA9D5EA /* WeightBMISection.swift */,
 				9B2E7D41F5A84C3D9E60B812 /* SmokingSection.swift */,
 				6C4B8E21A9F047D1B3E5C902 /* DrinkingSection.swift */,
+				A9B8C7D6E5F4039281A0B9C8 /* BathroomSection.swift */,
 				12455EC302B95E4C91AA758F /* WorkoutSection.swift */,
 			);
 			path = Sections;
@@ -373,6 +382,7 @@
 				F9B2AD3495F23EA457D3A235 /* WeightBMISection.swift in Sources */,
 				C4A81E29B0D74F6A8E3C1A55 /* SmokingSection.swift in Sources */,
 				E2F19A70C8D54B2F9A1E6D33 /* DrinkingSection.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B4C /* BathroomSection.swift in Sources */,
 				8D44BF1AF9CF7089E6BC9807 /* WorkbookExportService.swift in Sources */,
 				B7E41C92A0F84D1E9C2A6B10 /* ZipStoreWriter.swift in Sources */,
 				3CCEED0DE421E530A7A638B2 /* WorkoutSection.swift in Sources */,
@@ -380,6 +390,8 @@
 				3C4D5E6F708192A3B4C5D6E7 /* DayLayoutSettingsView.swift in Sources */,
 				4D5E6F708192A3B4C5D6E7F8 /* CalendarHeatmapView.swift in Sources */,
 				5E6F708192A3B4C5D6E7F809 /* ShareCardViews.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* EditTimestampSheet.swift in Sources */,
+				C1D2E3F4A5B60718293A4B5C /* BodyCompositionViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

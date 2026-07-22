@@ -52,6 +52,7 @@ struct DayLayoutSettingsView: View {
         case .smoking: return settings.smokingMode.showsSection
         case .drinking: return settings.drinkingMode.showsSection
         case .supplements: return settings.showSupplementsSection
+        case .bathroom: return settings.showBathroomSection
         default: return true
         }
     }

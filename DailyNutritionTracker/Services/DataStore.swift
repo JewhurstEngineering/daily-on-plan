@@ -10,6 +10,7 @@ enum DataStore {
             ProteinEntry.self,
             WorkoutEntry.self,
             WeightEntry.self,
+            BodyCompositionReading.self,
             CustomFoodPreset.self,
             SavedMeal.self,
             AppSettings.self
@@ -28,7 +29,7 @@ enum DataStore {
         if let existing = try? context.fetch(descriptor).first {
             let before = existing.notificationsDefaultsVersionStored ?? 0
             existing.migrateNotificationDefaultsIfNeeded()
-            if before < 4 {
+            if before < 5 {
                 try? context.save()
             }
             return existing
@@ -99,5 +100,32 @@ enum DataStore {
             sortBy: [SortDescriptor(\.date, order: .forward)]
         )
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    static func bodyCompositions(from start: Date, to end: Date, in context: ModelContext) -> [BodyCompositionReading] {
+        let startDay = DateHelpers.startOfDay(start)
+        let endExclusive = Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(end)) ?? end
+        let descriptor = FetchDescriptor<BodyCompositionReading>(
+            predicate: #Predicate { entry in
+                entry.date >= startDay && entry.date < endExclusive
+            },
+            sortBy: [SortDescriptor(\.date, order: .forward)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    static func allBodyCompositions(in context: ModelContext) -> [BodyCompositionReading] {
+        let descriptor = FetchDescriptor<BodyCompositionReading>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    static func latestBodyComposition(in context: ModelContext) -> BodyCompositionReading? {
+        var descriptor = FetchDescriptor<BodyCompositionReading>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return try? context.fetch(descriptor).first
     }
 }

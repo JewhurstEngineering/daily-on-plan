@@ -8,9 +8,12 @@ struct SmokingSection: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accentPrimary) private var accentPrimary
     @State private var showUrgeSheet = false
     @State private var urgeNote = ""
     @State private var showEventList = false
+    @State private var editCigaretteID: UUID?
+    @State private var editUrgeID: UUID?
 
     private var limit: Int? { settings.effectiveDailyCigaretteLimit }
 
@@ -125,8 +128,12 @@ struct SmokingSection: View {
                 DisclosureGroup("Log (\(log.cigaretteEvents.count))", isExpanded: $showEventList) {
                     ForEach(log.cigaretteEvents.reversed()) { event in
                         HStack {
-                            Text(DateHelpers.formattedTime(event.timeLogged))
-                                .font(.caption.monospacedDigit())
+                            Button(DateHelpers.formattedTime(event.timeLogged)) {
+                                editCigaretteID = event.id
+                            }
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(accentPrimary)
+                            .buttonStyle(.plain)
                             Text(event.label)
                                 .font(.caption)
                             Spacer()
@@ -184,8 +191,12 @@ struct SmokingSection: View {
                                 .foregroundStyle(.secondary)
                             ForEach(log.cigaretteUrges) { urge in
                                 HStack {
-                                    Text(DateHelpers.formattedTime(urge.timeLogged))
-                                        .font(.caption.monospacedDigit())
+                                    Button(DateHelpers.formattedTime(urge.timeLogged)) {
+                                        editUrgeID = urge.id
+                                    }
+                                    .font(.caption.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(accentPrimary)
+                                    .buttonStyle(.plain)
                                     Text(urge.note.isEmpty ? "Urge logged" : urge.note)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -240,6 +251,72 @@ struct SmokingSection: View {
             }
             .presentationDetents([.medium])
         }
+        .sheet(item: cigaretteEditBinding) { event in
+            EditTimestampSheet(
+                title: event.label,
+                initialDate: event.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveCigaretteEvent(id: event.id, to: newDate)
+                editCigaretteID = nil
+            }
+        }
+        .sheet(item: urgeEditBinding) { urge in
+            EditTimestampSheet(
+                title: urge.note.isEmpty ? "Urge" : urge.note,
+                initialDate: urge.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveCigaretteUrge(id: urge.id, to: newDate)
+                editUrgeID = nil
+            }
+        }
+    }
+
+    private var cigaretteEditBinding: Binding<CigaretteEventRecord?> {
+        Binding(
+            get: {
+                guard let id = editCigaretteID else { return nil }
+                return log.cigaretteEvents.first { $0.id == id }
+            },
+            set: { if $0 == nil { editCigaretteID = nil } }
+        )
+    }
+
+    private var urgeEditBinding: Binding<CigaretteUrgeRecord?> {
+        Binding(
+            get: {
+                guard let id = editUrgeID else { return nil }
+                return log.cigaretteUrges.first { $0.id == id }
+            },
+            set: { if $0 == nil { editUrgeID = nil } }
+        )
+    }
+
+    private func moveCigaretteEvent(id: UUID, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        if targetDay == sourceDay {
+            log.updateCigaretteEventTime(id: id, timeLogged: newDate)
+        } else if var event = log.takeCigaretteEvent(id: id) {
+            event.timeLogged = newDate
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.insertCigaretteEvent(event)
+        }
+        try? modelContext.save()
+    }
+
+    private func moveCigaretteUrge(id: UUID, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        if targetDay == sourceDay {
+            log.updateCigaretteUrgeTime(id: id, timeLogged: newDate)
+        } else if var urge = log.takeCigaretteUrge(id: id) {
+            urge.timeLogged = newDate
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.insertCigaretteUrge(urge)
+        }
+        try? modelContext.save()
     }
 
     private func packChipLabel(_ packs: Double) -> String {

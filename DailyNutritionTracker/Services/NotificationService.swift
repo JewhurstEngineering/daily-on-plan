@@ -12,6 +12,7 @@ enum NotificationKind: String {
     case smokingCheckIn
     case drinkingCheckIn
     case motivation
+    case bodyComposition
 
     var deepLinkSection: String {
         switch self {
@@ -20,6 +21,7 @@ enum NotificationKind: String {
         case .weigh: return "weight"
         case .smokingCheckIn: return "smoking"
         case .drinkingCheckIn: return "drinking"
+        case .bodyComposition: return "bodyComposition"
         case .eveningPlan, .ketosis, .genericCheckIn, .motivation: return "header"
         }
     }
@@ -190,6 +192,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 center: center
             )
         }
+
+        if settings.bodyCompReminderEnabled {
+            scheduleBodyComposition(settings: settings, center: center)
+        }
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -311,6 +317,56 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         center.add(request)
+    }
+
+    private func scheduleBodyComposition(settings: AppSettings, center: UNUserNotificationCenter) {
+        let content = UNMutableNotificationContent()
+        content.title = "Body composition"
+        content.body = "Log your clinic receipt in \(AppIdentity.displayName) when you’re ready."
+        content.sound = .default
+        content.userInfo = ["kind": NotificationKind.bodyComposition.rawValue]
+
+        let hour = settings.bodyCompReminderHour
+        let minute = settings.bodyCompReminderMinute
+
+        switch settings.bodyCompReminderCadence {
+        case .weekly:
+            var comps = DateComponents()
+            comps.weekday = settings.bodyCompReminderWeekday
+            comps.hour = hour
+            comps.minute = minute
+            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+            let request = UNNotificationRequest(
+                identifier: "body-comp-weekly",
+                content: content,
+                trigger: trigger
+            )
+            center.add(request)
+
+        case .monthly:
+            let calendar = Calendar.current
+            let preferredDay = settings.bodyCompReminderDayOfMonth
+            guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: Date())) else {
+                return
+            }
+            for offset in 0..<12 {
+                guard let month = calendar.date(byAdding: .month, value: offset, to: monthStart) else { continue }
+                let daysInMonth = calendar.range(of: .day, in: .month, for: month)?.count ?? 30
+                let day = min(preferredDay, daysInMonth)
+                var comps = calendar.dateComponents([.year, .month], from: month)
+                comps.day = day
+                comps.hour = hour
+                comps.minute = minute
+                guard let fireDate = calendar.date(from: comps), fireDate > Date() else { continue }
+                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "body-comp-monthly-\(offset)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
+        }
     }
 
     private func handle(response: UNNotificationResponse) async {

@@ -192,9 +192,14 @@ struct CigaretteGlyph: View {
     }
 }
 
-struct CalorieRingView: View {
+struct GoalRingView: View {
     let current: Int
     let goal: Int
+    var unit: String
+    var treatOverAsWarning: Bool = false
+    var successWhenMet: Bool = false
+    /// Fractions of the full ring (0...1) for electrolyte highlights, drawn on top of the fill.
+    var electrolyteSegments: [(start: Double, end: Double)] = []
     @Environment(\.accentTheme) private var theme
     @Environment(\.accentProgress) private var progressColor
 
@@ -204,6 +209,17 @@ struct CalorieRingView: View {
     }
 
     private var isOver: Bool { current > goal }
+    private var isMet: Bool { goal > 0 && current >= goal }
+
+    private var strokeColor: Color {
+        if treatOverAsWarning, isOver { return theme.warning }
+        if successWhenMet, isMet { return theme.success }
+        return progressColor
+    }
+
+    private var electrolyteColor: Color {
+        Color.yellow.opacity(0.95)
+    }
 
     var body: some View {
         ZStack {
@@ -212,20 +228,148 @@ struct CalorieRingView: View {
             Circle()
                 .trim(from: 0, to: min(progress, 1))
                 .stroke(
-                    isOver ? theme.warning : progressColor,
+                    strokeColor,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.3), value: current)
+
+            ForEach(Array(visibleElectrolyteSegments.enumerated()), id: \.offset) { _, segment in
+                Circle()
+                    .trim(from: segment.start, to: segment.end)
+                    .stroke(
+                        electrolyteColor,
+                        style: StrokeStyle(lineWidth: 12, lineCap: .butt)
+                    )
+                    .rotationEffect(.degrees(-90))
+            }
+
             VStack(spacing: 2) {
                 Text("\(current)")
                     .font(.title2.bold().monospacedDigit())
-                Text("/ \(goal) kcal")
+                Text("/ \(goal) \(unit)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .frame(width: 110, height: 110)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var visibleElectrolyteSegments: [(start: Double, end: Double)] {
+        let fillEnd = min(progress, 1)
+        return electrolyteSegments.compactMap { segment in
+            let start = max(0, min(segment.start, fillEnd))
+            let end = max(0, min(segment.end, fillEnd))
+            // Keep a visible speck even for very small electrolyte pours.
+            let paddedEnd = max(end, min(start + 0.035, fillEnd))
+            guard paddedEnd > start else { return nil }
+            return (start, paddedEnd)
+        }
+    }
+
+    private var accessibilityText: String {
+        var text = "\(current) of \(goal) \(unit)"
+        if !electrolyteSegments.isEmpty {
+            text += ", includes electrolytes"
+        }
+        return text
+    }
+}
+
+/// Maps filled water slots onto ring fractions (of the daily goal) for electrolyte highlights.
+enum HydrationRingSegments {
+    static func electrolyteSegments(slots: [WaterSlotRecord?], goalOz: Int) -> [(start: Double, end: Double)] {
+        guard goalOz > 0 else { return [] }
+        let goal = Double(goalOz)
+        var cursor = 0.0
+        var segments: [(start: Double, end: Double)] = []
+        for slot in slots {
+            guard let slot else { continue }
+            let start = cursor / goal
+            cursor += max(slot.oz, 0)
+            let end = cursor / goal
+            if slot.isElectrolyte {
+                segments.append((start, end))
+            }
+        }
+        return segments
+    }
+}
+
+struct CalorieRingView: View {
+    let current: Int
+    let goal: Int
+
+    var body: some View {
+        GoalRingView(current: current, goal: goal, unit: "kcal", treatOverAsWarning: true)
+    }
+}
+
+struct HydrationProgressBar: View {
+    let current: Int
+    let goal: Int
+    var electrolyteSegments: [(start: Double, end: Double)] = []
+    @Environment(\.accentProgress) private var progressColor
+    @Environment(\.accentTheme) private var theme
+
+    private var fraction: CGFloat {
+        guard goal > 0 else { return 0 }
+        return CGFloat(min(Double(current) / Double(goal), 1))
+    }
+
+    private var isMet: Bool { goal > 0 && current >= goal }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.systemGray5))
+                    Capsule()
+                        .fill(isMet ? theme.success : progressColor)
+                        .frame(width: max(8, geo.size.width * fraction))
+                        .animation(.easeInOut(duration: 0.35), value: current)
+
+                    ForEach(Array(visibleElectrolyteSegments.enumerated()), id: \.offset) { _, segment in
+                        let width = max(6, geo.size.width * CGFloat(segment.end - segment.start))
+                        Capsule()
+                            .fill(Color.yellow.opacity(0.95))
+                            .frame(width: width)
+                            .offset(x: geo.size.width * CGFloat(segment.start))
+                    }
+                }
+            }
+            .frame(height: 12)
+
+            HStack {
+                Text("\(current) / \(goal) oz")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                Spacer()
+                if isMet {
+                    Label("Goal hit", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.success)
+                } else {
+                    Text("\(max(goal - current, 0)) oz to go")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Hydration \(current) of \(goal) ounces")
+    }
+
+    private var visibleElectrolyteSegments: [(start: Double, end: Double)] {
+        let fillEnd = Double(fraction)
+        return electrolyteSegments.compactMap { segment in
+            let start = max(0, min(segment.start, fillEnd))
+            let end = max(0, min(segment.end, fillEnd))
+            let paddedEnd = max(end, min(start + 0.04, fillEnd))
+            guard paddedEnd > start else { return nil }
+            return (start, paddedEnd)
+        }
     }
 }
 

@@ -58,6 +58,15 @@ struct HydrationSection: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            HydrationProgressBar(
+                current: totalOz,
+                goal: settings.hydrationTargetOz,
+                electrolyteSegments: HydrationRingSegments.electrolyteSegments(
+                    slots: log.waterSlots,
+                    goalOz: settings.hydrationTargetOz
+                )
+            )
+
             if proteinOz > 0 {
                 Text("Includes \(proteinOz) oz from protein drinks")
                     .font(.caption2)

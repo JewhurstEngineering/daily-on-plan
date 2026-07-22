@@ -3,126 +3,196 @@ import SwiftData
 
 struct FeelingsSection: View {
     @Bindable var log: DailyLog
-    let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
-    @State private var pendingNoteType: FeelingType?
-    @State private var noteText = ""
+    @Environment(\.accentPrimary) private var accentPrimary
+    @AppStorage("feelings.lastCategory") private var lastCategoryRaw = FeelingCategory.energy.rawValue
+
+    @State private var selectedCategory: FeelingCategory = .energy
+    @State private var customText = ""
     @State private var showCustom = false
-    @State private var customFeeling = ""
+    @State private var noteTarget: FeelingEntry?
+    @State private var noteText = ""
+    @State private var intensityTarget: FeelingType?
+    @State private var editTarget: FeelingEntry?
+
+    private var chips: [FeelingType] {
+        FeelingType.items(in: selectedCategory)
+    }
 
     var body: some View {
-        SectionCard(
-            title: "Feelings & Cravings",
-            systemImage: "heart.text.square",
-            isCollapsed: settings.sectionCollapsedBinding(.feelings, context: modelContext),
-            collapsedMessage: DaySectionID.feelings.collapsedMessage
-        ) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(FeelingType.allCases) { type in
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Feelings & Cravings")
+                .font(.headline)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(FeelingCategory.allCases) { category in
+                        Button {
+                            selectedCategory = category
+                            lastCategoryRaw = category.rawValue
+                        } label: {
+                            Text(category.rawValue)
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(selectedCategory == category ? accentPrimary.opacity(0.18) : Color(.secondarySystemBackground))
+                                .foregroundStyle(selectedCategory == category ? accentPrimary : .primary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 8)], spacing: 8) {
+                ForEach(chips) { type in
                     Button {
-                        quickLog(type.rawValue)
+                        if type.needsIntensity {
+                            intensityTarget = type
+                        } else {
+                            addFeeling(type.displayType(intensity: nil))
+                        }
                     } label: {
                         Label(type.rawValue, systemImage: type.systemImage)
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(Color.accentColor.opacity(0.12))
-                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 6)
+                            .background(Color(.secondarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .contextMenu {
-                        Button("Log with note…") {
-                            pendingNoteType = type
-                            noteText = ""
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                            if type.needsIntensity {
+                                intensityTarget = type
+                            } else {
+                                let entry = FeelingEntry(type: type.rawValue, note: "", timeLogged: Date())
+                                modelContext.insert(entry)
+                                log.feelingEntries.append(entry)
+                                try? modelContext.save()
+                                noteTarget = entry
+                                noteText = ""
+                            }
                         }
-                    }
+                    )
                 }
             }
 
-            Button {
-                customFeeling = ""
+            Button("Something else…") {
                 showCustom = true
-            } label: {
-                Label("Something else…", systemImage: "plus.bubble")
-                    .font(.caption.weight(.medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
             }
             .buttonStyle(.bordered)
 
-            if log.sortedFeelings.isEmpty {
-                Text("Tap a feeling to log it with the current time.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(log.sortedFeelings, id: \.id) { feeling in
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(feeling.type) at \(DateHelpers.formattedTime(feeling.timeLogged))")
-                                    .font(.subheadline.weight(.medium))
-                                if !feeling.note.isEmpty {
-                                    Text(feeling.note)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            Button(role: .destructive) {
-                                log.feelingEntries.removeAll { $0.id == feeling.id }
-                                modelContext.delete(feeling)
-                                try? modelContext.save()
-                            } label: {
-                                Image(systemName: "trash")
+            if !log.feelingEntries.isEmpty {
+                Divider()
+                ForEach(log.sortedFeelings.reversed(), id: \.id) { entry in
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.type)
+                            if !entry.note.isEmpty {
+                                Text(entry.note)
                                     .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.vertical, 8)
-                        Divider()
+                        Spacer()
+                        Button(DateHelpers.formattedTime(entry.timeLogged)) {
+                            editTarget = entry
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accentPrimary)
+                        .buttonStyle(.plain)
+                        Button(role: .destructive) {
+                            log.feelingEntries.removeAll { $0.id == entry.id }
+                            modelContext.delete(entry)
+                            try? modelContext.save()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    .contentShape(Rectangle())
+                    .onLongPressGesture {
+                        noteTarget = entry
+                        noteText = entry.note
                     }
                 }
             }
         }
-        .alert("Add a note", isPresented: Binding(
-            get: { pendingNoteType != nil },
-            set: { if !$0 { pendingNoteType = nil } }
+        .onAppear {
+            if let category = FeelingCategory(rawValue: lastCategoryRaw) {
+                selectedCategory = category
+            }
+        }
+        .alert("Add note", isPresented: Binding(
+            get: { noteTarget != nil },
+            set: { if !$0 { noteTarget = nil } }
         )) {
             TextField("Optional note", text: $noteText)
             Button("Save") {
-                if let type = pendingNoteType {
-                    add(type.rawValue, note: noteText)
-                }
-                pendingNoteType = nil
+                noteTarget?.note = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
+                try? modelContext.save()
+                noteTarget = nil
             }
-            Button("Cancel", role: .cancel) { pendingNoteType = nil }
+            Button("Cancel", role: .cancel) { noteTarget = nil }
         }
         .alert("Something else", isPresented: $showCustom) {
-            TextField("Feeling / craving", text: $customFeeling)
-                .onChange(of: customFeeling) { _, newValue in
-                    if newValue.count > AppLimits.customFeelingMaxChars {
-                        customFeeling = String(newValue.prefix(AppLimits.customFeelingMaxChars))
-                    }
-                }
-            Button("Save") {
-                let trimmed = customFeeling.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                add(trimmed, note: "")
+            TextField("Describe the feeling", text: $customText)
+            Button("Log") {
+                let value = customText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty else { return }
+                addFeeling(value)
+                customText = ""
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) { customText = "" }
+        }
+        .confirmationDialog("Hunger pang intensity", isPresented: Binding(
+            get: { intensityTarget != nil },
+            set: { if !$0 { intensityTarget = nil } }
+        ), titleVisibility: .visible) {
+            ForEach(FeelingIntensity.allCases) { intensity in
+                Button(intensity.label) {
+                    if let type = intensityTarget {
+                        addFeeling(type.displayType(intensity: intensity))
+                    }
+                    intensityTarget = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { intensityTarget = nil }
         } message: {
-            Text("Keep it short (\(AppLimits.customFeelingMaxChars) characters max).")
+            Text("How strong is the hunger pang?")
+        }
+        .sheet(item: $editTarget) { entry in
+            EditTimestampSheet(
+                title: entry.type,
+                initialDate: entry.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveFeeling(entry, to: newDate)
+            }
         }
     }
 
-    private func quickLog(_ type: String) {
-        add(type, note: "")
-    }
-
-    private func add(_ type: String, note: String) {
-        let entry = FeelingEntry(type: type, note: note)
+    private func addFeeling(_ type: String) {
+        let entry = FeelingEntry(type: type, note: "", timeLogged: Date())
         modelContext.insert(entry)
         log.feelingEntries.append(entry)
         try? modelContext.save()
     }
+
+    private func moveFeeling(_ entry: FeelingEntry, to newDate: Date) {
+        let settings = DataStore.settings(in: modelContext)
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        entry.timeLogged = newDate
+        if targetDay != sourceDay {
+            log.feelingEntries.removeAll { $0.id == entry.id }
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.feelingEntries.append(entry)
+        }
+        try? modelContext.save()
+    }
 }
+
+extension FeelingEntry: @retroactive Identifiable {}

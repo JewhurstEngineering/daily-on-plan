@@ -9,11 +9,14 @@ struct WeightBMISection: View {
     @Bindable var settings: AppSettings
     let onSave: (Double) -> Void
     var onOpenSettings: (() -> Void)? = nil
+    var onOpenBodyComposition: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accentPrimary) private var accentPrimary
     @State private var draftText = ""
     @State private var showGoalEditor = false
     @State private var isEditingWeight = false
+    @State private var editWeightTime = false
     @FocusState private var weightFocused: Bool
 
     private var unitLabel: String { settings.usesMetricWeight ? "kg" : "lb" }
@@ -88,6 +91,14 @@ struct WeightBMISection: View {
                         .foregroundStyle(.secondary)
                     Text(displayWeight)
                         .font(.largeTitle.bold().monospacedDigit())
+                    if let weight {
+                        Button(DateHelpers.formattedTime(weight.timeLogged)) {
+                            editWeightTime = true
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accentPrimary)
+                        .buttonStyle(.plain)
+                    }
                     if let deltaText {
                         Text(deltaText)
                             .font(.caption)
@@ -117,6 +128,15 @@ struct WeightBMISection: View {
             }
 
             goalBlock
+
+            if onOpenBodyComposition != nil {
+                Button {
+                    onOpenBodyComposition?()
+                } label: {
+                    Label("Log body composition / clinic receipt", systemImage: "list.clipboard")
+                }
+                .buttonStyle(.bordered)
+            }
 
             if isEditingWeight {
                 HStack {
@@ -180,6 +200,24 @@ struct WeightBMISection: View {
         .keyboardDoneToolbar(focus: $weightFocused)
         .sheet(isPresented: $showGoalEditor) {
             GoalWeightConfigSheet(settings: settings)
+        }
+        .sheet(isPresented: $editWeightTime) {
+            if let weight {
+                EditTimestampSheet(
+                    title: "Weigh-in time",
+                    initialDate: weight.timeLogged,
+                    includesDate: false
+                ) { newDate in
+                    // Keep calendar day; only adjust hour/minute on that day.
+                    let calendar = Calendar.current
+                    let day = DateHelpers.startOfDay(weight.date)
+                    let comps = calendar.dateComponents([.hour, .minute], from: newDate)
+                    if let merged = calendar.date(bySettingHour: comps.hour ?? 0, minute: comps.minute ?? 0, second: 0, of: day) {
+                        weight.timeLogged = merged
+                        try? modelContext.save()
+                    }
+                }
+            }
         }
         .onAppear {
             // Keep input hidden unless user is actively editing.

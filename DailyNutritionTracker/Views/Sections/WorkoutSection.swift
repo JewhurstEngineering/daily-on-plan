@@ -5,10 +5,12 @@ struct WorkoutSection: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accentPrimary) private var accentPrimary
     @EnvironmentObject private var healthKit: HealthKitService
     @State private var showAdd = false
     @State private var chips: [SuggestionItem] = []
     @State private var pendingName = "Brisk walking"
+    @State private var editTimeWorkout: WorkoutEntry?
 
     var body: some View {
         SectionCard(
@@ -45,9 +47,12 @@ struct WorkoutSection: View {
                         VStack(alignment: .leading) {
                             Text(workout.activityName)
                                 .font(.subheadline.weight(.semibold))
-                            Text(DateHelpers.formattedTime(workout.timeLogged))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Button(DateHelpers.formattedTime(workout.timeLogged)) {
+                                editTimeWorkout = workout
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(accentPrimary)
+                            .buttonStyle(.plain)
                         }
                         Spacer()
                         Text("\(workout.durationMinutes) min")
@@ -70,6 +75,15 @@ struct WorkoutSection: View {
                 refreshChips()
             }
         }
+        .sheet(item: $editTimeWorkout) { workout in
+            EditTimestampSheet(
+                title: workout.activityName,
+                initialDate: workout.timeLogged,
+                includesDate: true
+            ) { newDate in
+                moveWorkout(workout, to: newDate)
+            }
+        }
         .onAppear { refreshChips() }
     }
 
@@ -80,7 +94,22 @@ struct WorkoutSection: View {
     private func refreshChips() {
         chips = UsageSuggestions.workoutChips(in: modelContext)
     }
+
+    private func moveWorkout(_ workout: WorkoutEntry, to newDate: Date) {
+        let targetDay = DateHelpers.startOfDay(newDate)
+        let sourceDay = DateHelpers.startOfDay(log.date)
+        workout.timeLogged = newDate
+        if targetDay != sourceDay {
+            log.workoutEntries.removeAll { $0.id == workout.id }
+            let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
+            targetLog.workoutEntries.append(workout)
+        }
+        try? modelContext.save()
+        refreshChips()
+    }
 }
+
+extension WorkoutEntry: @retroactive Identifiable {}
 
 struct AddWorkoutSheet: View {
     @Bindable var log: DailyLog

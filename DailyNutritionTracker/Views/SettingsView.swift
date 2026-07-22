@@ -353,6 +353,11 @@ struct SettingsView: View {
 
                         Section {
                             NavigationLink {
+                                BodyCompositionListView(showsDismissButton: false)
+                            } label: {
+                                Label("Body composition", systemImage: "list.clipboard")
+                            }
+                            NavigationLink {
                                 NotificationsSettingsView(settings: settings)
                             } label: {
                                 Label("Notifications", systemImage: "bell.badge")
@@ -380,7 +385,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Reminders & meals")
                         } footer: {
-                            Text("Notifications default to evening plan, ketosis check, and daily check-in. Reorder day sections under Day layout. Food preferences filter allergies and picky-eater picks.")
+                            Text("Notifications default to evening plan, ketosis check, and daily check-in. Body composition receipts are under Body composition. Reorder day sections under Day layout.")
                         }
 
                         Section {
@@ -480,6 +485,20 @@ struct SettingsView: View {
                                     }
                                 }
                             }
+                        }
+
+                        Section {
+                            Toggle("Show Bathroom section", isOn: Binding(
+                                get: { settings.showBathroomSection },
+                                set: {
+                                    settings.showBathroomSection = $0
+                                    save(settings)
+                                }
+                            ))
+                        } header: {
+                            Text("Bathroom")
+                        } footer: {
+                            Text("Log urination and bowel movements with optional notes. The section stays collapsed by default for privacy.")
                         }
 
                         Section("My Presets") {
