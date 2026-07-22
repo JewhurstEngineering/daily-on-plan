@@ -234,41 +234,47 @@ enum FeelingCategory: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Three intensity tiers; labels are context-specific per feeling type.
 enum FeelingIntensity: String, CaseIterable, Identifiable {
-    case small = "S"
-    case medium = "M"
-    case large = "L"
+    case low = "1"
+    case medium = "2"
+    case high = "3"
 
     var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .small: return "Small"
-        case .medium: return "Medium"
-        case .large: return "Large"
-        }
-    }
 }
 
 enum FeelingType: String, CaseIterable, Identifiable {
-    case feelingGood = "Feeling good"
+    case feelGreat = "Feel Great"
+    case feelGood = "Feel Good"
     case feelNormal = "Feel normal"
+    case feelBad = "Feel Bad"
+
     case energetic = "Energetic"
     case highEnergy = "High Energy"
     case sleepy = "Sleepy"
     case foggy = "Foggy"
     case fatigued = "Fatigued"
     case exhausted = "Exhausted"
-    case hungerPang = "Hunger pang"
+
+    case hungry = "Hungry"
     case fullSatisfied = "Full/Satisfied"
+
     case cravingSweets = "Craving Sweets"
     case cravingSalty = "Craving Salty"
+    case cravingAlcohol = "Crave Alcohol"
+
     case anxious = "Anxious"
     case stressed = "Stressed"
     case frenetic = "Frenetic"
+    case irritable = "Irritable"
+    case overwhelmed = "Overwhelmed"
+    case restless = "Restless"
+    case frustrated = "Frustrated"
 
     /// Legacy labels still present in historical logs.
     static let legacyHungry = "Hungry"
+    static let legacyHungerPang = "Hunger pang"
+    static let legacyFeelingGood = "Feeling good"
     static let legacyLowEnergy = "Low Energy"
     static let legacyAnxiousStressed = "Anxious/Stressed"
 
@@ -276,45 +282,190 @@ enum FeelingType: String, CaseIterable, Identifiable {
 
     var category: FeelingCategory {
         switch self {
-        case .feelingGood, .feelNormal: return .mood
+        case .feelGreat, .feelGood, .feelNormal, .feelBad: return .mood
         case .energetic, .highEnergy, .sleepy, .foggy, .fatigued, .exhausted: return .energy
-        case .hungerPang, .fullSatisfied: return .hunger
-        case .cravingSweets, .cravingSalty: return .cravings
-        case .anxious, .stressed, .frenetic: return .emotions
+        case .hungry, .fullSatisfied: return .hunger
+        case .cravingSweets, .cravingSalty, .cravingAlcohol: return .cravings
+        case .anxious, .stressed, .frenetic, .irritable, .overwhelmed, .restless, .frustrated:
+            return .emotions
         }
     }
 
     var needsIntensity: Bool {
-        self == .hungerPang
+        switch self {
+        case .hungry, .cravingSweets, .cravingSalty, .cravingAlcohol,
+             .anxious, .stressed, .frenetic, .irritable, .overwhelmed, .restless, .frustrated:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Requires drinking mode ≠ off.
+    var requiresAlcoholTracking: Bool {
+        self == .cravingAlcohol
     }
 
     var systemImage: String {
         switch self {
-        case .feelingGood: return "sun.max.fill"
+        case .feelGreat: return "sun.max.fill"
+        case .feelGood: return "sun.min.fill"
         case .feelNormal: return "face.smiling"
+        case .feelBad: return "cloud.rain.fill"
         case .energetic: return "bolt.fill"
         case .highEnergy: return "bolt.circle.fill"
         case .sleepy: return "moon.zzz.fill"
         case .foggy: return "cloud.fog.fill"
         case .fatigued: return "battery.25"
         case .exhausted: return "battery.0"
-        case .hungerPang: return "fork.knife"
+        case .hungry: return "fork.knife"
         case .fullSatisfied: return "checkmark.circle"
         case .cravingSweets: return "birthday.cake"
         case .cravingSalty: return "drop.fill"
+        case .cravingAlcohol: return "wineglass.fill"
         case .anxious: return "brain.head.profile"
         case .stressed: return "exclamationmark.triangle"
         case .frenetic: return "arrow.triangle.2.circlepath"
+        case .irritable: return "flame"
+        case .overwhelmed: return "water.waves"
+        case .restless: return "figure.walk.motion"
+        case .frustrated: return "hand.raised.fill"
         }
     }
 
-    static func items(in category: FeelingCategory) -> [FeelingType] {
-        allCases.filter { $0.category == category }
+    /// Short title for intensity tier buttons.
+    func intensityTitle(_ intensity: FeelingIntensity) -> String {
+        switch (self, intensity) {
+        case (.hungry, .low): return "Peckish"
+        case (.hungry, .medium): return "Hungry"
+        case (.hungry, .high): return "Ravenous"
+
+        case (.cravingSweets, .low): return "Faint"
+        case (.cravingSweets, .medium): return "Persistent"
+        case (.cravingSweets, .high): return "Insatiable"
+
+        case (.cravingSalty, .low): return "Subtle"
+        case (.cravingSalty, .medium): return "Pronounced"
+        case (.cravingSalty, .high): return "Overpowering"
+
+        case (.cravingAlcohol, .low): return "Fleeting"
+        case (.cravingAlcohol, .medium): return "Compelling"
+        case (.cravingAlcohol, .high): return "Urgent"
+
+        case (.anxious, .low): return "Mild"
+        case (.anxious, .medium): return "Moderate"
+        case (.anxious, .high): return "Severe"
+
+        case (.stressed, .low): return "Manageable"
+        case (.stressed, .medium): return "Heavy"
+        case (.stressed, .high): return "Crushing"
+
+        case (.frenetic, .low): return "Restless"
+        case (.frenetic, .medium): return "Scattered"
+        case (.frenetic, .high): return "Chaotic"
+
+        case (.irritable, .low): return "Mild"
+        case (.irritable, .medium): return "Edgy"
+        case (.irritable, .high): return "Explosive"
+
+        case (.overwhelmed, .low): return "Slight"
+        case (.overwhelmed, .medium): return "Heavy"
+        case (.overwhelmed, .high): return "Flooded"
+
+        case (.restless, .low): return "Fidgety"
+        case (.restless, .medium): return "Unsettled"
+        case (.restless, .high): return "Agitated"
+
+        case (.frustrated, .low): return "Annoyed"
+        case (.frustrated, .medium): return "Frustrated"
+        case (.frustrated, .high): return "Furious"
+
+        default:
+            switch intensity {
+            case .low: return "Low"
+            case .medium: return "Medium"
+            case .high: return "High"
+            }
+        }
+    }
+
+    /// Supporting line under each intensity option.
+    func intensitySubtitle(_ intensity: FeelingIntensity) -> String {
+        switch (self, intensity) {
+        case (.hungry, .low): return "Could eat, could wait"
+        case (.hungry, .medium): return "Ready for a full meal"
+        case (.hungry, .high): return "Urgent need for food"
+
+        case (.cravingSweets, .low): return "Passing thought of sweets"
+        case (.cravingSweets, .medium): return "Actively looking for a treat"
+        case (.cravingSweets, .high): return "Must have sugar now"
+
+        case (.cravingSalty, .low): return "Slight desire for chips"
+        case (.cravingSalty, .medium): return "Specifically seeking savory"
+        case (.cravingSalty, .high): return "Fixated on salt"
+
+        case (.cravingAlcohol, .low): return "Brief habitual thought"
+        case (.cravingAlcohol, .medium): return "Needs conscious willpower"
+        case (.cravingAlcohol, .high): return "Intense physical urge"
+
+        case (.anxious, .low): return "Background noise"
+        case (.anxious, .medium): return "Distracting and tense"
+        case (.anxious, .high): return "Overwhelming"
+
+        case (.stressed, .low): return "Standard daily pressure"
+        case (.stressed, .medium): return "Feeling weighed down"
+        case (.stressed, .high): return "At the breaking point"
+
+        case (.frenetic, .low): return "A little fidgety"
+        case (.frenetic, .medium): return "Racing thoughts, hard to focus"
+        case (.frenetic, .high): return "Bouncing off the walls"
+
+        case (.irritable, .low): return "Easily bothered"
+        case (.irritable, .medium): return "Short fuse"
+        case (.irritable, .high): return "Hard to stay calm"
+
+        case (.overwhelmed, .low): return "A bit much"
+        case (.overwhelmed, .medium): return "Hard to keep up"
+        case (.overwhelmed, .high): return "Can’t take more"
+
+        case (.restless, .low): return "Can’t quite settle"
+        case (.restless, .medium): return "Need to move / shift"
+        case (.restless, .high): return "Can’t sit still"
+
+        case (.frustrated, .low): return "Minor irritation"
+        case (.frustrated, .medium): return "Blocked and annoyed"
+        case (.frustrated, .high): return "Boiling over"
+
+        default: return ""
+        }
+    }
+
+    var intensityPrompt: String {
+        switch self {
+        case .hungry: return "How hungry?"
+        case .cravingSweets, .cravingSalty, .cravingAlcohol: return "How strong is the craving?"
+        case .anxious: return "How anxious?"
+        case .stressed: return "How stressed?"
+        case .frenetic: return "How frenetic?"
+        case .irritable: return "How irritable?"
+        case .overwhelmed: return "How overwhelmed?"
+        case .restless: return "How restless?"
+        case .frustrated: return "How frustrated?"
+        default: return "How strong?"
+        }
+    }
+
+    static func items(in category: FeelingCategory, alcoholTrackingEnabled: Bool = false) -> [FeelingType] {
+        allCases.filter { type in
+            guard type.category == category else { return false }
+            if type.requiresAlcoholTracking { return alcoholTrackingEnabled }
+            return true
+        }
     }
 
     func displayType(intensity: FeelingIntensity?) -> String {
         if needsIntensity, let intensity {
-            return "\(rawValue) (\(intensity.rawValue))"
+            return "\(rawValue) (\(intensityTitle(intensity)))"
         }
         return rawValue
     }

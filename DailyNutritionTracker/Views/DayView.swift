@@ -137,7 +137,7 @@ struct DayView: View {
                 .id("drinking")
             }
         case .feelings:
-            FeelingsSection(log: log)
+            FeelingsSection(log: log, settings: settings)
                 .id("feelings")
         case .protein:
             ProteinSection(

@@ -1012,6 +1012,9 @@ final class AppSettings {
     var bodyCompReminderHourStored: Int?
     var bodyCompReminderMinuteStored: Int?
 
+    /// Profile age for body composition receipts (years).
+    var ageYearsStored: Int?
+
     init() {
         self.id = UUID()
         self.programPhase = ProgramPhase.week1.rawValue
@@ -1081,6 +1084,13 @@ final class AppSettings {
     }
 
     var hasHeight: Bool { heightInches > 0 }
+
+    var ageYears: Int {
+        get { ageYearsStored ?? 0 }
+        set { ageYearsStored = newValue > 0 ? newValue : nil }
+    }
+
+    var hasAge: Bool { ageYears > 0 }
 
     var heightDisplay: String {
         guard hasHeight else { return "Not set" }

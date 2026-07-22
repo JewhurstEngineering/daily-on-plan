@@ -3,6 +3,7 @@ import SwiftData
 
 struct FeelingsSection: View {
     @Bindable var log: DailyLog
+    @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accentPrimary) private var accentPrimary
     @AppStorage("feelings.lastCategory") private var lastCategoryRaw = FeelingCategory.energy.rawValue
@@ -15,8 +16,22 @@ struct FeelingsSection: View {
     @State private var intensityTarget: FeelingType?
     @State private var editTarget: FeelingEntry?
 
+    private var alcoholTrackingEnabled: Bool {
+        settings.drinkingMode.showsSection
+    }
+
     private var chips: [FeelingType] {
-        FeelingType.items(in: selectedCategory)
+        FeelingType.items(in: selectedCategory, alcoholTrackingEnabled: alcoholTrackingEnabled)
+    }
+
+    private var chipColumns: [GridItem] {
+        if chips.count <= 2 {
+            return [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+        }
+        if chips.count == 3 {
+            return Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+        }
+        return [GridItem(.adaptive(minimum: 100), spacing: 8)]
     }
 
     var body: some View {
@@ -24,27 +39,28 @@ struct FeelingsSection: View {
             Text("Feelings & Cravings")
                 .font(.headline)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(FeelingCategory.allCases) { category in
-                        Button {
-                            selectedCategory = category
-                            lastCategoryRaw = category.rawValue
-                        } label: {
-                            Text(category.rawValue)
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(selectedCategory == category ? accentPrimary.opacity(0.18) : Color(.secondarySystemBackground))
-                                .foregroundStyle(selectedCategory == category ? accentPrimary : .primary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+            // Equal-width pills so all categories fit without scrolling.
+            HStack(spacing: 4) {
+                ForEach(FeelingCategory.allCases) { category in
+                    Button {
+                        selectedCategory = category
+                        lastCategoryRaw = category.rawValue
+                    } label: {
+                        Text(category.rawValue)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(selectedCategory == category ? accentPrimary.opacity(0.18) : Color(.secondarySystemBackground))
+                            .foregroundStyle(selectedCategory == category ? accentPrimary : .primary)
+                            .clipShape(Capsule())
                     }
+                    .buttonStyle(.plain)
                 }
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: chipColumns, alignment: chips.count <= 3 ? .center : .leading, spacing: 8) {
                 ForEach(chips) { type in
                     Button {
                         if type.needsIntensity {
@@ -55,6 +71,7 @@ struct FeelingsSection: View {
                     } label: {
                         Label(type.rawValue, systemImage: type.systemImage)
                             .font(.caption.weight(.semibold))
+                            .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .padding(.horizontal, 6)
@@ -147,21 +164,14 @@ struct FeelingsSection: View {
             }
             Button("Cancel", role: .cancel) { customText = "" }
         }
-        .confirmationDialog("Hunger pang intensity", isPresented: Binding(
-            get: { intensityTarget != nil },
-            set: { if !$0 { intensityTarget = nil } }
-        ), titleVisibility: .visible) {
-            ForEach(FeelingIntensity.allCases) { intensity in
-                Button(intensity.label) {
-                    if let type = intensityTarget {
-                        addFeeling(type.displayType(intensity: intensity))
-                    }
-                    intensityTarget = nil
-                }
+        .sheet(item: $intensityTarget) { type in
+            FeelingIntensitySheet(type: type) { intensity in
+                addFeeling(type.displayType(intensity: intensity))
+                intensityTarget = nil
+            } onCancel: {
+                intensityTarget = nil
             }
-            Button("Cancel", role: .cancel) { intensityTarget = nil }
-        } message: {
-            Text("How strong is the hunger pang?")
+            .presentationDetents([.medium])
         }
         .sheet(item: $editTarget) { entry in
             EditTimestampSheet(
@@ -182,7 +192,6 @@ struct FeelingsSection: View {
     }
 
     private func moveFeeling(_ entry: FeelingEntry, to newDate: Date) {
-        let settings = DataStore.settings(in: modelContext)
         let targetDay = DateHelpers.startOfDay(newDate)
         let sourceDay = DateHelpers.startOfDay(log.date)
         entry.timeLogged = newDate
@@ -196,3 +205,47 @@ struct FeelingsSection: View {
 }
 
 extension FeelingEntry: @retroactive Identifiable {}
+
+private struct FeelingIntensitySheet: View {
+    let type: FeelingType
+    var onPick: (FeelingIntensity) -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(FeelingIntensity.allCases) { intensity in
+                        Button {
+                            onPick(intensity)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(type.intensityTitle(intensity))
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                let subtitle = type.intensitySubtitle(intensity)
+                                if !subtitle.isEmpty {
+                                    Text(subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text(type.intensityPrompt)
+                } footer: {
+                    Text(type.rawValue)
+                }
+            }
+            .navigationTitle(type.rawValue)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+            }
+        }
+    }
+}
