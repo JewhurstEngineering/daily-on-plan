@@ -100,7 +100,7 @@ struct BodyCompositionEditView: View {
     @State private var heightInches = 0.0
     @State private var weightText = ""
     @State private var bmiText = ""
-    @State private var bmrKcal = 0
+    @State private var bmrText = ""
     @State private var impedanceText = ""
     @State private var fatPercentText = ""
     @State private var fatMassText = ""
@@ -115,7 +115,7 @@ struct BodyCompositionEditView: View {
     @FocusState private var focusedField: BodyCompField?
 
     private enum BodyCompField: Hashable {
-        case protein, water, weight, bmi, impedance, fatPercent, fatMass, ffm, tbw
+        case protein, water, weight, bmi, bmr, impedance, fatPercent, fatMass, ffm, tbw
         case desFatLow, desFatHigh, desMassLow, desMassHigh, notes
     }
 
@@ -183,21 +183,100 @@ struct BodyCompositionEditView: View {
                 Text("Age and height come from Settings → Body metrics. Change them there so every receipt starts prefilled.")
             }
 
-            Section("Composition") {
-                stepperField("BMI", text: $bmiText, field: .bmi, step: 0.1)
-                Stepper("BMR: \(bmrKcal) kcal", value: $bmrKcal, in: 0...5000, step: 5)
-                stepperField("Impedance", text: $impedanceText, field: .impedance, step: 1)
-                stepperField("Fat %", text: $fatPercentText, field: .fatPercent, step: 0.1)
-                stepperField("Fat mass (lb)", text: $fatMassText, field: .fatMass, step: 0.1)
-                stepperField("FFM (lb)", text: $ffmText, field: .ffm, step: 0.1)
-                stepperField("TBW (lb)", text: $tbwText, field: .tbw, step: 0.1)
+            Section {
+                receiptNumberField(
+                    "BMI",
+                    placeholder: "e.g. 28.4",
+                    text: $bmiText,
+                    field: .bmi,
+                    keyboard: .decimalPad,
+                    hint: "Usually 15–50"
+                )
+                receiptNumberField(
+                    "BMR (kcal)",
+                    placeholder: "e.g. 2048",
+                    text: $bmrText,
+                    field: .bmr,
+                    keyboard: .numberPad,
+                    hint: "Whole calories from the receipt"
+                )
+                receiptNumberField(
+                    "Impedance",
+                    placeholder: "e.g. 512",
+                    text: $impedanceText,
+                    field: .impedance,
+                    keyboard: .decimalPad,
+                    hint: "Typically a few hundred"
+                )
+                receiptNumberField(
+                    "Fat %",
+                    placeholder: "e.g. 32.1",
+                    text: $fatPercentText,
+                    field: .fatPercent,
+                    keyboard: .decimalPad,
+                    hint: "Percent fat"
+                )
+                receiptNumberField(
+                    "Fat mass (lb)",
+                    placeholder: "e.g. 68.4",
+                    text: $fatMassText,
+                    field: .fatMass,
+                    keyboard: .decimalPad,
+                    hint: "Pounds of fat"
+                )
+                receiptNumberField(
+                    "FFM (lb)",
+                    placeholder: "e.g. 140.2",
+                    text: $ffmText,
+                    field: .ffm,
+                    keyboard: .decimalPad,
+                    hint: "Fat-free mass"
+                )
+                receiptNumberField(
+                    "TBW (lb)",
+                    placeholder: "e.g. 92.5",
+                    text: $tbwText,
+                    field: .tbw,
+                    keyboard: .decimalPad,
+                    hint: "Total body water"
+                )
+            } header: {
+                Text("Composition")
+            } footer: {
+                Text("Type the numbers from the receipt — no need to tap +/− hundreds of times.")
             }
 
-            Section("Desirable range") {
-                stepperField("Fat % low", text: $desirableFatPercentLowText, field: .desFatLow, step: 0.1)
-                stepperField("Fat % high", text: $desirableFatPercentHighText, field: .desFatHigh, step: 0.1)
-                stepperField("Fat mass low (lb)", text: $desirableFatMassLowText, field: .desMassLow, step: 0.1)
-                stepperField("Fat mass high (lb)", text: $desirableFatMassHighText, field: .desMassHigh, step: 0.1)
+            Section {
+                receiptNumberField(
+                    "Fat % low",
+                    placeholder: "e.g. 18",
+                    text: $desirableFatPercentLowText,
+                    field: .desFatLow,
+                    keyboard: .decimalPad
+                )
+                receiptNumberField(
+                    "Fat % high",
+                    placeholder: "e.g. 28",
+                    text: $desirableFatPercentHighText,
+                    field: .desFatHigh,
+                    keyboard: .decimalPad
+                )
+                receiptNumberField(
+                    "Fat mass low (lb)",
+                    placeholder: "e.g. 30",
+                    text: $desirableFatMassLowText,
+                    field: .desMassLow,
+                    keyboard: .decimalPad
+                )
+                receiptNumberField(
+                    "Fat mass high (lb)",
+                    placeholder: "e.g. 50",
+                    text: $desirableFatMassHighText,
+                    field: .desMassHigh,
+                    keyboard: .decimalPad
+                )
+            } header: {
+                Text("Desirable range")
             }
 
             Section("Notes") {
@@ -259,68 +338,36 @@ struct BodyCompositionEditView: View {
         field: BodyCompField,
         keyboard: UIKeyboardType = .default
     ) -> some View {
+        receiptNumberField(title, placeholder: placeholder, text: text, field: field, keyboard: keyboard)
+    }
+
+    private func receiptNumberField(
+        _ title: String,
+        placeholder: String,
+        text: Binding<String>,
+        field: BodyCompField,
+        keyboard: UIKeyboardType = .decimalPad,
+        hint: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
             TextField(placeholder, text: text)
                 .keyboardType(keyboard)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .font(.title3.monospacedDigit())
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .focused($focusedField, equals: field)
-        }
-        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-    }
-
-    private func stepperField(_ title: String, text: Binding<String>, field: BodyCompField, step: Double) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            HStack(spacing: 12) {
-                Button {
-                    adjust(text, by: -step)
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-
-                TextField("0", text: text)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .font(.title3.monospacedDigit())
-                    .padding(.vertical, 10)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .focused($focusedField, equals: field)
-
-                Button {
-                    adjust(text, by: step)
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
+            if let hint {
+                Text(hint)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-    }
-
-    private func adjust(_ text: Binding<String>, by delta: Double) {
-        let current = Double(text.wrappedValue.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let next = max(0, current + delta)
-        if abs(delta) < 1 {
-            text.wrappedValue = String(format: "%.1f", next)
-        } else if next == next.rounded() {
-            text.wrappedValue = "\(Int(next.rounded()))"
-        } else {
-            text.wrappedValue = String(format: "%.1f", next)
-        }
     }
 
     private func heightDisplay(_ inches: Double) -> String {
@@ -357,7 +404,7 @@ struct BodyCompositionEditView: View {
             heightInches = reading.heightInches
             weightText = formatNumber(reading.weightLbs)
             bmiText = formatNumber(reading.bmi)
-            bmrKcal = reading.bmrKcal
+            bmrText = reading.bmrKcal > 0 ? "\(reading.bmrKcal)" : ""
             impedanceText = formatNumber(reading.impedance)
             fatPercentText = formatNumber(reading.fatPercent)
             fatMassText = formatNumber(reading.fatMassLbs)
@@ -398,7 +445,7 @@ struct BodyCompositionEditView: View {
         target.heightInches = heightInches
         target.weightLbs = weightLbs
         target.bmi = bmiValue
-        target.bmrKcal = bmrKcal
+        target.bmrKcal = Int(parseDouble(bmrText).rounded())
         target.impedance = parseDouble(impedanceText)
         target.fatPercent = parseDouble(fatPercentText)
         target.fatMassLbs = parseDouble(fatMassText)

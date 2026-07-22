@@ -15,6 +15,7 @@ struct FeelingsSection: View {
     @State private var noteText = ""
     @State private var intensityTarget: FeelingType?
     @State private var editTarget: FeelingEntry?
+    @State private var showLogList = false
 
     private var alcoholTrackingEnabled: Bool {
         settings.drinkingMode.showsSection
@@ -35,10 +36,14 @@ struct FeelingsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Feelings & Cravings")
-                .font(.headline)
-
+        SectionCard(
+            title: "Feelings & Cravings",
+            systemImage: "heart.text.square",
+            isCollapsed: settings.sectionCollapsedBinding(.feelings, context: modelContext),
+            collapsedMessage: log.feelingEntries.isEmpty
+                ? DaySectionID.feelings.collapsedMessage
+                : "\(log.feelingEntries.count) logged — tap the chevron to show."
+        ) {
             // Equal-width pills so all categories fit without scrolling.
             HStack(spacing: 4) {
                 ForEach(FeelingCategory.allCases) { category in
@@ -102,38 +107,46 @@ struct FeelingsSection: View {
             .buttonStyle(.bordered)
 
             if !log.feelingEntries.isEmpty {
-                Divider()
-                ForEach(log.sortedFeelings.reversed(), id: \.id) { entry in
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.type)
-                            if !entry.note.isEmpty {
-                                Text(entry.note)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                DisclosureGroup(isExpanded: $showLogList) {
+                    VStack(spacing: 0) {
+                        ForEach(log.sortedFeelings.reversed(), id: \.id) { entry in
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.type)
+                                    if !entry.note.isEmpty {
+                                        Text(entry.note)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Button(DateHelpers.formattedTime(entry.timeLogged)) {
+                                    editTarget = entry
+                                }
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(accentPrimary)
+                                .buttonStyle(.plain)
+                                Button(role: .destructive) {
+                                    log.feelingEntries.removeAll { $0.id == entry.id }
+                                    modelContext.delete(entry)
+                                    try? modelContext.save()
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
                             }
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                            .onLongPressGesture {
+                                noteTarget = entry
+                                noteText = entry.note
+                            }
+                            Divider()
                         }
-                        Spacer()
-                        Button(DateHelpers.formattedTime(entry.timeLogged)) {
-                            editTarget = entry
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(accentPrimary)
-                        .buttonStyle(.plain)
-                        Button(role: .destructive) {
-                            log.feelingEntries.removeAll { $0.id == entry.id }
-                            modelContext.delete(entry)
-                            try? modelContext.save()
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
                     }
-                    .contentShape(Rectangle())
-                    .onLongPressGesture {
-                        noteTarget = entry
-                        noteText = entry.note
-                    }
+                } label: {
+                    Text("Logged today (\(log.feelingEntries.count))")
+                        .font(.subheadline.weight(.semibold))
                 }
             }
         }

@@ -321,6 +321,7 @@ struct SmokingSection: View {
 
     private func packChipLabel(_ packs: Double) -> String {
         if packs == 0.5 { return "½" }
+        if abs(packs - 1.5) < 0.01 { return "1½" }
         if abs(packs - packs.rounded()) < 0.01 { return "\(Int(packs.rounded()))" }
         return String(format: "%.1f", packs)
     }

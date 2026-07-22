@@ -7,9 +7,7 @@ struct SettingsView: View {
     @State private var settings: AppSettings?
     @State private var heightFeet = 5
     @State private var heightInchesPart = 8
-    @State private var hydrationTargetText = ""
     @State private var goalWeightText = ""
-    @FocusState private var hydrationTargetFocused: Bool
     @FocusState private var goalWeightFocused: Bool
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
@@ -259,123 +257,25 @@ struct SettingsView: View {
                             } label: {
                                 Label("Drinking", systemImage: "wineglass")
                             }
-                        } header: {
-                            Text("Reminders & meals")
-                        } footer: {
-                            Text("Smoking and drinking live here so the main settings stay light. Body composition receipts are under Body composition.")
-                        }
-
-                        Section {
-                            Picker("Default bottle", selection: Binding(
-                                get: { settings.defaultBottleOz },
-                                set: {
-                                    settings.defaultBottleOz = $0
-                                    save(settings)
-                                }
-                            )) {
-                                Text("8 oz").tag(8.0)
-                                Text("12 oz").tag(12.0)
-                                Text("16.9 oz").tag(16.9)
-                                Text("20 oz").tag(20.0)
-                                Text("24 oz").tag(24.0)
+                            NavigationLink {
+                                HydrationSettingsForm(settings: settings)
+                            } label: {
+                                Label("Hydration", systemImage: "drop.fill")
                             }
-                            HStack {
-                                TextField("Daily target", text: $hydrationTargetText)
-                                    .keyboardType(.numberPad)
-                                    .focused($hydrationTargetFocused)
-                                    .onChange(of: hydrationTargetText) { _, newValue in
-                                        let digits = newValue.filter(\.isNumber)
-                                        if digits != newValue { hydrationTargetText = digits }
-                                    }
-                                Text("oz")
-                                    .foregroundStyle(.secondary)
+                            NavigationLink {
+                                SupplementsSettingsForm(settings: settings)
+                            } label: {
+                                Label("Supplements", systemImage: "pills.fill")
                             }
-                            Stepper(
-                                "Adjust: \(settings.hydrationTargetOz) oz",
-                                value: Binding(
-                                    get: { settings.hydrationTargetOz },
-                                    set: {
-                                        settings.hydrationTargetOz = $0
-                                        hydrationTargetText = "\($0)"
-                                        save(settings)
-                                    }
-                                ),
-                                in: 16...400,
-                                step: 1
-                            )
-                            Toggle("Protein drinks count toward hydration", isOn: Binding(
-                                get: { settings.proteinDrinksCountTowardHydration },
-                                set: {
-                                    settings.proteinDrinksCountTowardHydration = $0
-                                    save(settings)
-                                }
-                            ))
-                            if settings.proteinDrinksCountTowardHydration {
-                                Stepper(
-                                    "Default shake size: \(Int(settings.defaultShakeHydrationOz)) oz",
-                                    value: Binding(
-                                        get: { Int(settings.defaultShakeHydrationOz) },
-                                        set: {
-                                            settings.defaultShakeHydrationOz = Double($0)
-                                            save(settings)
-                                        }
-                                    ),
-                                    in: 4...32,
-                                    step: 1
-                                )
+                            NavigationLink {
+                                BathroomSettingsForm(settings: settings)
+                            } label: {
+                                Label("Bathroom", systemImage: "toilet.fill")
                             }
                         } header: {
-                            Text("Hydration defaults")
+                            Text("Tracking & habits")
                         } footer: {
-                            Text("Type any whole number (e.g. 180). Bottle size only sets the drink taps, not the goal. Long-press a bottle on the day view to mark it as electrolyte. Shakes can also add ounces when the toggle is on.")
-                        }
-
-                        Section("Supplements") {
-                            Toggle("Show supplements section", isOn: Binding(
-                                get: { settings.showSupplementsSection },
-                                set: {
-                                    settings.showSupplementsSection = $0
-                                    save(settings)
-                                }
-                            ))
-                            Text("Or hide individual items from the gear on the Supplements card.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                            if settings.showSupplementsSection {
-                                Button("Disable all items") {
-                                    var list = settings.supplements
-                                    for i in list.indices { list[i].isEnabled = false }
-                                    settings.supplements = list
-                                    save(settings)
-                                }
-                                ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                                    Toggle(isOn: Binding(
-                                        get: { settings.supplements[index].isEnabled },
-                                        set: { newValue in
-                                            var list = settings.supplements
-                                            list[index].isEnabled = newValue
-                                            settings.supplements = list
-                                            save(settings)
-                                        }
-                                    )) {
-                                        Text(supplement.name)
-                                    }
-                                }
-                            }
-                        }
-
-                        Section {
-                            Toggle("Show Bathroom section", isOn: Binding(
-                                get: { settings.showBathroomSection },
-                                set: {
-                                    settings.showBathroomSection = $0
-                                    save(settings)
-                                }
-                            ))
-                        } header: {
-                            Text("Bathroom")
-                        } footer: {
-                            Text("Log urination and bowel movements with optional notes. The section stays collapsed by default for privacy.")
+                            Text("Day-to-day tracking options live here so Settings stays uncluttered.")
                         }
 
                         Section("My Presets") {
@@ -448,10 +348,8 @@ struct SettingsView: View {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") {
-                        hydrationTargetFocused = false
                         goalWeightFocused = false
                         if let settings {
-                            commitHydrationTarget(settings)
                             commitGoalWeight(settings)
                         }
                         Keyboard.dismiss()
@@ -460,7 +358,6 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         if let settings {
-                            commitHydrationTarget(settings)
                             commitGoalWeight(settings)
                         }
                         Keyboard.dismiss()
@@ -471,7 +368,6 @@ struct SettingsView: View {
             .onAppear {
                 let s = DataStore.settings(in: modelContext)
                 settings = s
-                hydrationTargetText = "\(s.hydrationTargetOz)"
                 if let goal = s.goalWeightLbs {
                     let value = s.usesMetricWeight ? goal * 0.453592 : goal
                     goalWeightText = String(format: "%.1f", value)
@@ -484,21 +380,6 @@ struct SettingsView: View {
                     heightInchesPart = total % 12
                 }
             }
-            .onChange(of: hydrationTargetFocused) { _, focused in
-                if !focused, let settings {
-                    commitHydrationTarget(settings)
-                }
-            }
-        }
-    }
-
-    private func commitHydrationTarget(_ settings: AppSettings) {
-        if let value = Int(hydrationTargetText.filter(\.isNumber)) {
-            settings.hydrationTargetOz = min(max(value, 16), 400)
-            hydrationTargetText = "\(settings.hydrationTargetOz)"
-            save(settings)
-        } else {
-            hydrationTargetText = "\(settings.hydrationTargetOz)"
         }
     }
 
@@ -732,6 +613,236 @@ struct DrinkingSettingsForm: View {
         }
         .navigationTitle("Drinking")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func save() {
+        try? modelContext.save()
+    }
+}
+
+struct HydrationSettingsForm: View {
+    @Bindable var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+    @State private var hydrationTargetText = ""
+    @FocusState private var hydrationTargetFocused: Bool
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Default bottle", selection: Binding(
+                    get: { settings.defaultBottleOz },
+                    set: {
+                        settings.defaultBottleOz = $0
+                        save()
+                    }
+                )) {
+                    Text("8 oz").tag(8.0)
+                    Text("12 oz").tag(12.0)
+                    Text("16.9 oz").tag(16.9)
+                    Text("20 oz").tag(20.0)
+                    Text("24 oz").tag(24.0)
+                }
+                HStack {
+                    Text("Daily target")
+                    Spacer()
+                    TextField("oz", text: $hydrationTargetText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($hydrationTargetFocused)
+                        .frame(maxWidth: 100)
+                    Text("oz")
+                        .foregroundStyle(.secondary)
+                }
+                Stepper(
+                    "Adjust: \(settings.hydrationTargetOz) oz",
+                    value: Binding(
+                        get: { settings.hydrationTargetOz },
+                        set: {
+                            settings.hydrationTargetOz = $0
+                            hydrationTargetText = "\($0)"
+                            save()
+                        }
+                    ),
+                    in: 16...400,
+                    step: 1
+                )
+                Toggle("Protein drinks count toward hydration", isOn: Binding(
+                    get: { settings.proteinDrinksCountTowardHydration },
+                    set: {
+                        settings.proteinDrinksCountTowardHydration = $0
+                        save()
+                    }
+                ))
+                if settings.proteinDrinksCountTowardHydration {
+                    Stepper(
+                        "Default shake size: \(Int(settings.defaultShakeHydrationOz)) oz",
+                        value: Binding(
+                            get: { Int(settings.defaultShakeHydrationOz) },
+                            set: {
+                                settings.defaultShakeHydrationOz = Double($0)
+                                save()
+                            }
+                        ),
+                        in: 4...32,
+                        step: 1
+                    )
+                }
+            } footer: {
+                Text("Type any whole number (e.g. 180). Bottle size only sets the drink taps, not the goal. Long-press a bottle on the day view to mark it as electrolyte.")
+            }
+        }
+        .navigationTitle("Hydration")
+        .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar(focus: $hydrationTargetFocused)
+        .onAppear { hydrationTargetText = "\(settings.hydrationTargetOz)" }
+        .onChange(of: hydrationTargetFocused) { _, focused in
+            if !focused { commitHydrationTarget() }
+        }
+    }
+
+    private func commitHydrationTarget() {
+        if let value = Int(hydrationTargetText.filter(\.isNumber)) {
+            settings.hydrationTargetOz = min(max(value, 16), 400)
+            hydrationTargetText = "\(settings.hydrationTargetOz)"
+            save()
+        } else {
+            hydrationTargetText = "\(settings.hydrationTargetOz)"
+        }
+    }
+
+    private func save() {
+        try? modelContext.save()
+    }
+}
+
+struct BathroomSettingsForm: View {
+    @Bindable var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show Bathroom section", isOn: Binding(
+                    get: { settings.showBathroomSection },
+                    set: {
+                        settings.showBathroomSection = $0
+                        save()
+                    }
+                ))
+            } footer: {
+                Text("Log urination and bowel movements with optional notes. The section stays collapsed by default for privacy.")
+            }
+        }
+        .navigationTitle("Bathroom")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func save() {
+        try? modelContext.save()
+    }
+}
+
+struct SupplementsSettingsForm: View {
+    @Bindable var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var newName = ""
+    @State private var newDoses = 1
+    @FocusState private var nameFocused: Bool
+
+    private var defaultIDs: Set<String> {
+        Set(SupplementDefinition.defaults.map(\.id))
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show supplements section", isOn: Binding(
+                    get: { settings.showSupplementsSection },
+                    set: {
+                        settings.showSupplementsSection = $0
+                        save()
+                    }
+                ))
+            } footer: {
+                Text("Or hide individual items below.")
+            }
+
+            if settings.showSupplementsSection {
+                Section("Items") {
+                    Button("Disable all items") {
+                        var list = settings.supplements
+                        for i in list.indices { list[i].isEnabled = false }
+                        settings.supplements = list
+                        save()
+                    }
+                    ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
+                        HStack {
+                            Toggle(isOn: Binding(
+                                get: { settings.supplements[index].isEnabled },
+                                set: { newValue in
+                                    var list = settings.supplements
+                                    list[index].isEnabled = newValue
+                                    settings.supplements = list
+                                    save()
+                                }
+                            )) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(supplement.name)
+                                    Text("\(supplement.dosesPerDay) dose\(supplement.dosesPerDay == 1 ? "" : "s")/day")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if !defaultIDs.contains(supplement.id) {
+                                Button(role: .destructive) {
+                                    var list = settings.supplements
+                                    list.removeAll { $0.id == supplement.id }
+                                    settings.supplements = list
+                                    save()
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    TextField("Supplement name", text: $newName)
+                        .focused($nameFocused)
+                    Stepper("Doses per day: \(newDoses)", value: $newDoses, in: 1...8)
+                    Button("Add supplement") {
+                        addCustom()
+                    }
+                    .disabled(newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } header: {
+                    Text("Add your own")
+                } footer: {
+                    Text("Custom supplements show on the day card with the built-in list.")
+                }
+            }
+        }
+        .navigationTitle("Supplements")
+        .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar(focus: $nameFocused)
+    }
+
+    private func addCustom() {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        let slug = name
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        let id = "custom-\(slug.isEmpty ? UUID().uuidString : slug)-\(UUID().uuidString.prefix(6))"
+        var list = settings.supplements
+        list.append(SupplementDefinition(id: id, name: name, dosesPerDay: newDoses, isEnabled: true))
+        settings.supplements = list
+        newName = ""
+        newDoses = 1
+        save()
     }
 
     private func save() {

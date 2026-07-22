@@ -107,46 +107,38 @@ struct BathroomSection: View {
             }
         }
         .sheet(item: pendingNoteBinding) { event in
-            NavigationStack {
-                Form {
-                    Section {
-                        Text(event.kind.title)
-                            .font(.subheadline.weight(.semibold))
-                        Text(DateHelpers.formattedTime(event.timeLogged))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextField("Optional note", text: $noteDraft, axis: .vertical)
-                            .lineLimit(3...6)
-                            .focused($noteFocused)
-                    } footer: {
-                        Text("Notes stay on this device and in your exports. Skip if you don’t need one.")
+            BathroomEventEditorSheet(
+                event: event,
+                noteDraft: $noteDraft,
+                noteFocused: $noteFocused,
+                onSkip: {
+                    pendingNoteEventID = nil
+                    noteDraft = ""
+                },
+                onSave: { note, time in
+                    log.updateBathroomEventNote(
+                        id: event.id,
+                        note: note.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
+                    let targetDay = DateHelpers.startOfDay(time)
+                    let sourceDay = DateHelpers.startOfDay(log.date)
+                    if targetDay == sourceDay {
+                        log.updateBathroomEventTime(id: event.id, timeLogged: time)
+                    } else if var moved = log.takeBathroomEvent(id: event.id) {
+                        moved.timeLogged = time
+                        moved.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let targetLog = DataStore.log(
+                            for: targetDay,
+                            in: modelContext,
+                            defaultGoal: settings.defaultProteinGoal
+                        )
+                        targetLog.insertBathroomEvent(moved)
                     }
+                    try? modelContext.save()
+                    pendingNoteEventID = nil
+                    noteDraft = ""
                 }
-                .navigationTitle("Note")
-                .navigationBarTitleDisplayMode(.inline)
-                .keyboardDoneToolbar(focus: $noteFocused)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Skip") {
-                            pendingNoteEventID = nil
-                            noteDraft = ""
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            log.updateBathroomEventNote(
-                                id: event.id,
-                                note: noteDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                            )
-                            try? modelContext.save()
-                            pendingNoteEventID = nil
-                            noteDraft = ""
-                        }
-                    }
-                }
-                .onAppear { noteFocused = true }
-            }
-            .presentationDetents([.medium])
+            )
         }
         .sheet(item: editTimeBinding) { event in
             EditTimestampSheet(
@@ -234,3 +226,65 @@ struct BathroomSection: View {
         try? modelContext.save()
     }
 }
+
+private struct BathroomEventEditorSheet: View {
+    let event: BathroomEventRecord
+    @Binding var noteDraft: String
+    var noteFocused: FocusState<Bool>.Binding
+    var onSkip: () -> Void
+    var onSave: (String, Date) -> Void
+
+    @State private var timeDraft: Date
+
+    init(
+        event: BathroomEventRecord,
+        noteDraft: Binding<String>,
+        noteFocused: FocusState<Bool>.Binding,
+        onSkip: @escaping () -> Void,
+        onSave: @escaping (String, Date) -> Void
+    ) {
+        self.event = event
+        self._noteDraft = noteDraft
+        self.noteFocused = noteFocused
+        self.onSkip = onSkip
+        self.onSave = onSave
+        _timeDraft = State(initialValue: event.timeLogged)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(event.kind.title)
+                        .font(.subheadline.weight(.semibold))
+                    DatePicker(
+                        "Time",
+                        selection: $timeDraft,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    TextField("Optional note", text: $noteDraft, axis: .vertical)
+                        .lineLimit(3...6)
+                        .focused(noteFocused)
+                } footer: {
+                    Text("Adjust the time here if this wasn’t just now. Notes stay on this device and in your exports.")
+                }
+            }
+            .navigationTitle(event.kind.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar(focus: noteFocused)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Skip", action: onSkip)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(noteDraft, timeDraft)
+                    }
+                }
+            }
+            .onAppear { noteFocused.wrappedValue = true }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
