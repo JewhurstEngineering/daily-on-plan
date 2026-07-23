@@ -24,32 +24,23 @@ struct BathroomSection: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                Button {
-                    logEvent(.urine)
-                } label: {
-                    bathroomActionCard(
-                        title: "Urination",
-                        subtitle: "Log now",
-                        systemImage: "drop.fill",
-                        tint: Color.accentColor
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    logEvent(.stool)
-                } label: {
-                    bathroomActionCard(
-                        title: "Bowel movement",
-                        subtitle: "Log now",
-                        systemImage: "toilet.fill",
-                        tint: Color(hex: "#8B5E3C")
-                    )
-                }
-                .buttonStyle(.plain)
+                bathroomQuickButton(
+                    title: "Urination",
+                    subtitle: "Tap to log",
+                    systemImage: "drop.fill",
+                    tint: Color.accentColor,
+                    kind: .urine
+                )
+                bathroomQuickButton(
+                    title: "Bowel movement",
+                    subtitle: "Tap to log",
+                    systemImage: "toilet.fill",
+                    tint: Color(hex: "#8B5E3C"),
+                    kind: .stool
+                )
             }
 
-            Text("Tap to log now. You can add an optional note right after.")
+            Text("Tap to log instantly. Long-press to add a note or change the time.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -152,6 +143,35 @@ struct BathroomSection: View {
         }
     }
 
+    private func bathroomQuickButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color,
+        kind: BathroomKind
+    ) -> some View {
+        bathroomActionCard(
+            title: title,
+            subtitle: subtitle,
+            systemImage: systemImage,
+            tint: tint
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            quickLog(kind)
+        }
+        .onLongPressGesture(minimumDuration: 0.4) {
+            logWithEditor(kind)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityHint("Double tap to log. Long press for note and time.")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            quickLog(kind)
+        }
+    }
+
     private func bathroomActionCard(title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
         VStack(spacing: 10) {
             ZStack {
@@ -206,7 +226,12 @@ struct BathroomSection: View {
         )
     }
 
-    private func logEvent(_ kind: BathroomKind) {
+    private func quickLog(_ kind: BathroomKind) {
+        _ = log.addBathroomEvent(kind: kind)
+        try? modelContext.save()
+    }
+
+    private func logWithEditor(_ kind: BathroomKind) {
         let event = log.addBathroomEvent(kind: kind)
         try? modelContext.save()
         pendingNoteEventID = event.id
@@ -287,4 +312,3 @@ private struct BathroomEventEditorSheet: View {
         .presentationDetents([.medium, .large])
     }
 }
-

@@ -32,9 +32,8 @@ struct SettingsView: View {
                                     Text(mode.title).tag(mode)
                                 }
                             }
-                            .pickerStyle(.segmented)
 
-                            Text("System follows your iPhone’s Light/Dark setting.")
+                            Text(appearanceFooter(for: settings.appearanceMode))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
 
@@ -407,6 +406,19 @@ struct SettingsView: View {
 
     private func save(_ settings: AppSettings) {
         try? modelContext.save()
+    }
+
+    private func appearanceFooter(for mode: AppearanceMode) -> String {
+        switch mode {
+        case .system:
+            return "Follows your iPhone’s Light/Dark setting."
+        case .light:
+            return "Always use Light appearance."
+        case .dark:
+            return "Always use Dark appearance."
+        case .sunriseSunset:
+            return "Light from approximate local sunrise to sunset, Dark at night. Uses your time zone (no location permission)."
+        }
     }
 
     private var healthButtonTitle: String {

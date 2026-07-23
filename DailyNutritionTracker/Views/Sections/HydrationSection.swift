@@ -78,7 +78,7 @@ struct HydrationSection: View {
                     .foregroundStyle(log.hasElectrolyteDrink ? Color.orange : Color.secondary)
                 Text(log.hasElectrolyteDrink
                      ? "Electrolyte logged (\(log.electrolyteDrinkCount))"
-                     : "Long-press a bottle to mark electrolyte")
+                     : "Long-press a bottle for type + size")
                     .font(.caption)
                     .foregroundStyle(log.hasElectrolyteDrink ? .primary : .secondary)
             }
@@ -107,7 +107,7 @@ struct HydrationSection: View {
                 Button("Cancel", role: .cancel) {}
             }
 
-            Text("Tap to fill or undo. Long-press for electrolyte. +\(nextBottleLabel) adds another bottle beyond the target grid.")
+            Text("Tap to fill or undo. Long-press for water/electrolyte and size. +\(nextBottleLabel) adds another bottle beyond the target grid.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -144,13 +144,21 @@ struct HydrationSection: View {
                                 persist()
                             }
                         } else {
-                            Button {
-                                ensureAndFill(index: index, electrolyte: false)
+                            Menu {
+                                ForEach(bottleOptions, id: \.value) { option in
+                                    Button(option.label) {
+                                        ensureAndFill(index: index, oz: option.value, electrolyte: false)
+                                    }
+                                }
                             } label: {
                                 Label("Fill as water", systemImage: "waterbottle.fill")
                             }
-                            Button {
-                                ensureAndFill(index: index, electrolyte: true)
+                            Menu {
+                                ForEach(bottleOptions, id: \.value) { option in
+                                    Button(option.label) {
+                                        ensureAndFill(index: index, oz: option.value, electrolyte: true)
+                                    }
+                                }
                             } label: {
                                 Label("Fill as electrolyte", systemImage: "bolt.fill")
                             }
@@ -188,11 +196,11 @@ struct HydrationSection: View {
         }
     }
 
-    private func ensureAndFill(index: Int, electrolyte: Bool) {
+    private func ensureAndFill(index: Int, oz: Double, electrolyte: Bool) {
         if index >= log.waterSlots.count {
             log.ensureWaterSlotCount(targetSlotCount)
         }
-        log.setWaterSlot(at: index, oz: bottleOz, isElectrolyte: electrolyte)
+        log.setWaterSlot(at: index, oz: oz, isElectrolyte: electrolyte)
         persist()
     }
 

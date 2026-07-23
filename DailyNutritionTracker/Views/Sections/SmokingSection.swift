@@ -60,27 +60,6 @@ struct SmokingSection: View {
                 .foregroundStyle(.secondary)
 
             HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(log.cigarettesSmoked)")
-                        .font(.largeTitle.bold().monospacedDigit())
-                        .foregroundStyle(countColor)
-                    Text(CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let limit {
-                        Text(
-                            limit == 0
-                            ? "Target: 0"
-                            : "\(log.cigarettesSmoked) / \(limit) cigs · max \(CigarettePackMath.packsLabel(cigarettes: limit))"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 8)
                 HabitTapButton(
                     caption: "Ash to add",
                     isCaution: overLimit,
@@ -102,6 +81,30 @@ struct SmokingSection: View {
                 .disabled(log.cigaretteEvents.isEmpty)
                 .accessibilityLabel("Undo last smoke log")
                 .buttonStyle(.plain)
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Today")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(log.cigarettesSmoked)")
+                        .font(.largeTitle.bold().monospacedDigit())
+                        .foregroundStyle(countColor)
+                    Text(CigarettePackMath.packsLabel(cigarettes: log.cigarettesSmoked))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let limit {
+                        Text(
+                            limit == 0
+                            ? "Target: 0"
+                            : "\(log.cigarettesSmoked) / \(limit) cigs · max \(CigarettePackMath.packsLabel(cigarettes: limit))"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                    }
+                }
             }
 
             Text("Quick add packs")
@@ -152,11 +155,7 @@ struct SmokingSection: View {
             }
 
             if settings.smokingMode == .reduce {
-                Text(reduceStreak == 1
-                     ? "1 day at or under max"
-                     : "\(reduceStreak) days at or under max")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                reduceBudgetBlock
             }
 
             if settings.smokingMode == .quit {
@@ -324,6 +323,95 @@ struct SmokingSection: View {
         if abs(packs - 1.5) < 0.01 { return "1½" }
         if abs(packs - packs.rounded()) < 0.01 { return "\(Int(packs.rounded()))" }
         return String(format: "%.1f", packs)
+    }
+
+    @ViewBuilder
+    private var reduceBudgetBlock: some View {
+        if let limit, limit > 0 {
+            let remaining = max(0, limit - log.cigarettesSmoked)
+            let remainingFraction = min(1, Double(remaining) / Double(limit))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Budget left")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(remaining) of \(limit)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(overLimit ? .orange : .secondary)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(.tertiarySystemFill))
+                        Capsule()
+                            .fill(overLimit ? Color.orange : Color.accentColor)
+                            .frame(width: max(4, geo.size.width * remainingFraction))
+                    }
+                }
+                .frame(height: 10)
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(rateLabel(cigsInLastHour))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        Text("Last hour")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(dayAveragePerHour.map { String(format: "%.1f / hr" , $0) } ?? "—")
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        Text("Avg today")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Text(reduceStreak == 1
+                     ? "1 day at or under max"
+                     : "\(reduceStreak) days at or under max")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+        } else {
+            Text(reduceStreak == 1
+                 ? "1 day at or under max"
+                 : "\(reduceStreak) days at or under max")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var cigsInLastHour: Int {
+        let reference = paceReferenceDate
+        let cutoff = reference.addingTimeInterval(-3600)
+        return log.cigaretteEvents
+            .filter { $0.timeLogged >= cutoff && $0.timeLogged <= reference }
+            .reduce(0) { $0 + $1.count }
+    }
+
+    private var dayAveragePerHour: Double? {
+        guard log.cigarettesSmoked > 0,
+              let first = log.cigaretteEvents.first?.timeLogged else { return nil }
+        let hours = max(paceReferenceDate.timeIntervalSince(first) / 3600.0, 1.0 / 60.0)
+        return Double(log.cigarettesSmoked) / hours
+    }
+
+    private var paceReferenceDate: Date {
+        if Calendar.current.isDateInToday(log.date) {
+            return Date()
+        }
+        return Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(log.date))
+            ?? log.date
+    }
+
+    private func rateLabel(_ count: Int) -> String {
+        count == 1 ? "1 / hr" : "\(count) / hr"
     }
 
     private var modeBlurb: String {

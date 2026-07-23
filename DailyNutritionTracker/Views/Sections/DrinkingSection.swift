@@ -47,24 +47,6 @@ struct DrinkingSection: View {
                 .foregroundStyle(.secondary)
 
             HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(log.drinksLogged)")
-                        .font(.largeTitle.bold().monospacedDigit())
-                        .foregroundStyle(countColor)
-                    if let limit {
-                        Text(limit == 0 ? "Target: 0" : "\(log.drinksLogged) / \(limit) drinks")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(log.drinksLogged == 1 ? "1 drink" : "\(log.drinksLogged) drinks")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 8)
                 HabitTapButton(
                     caption: "Pour to add",
                     isCaution: overLimit,
@@ -88,6 +70,27 @@ struct DrinkingSection: View {
                 .disabled(log.drinkEvents.isEmpty)
                 .accessibilityLabel("Undo last drink")
                 .buttonStyle(.plain)
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Today")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(log.drinksLogged)")
+                        .font(.largeTitle.bold().monospacedDigit())
+                        .foregroundStyle(countColor)
+                    if let limit {
+                        Text(limit == 0 ? "Target: 0" : "\(log.drinksLogged) / \(limit) drinks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    } else {
+                        Text(log.drinksLogged == 1 ? "1 drink" : "\(log.drinksLogged) drinks")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             Text("Quick add")
@@ -138,11 +141,7 @@ struct DrinkingSection: View {
             }
 
             if settings.drinkingMode == .reduce {
-                Text(reduceStreak == 1
-                     ? "1 day at or under max"
-                     : "\(reduceStreak) days at or under max")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                reduceBudgetBlock
             }
 
             if settings.drinkingMode == .quit {
@@ -305,6 +304,95 @@ struct DrinkingSection: View {
         Task {
             await healthKit.writeAlcoholicDrinks(count: log.drinksLogged, on: log.date)
         }
+    }
+
+    @ViewBuilder
+    private var reduceBudgetBlock: some View {
+        if let limit, limit > 0 {
+            let remaining = max(0, limit - log.drinksLogged)
+            let remainingFraction = min(1, Double(remaining) / Double(limit))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Budget left")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(remaining) of \(limit)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(overLimit ? .orange : .secondary)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(.tertiarySystemFill))
+                        Capsule()
+                            .fill(overLimit ? Color.orange : Color.accentColor)
+                            .frame(width: max(4, geo.size.width * remainingFraction))
+                    }
+                }
+                .frame(height: 10)
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(rateLabel(drinksInLastHour))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        Text("Last hour")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(dayAveragePerHour.map { String(format: "%.1f / hr", $0) } ?? "—")
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        Text("Avg today")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Text(reduceStreak == 1
+                     ? "1 day at or under max"
+                     : "\(reduceStreak) days at or under max")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+        } else {
+            Text(reduceStreak == 1
+                 ? "1 day at or under max"
+                 : "\(reduceStreak) days at or under max")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var drinksInLastHour: Int {
+        let reference = paceReferenceDate
+        let cutoff = reference.addingTimeInterval(-3600)
+        return log.drinkEvents
+            .filter { $0.timeLogged >= cutoff && $0.timeLogged <= reference }
+            .reduce(0) { $0 + $1.count }
+    }
+
+    private var dayAveragePerHour: Double? {
+        guard log.drinksLogged > 0,
+              let first = log.drinkEvents.first?.timeLogged else { return nil }
+        let hours = max(paceReferenceDate.timeIntervalSince(first) / 3600.0, 1.0 / 60.0)
+        return Double(log.drinksLogged) / hours
+    }
+
+    private var paceReferenceDate: Date {
+        if Calendar.current.isDateInToday(log.date) {
+            return Date()
+        }
+        return Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(log.date))
+            ?? log.date
+    }
+
+    private func rateLabel(_ count: Int) -> String {
+        count == 1 ? "1 / hr" : "\(count) / hr"
     }
 
     private var modeBlurb: String {
