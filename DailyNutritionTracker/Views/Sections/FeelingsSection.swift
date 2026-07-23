@@ -26,13 +26,8 @@ struct FeelingsSection: View {
     }
 
     private var chipColumns: [GridItem] {
-        if chips.count <= 2 {
-            return [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
-        }
-        if chips.count == 3 {
-            return Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
-        }
-        return [GridItem(.adaptive(minimum: 100), spacing: 8)]
+        // Always 2 equal columns so chips stay uniform (no hyphen wrap / uneven heights).
+        [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
     }
 
     var body: some View {
@@ -65,7 +60,7 @@ struct FeelingsSection: View {
                 }
             }
 
-            LazyVGrid(columns: chipColumns, alignment: chips.count <= 3 ? .center : .leading, spacing: 8) {
+            LazyVGrid(columns: chipColumns, spacing: 8) {
                 ForEach(chips) { type in
                     Button {
                         if type.needsIntensity {
@@ -74,14 +69,21 @@ struct FeelingsSection: View {
                             addFeeling(type.displayType(intensity: nil))
                         }
                     } label: {
-                        Label(type.rawValue, systemImage: type.systemImage)
-                            .font(.caption.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 6)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        HStack(spacing: 6) {
+                            Image(systemName: type.systemImage)
+                                .font(.subheadline.weight(.semibold))
+                                .frame(width: 18)
+                            Text(type.rawValue)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .truncationMode(.tail)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .simultaneousGesture(
@@ -217,7 +219,7 @@ struct FeelingsSection: View {
     }
 }
 
-extension FeelingEntry: @retroactive Identifiable {}
+extension FeelingEntry: Identifiable {}
 
 private struct FeelingIntensitySheet: View {
     let type: FeelingType

@@ -30,8 +30,15 @@ struct SupplementsSection: View {
             } else {
                 ForEach(visible) { supplement in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(supplement.name)
-                            .font(.subheadline.weight(.semibold))
+                        HStack(spacing: 6) {
+                            Text(supplement.name)
+                                .font(.subheadline.weight(.semibold))
+                            if supplement.reminderEnabled {
+                                Image(systemName: "bell.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         HStack(spacing: 8) {
                             ForEach(0..<supplement.dosesPerDay, id: \.self) { index in
                                 let key = supplement.doseKey(index)
@@ -86,74 +93,107 @@ struct SupplementConfigSheet: View {
         NavigationStack {
             List {
                 Section {
-                    Text("Show or hide items without deleting them. Use Disable all to clear the daily checklist.")
+                    Text("Show or hide items, set doses, and optionally schedule a reminder for each dose. Press and hold a notification to Mark taken.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Button("Disable all") {
                         var list = settings.supplements
                         for i in list.indices { list[i].isEnabled = false }
                         settings.supplements = list
-                        try? modelContext.save()
+                        persist()
                     }
                     Button("Enable all") {
                         var list = settings.supplements
                         for i in list.indices { list[i].isEnabled = true }
                         settings.supplements = list
-                        try? modelContext.save()
+                        persist()
                     }
                 }
 
                 ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(supplement.name)
-                                .font(.body)
-                            if settings.supplements[index].isEnabled {
-                                Text("\(settings.supplements[index].dosesPerDay) doses/day")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("Hidden")
+                    Section {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(supplement.name)
+                                    .font(.body.weight(.semibold))
+                                Text(settings.supplements[index].isEnabled
+                                     ? "\(settings.supplements[index].dosesPerDay) doses/day"
+                                     : "Hidden")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                        }
-                        Spacer(minLength: 8)
-                        if settings.supplements[index].isEnabled {
-                            Stepper(
+                            Spacer(minLength: 8)
+                            if settings.supplements[index].isEnabled {
+                                Stepper(
+                                    "",
+                                    value: Binding(
+                                        get: { settings.supplements[index].dosesPerDay },
+                                        set: { newValue in
+                                            updateSupplement(at: index) { item in
+                                                item.dosesPerDay = newValue
+                                                item.syncReminderTimes()
+                                            }
+                                        }
+                                    ),
+                                    in: 1...6
+                                )
+                                .labelsHidden()
+                                .fixedSize()
+                            }
+                            Toggle(
                                 "",
-                                value: Binding(
-                                    get: { settings.supplements[index].dosesPerDay },
+                                isOn: Binding(
+                                    get: { settings.supplements[index].isEnabled },
                                     set: { newValue in
-                                        var list = settings.supplements
-                                        list[index].dosesPerDay = newValue
-                                        settings.supplements = list
-                                        try? modelContext.save()
+                                        updateSupplement(at: index) { $0.isEnabled = newValue }
                                     }
-                                ),
-                                in: 1...6
+                                )
                             )
                             .labelsHidden()
+                            .toggleStyle(.switch)
+                            .scaleEffect(0.85)
                             .fixedSize()
                         }
-                        Toggle(
-                            "",
-                            isOn: Binding(
-                                get: { settings.supplements[index].isEnabled },
-                                set: { newValue in
-                                    var list = settings.supplements
-                                    list[index].isEnabled = newValue
-                                    settings.supplements = list
-                                    try? modelContext.save()
-                                }
+
+                        if settings.supplements[index].isEnabled {
+                            Toggle(
+                                "Reminders",
+                                isOn: Binding(
+                                    get: { settings.supplements[index].reminderEnabled },
+                                    set: { newValue in
+                                        updateSupplement(at: index) { $0.reminderEnabled = newValue }
+                                    }
+                                )
                             )
-                        )
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .scaleEffect(0.85)
-                        .fixedSize()
+
+                            if settings.supplements[index].reminderEnabled {
+                                ForEach(0..<settings.supplements[index].dosesPerDay, id: \.self) { doseIndex in
+                                    DatePicker(
+                                        "Dose \(doseIndex + 1)",
+                                        selection: Binding(
+                                            get: {
+                                                reminderDate(
+                                                    for: settings.supplements[index].reminderTimes[doseIndex]
+                                                )
+                                            },
+                                            set: { date in
+                                                let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                                updateSupplement(at: index) { item in
+                                                    item.syncReminderTimes()
+                                                    guard item.reminderTimes.indices.contains(doseIndex) else { return }
+                                                    item.reminderTimes[doseIndex] = SupplementReminderTime(
+                                                        hour: comps.hour ?? 8,
+                                                        minute: comps.minute ?? 0
+                                                    )
+                                                }
+                                            }
+                                        ),
+                                        displayedComponents: .hourAndMinute
+                                    )
+                                }
+                            }
+                        }
                     }
-                    .padding(.vertical, 2)
                 }
             }
             .navigationTitle("Configure Supplements")
@@ -163,5 +203,22 @@ struct SupplementConfigSheet: View {
                 }
             }
         }
+    }
+
+    private func updateSupplement(at index: Int, mutate: (inout SupplementDefinition) -> Void) {
+        var list = settings.supplements
+        guard list.indices.contains(index) else { return }
+        mutate(&list[index])
+        settings.supplements = list
+        persist()
+    }
+
+    private func reminderDate(for time: SupplementReminderTime) -> Date {
+        Calendar.current.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: Date()) ?? Date()
+    }
+
+    private func persist() {
+        try? modelContext.save()
+        Task { await NotificationService.shared.reschedule(using: settings) }
     }
 }

@@ -340,8 +340,7 @@ struct SmokingSection: View {
     }
 
     private var countColor: Color {
-        guard let limit else { return .primary }
-        return underLimit ? .primary : .orange
+        underLimit ? .primary : .orange
     }
 
     static func trailingSmokeFreeDays(from day: Date, logs: [DailyLog], quitDate: Date?) -> Int {

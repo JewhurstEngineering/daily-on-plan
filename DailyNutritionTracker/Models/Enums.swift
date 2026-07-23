@@ -569,17 +569,43 @@ struct MealComponent: Identifiable, Hashable, Codable {
     }
 }
 
+struct SupplementReminderTime: Codable, Hashable, Identifiable {
+    var hour: Int
+    var minute: Int
+
+    var id: String { "\(hour):\(minute)" }
+
+    init(hour: Int, minute: Int) {
+        self.hour = min(max(hour, 0), 23)
+        self.minute = min(max(minute, 0), 59)
+    }
+}
+
 struct SupplementDefinition: Identifiable, Codable, Hashable {
     var id: String
     var name: String
     var dosesPerDay: Int
     var isEnabled: Bool
+    /// When true, schedules one daily notification per dose time.
+    var reminderEnabled: Bool
+    /// One time per dose (length should match `dosesPerDay`).
+    var reminderTimes: [SupplementReminderTime]
 
-    init(id: String, name: String, dosesPerDay: Int, isEnabled: Bool = true) {
+    init(
+        id: String,
+        name: String,
+        dosesPerDay: Int,
+        isEnabled: Bool = true,
+        reminderEnabled: Bool = false,
+        reminderTimes: [SupplementReminderTime]? = nil
+    ) {
         self.id = id
         self.name = name
         self.dosesPerDay = dosesPerDay
         self.isEnabled = isEnabled
+        self.reminderEnabled = reminderEnabled
+        self.reminderTimes = reminderTimes ?? Self.defaultTimes(for: dosesPerDay)
+        syncReminderTimes()
     }
 
     static let defaults: [SupplementDefinition] = [
@@ -603,9 +629,36 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
         "\(id)#\(index)"
     }
 
-    /// Decodes older saves that omit `isEnabled`.
+    static func defaultTimes(for doses: Int) -> [SupplementReminderTime] {
+        let presets: [[(Int, Int)]] = [
+            [(8, 0)],
+            [(8, 0), (20, 0)],
+            [(8, 0), (13, 0), (20, 0)],
+            [(8, 0), (12, 0), (16, 0), (20, 0)],
+            [(8, 0), (11, 0), (14, 0), (17, 0), (20, 0)],
+            [(8, 0), (10, 0), (12, 0), (15, 0), (17, 0), (20, 0)],
+            [(7, 30), (9, 30), (11, 30), (13, 30), (15, 30), (17, 30), (20, 0)],
+            [(7, 0), (9, 0), (11, 0), (13, 0), (15, 0), (17, 0), (19, 0), (21, 0)]
+        ]
+        let count = min(max(doses, 1), 8)
+        let pairs = presets[count - 1]
+        return pairs.map { SupplementReminderTime(hour: $0.0, minute: $0.1) }
+    }
+
+    mutating func syncReminderTimes() {
+        let target = min(max(dosesPerDay, 1), 8)
+        dosesPerDay = target
+        let defaults = Self.defaultTimes(for: target)
+        if reminderTimes.count < target {
+            reminderTimes.append(contentsOf: defaults.dropFirst(reminderTimes.count))
+        } else if reminderTimes.count > target {
+            reminderTimes = Array(reminderTimes.prefix(target))
+        }
+    }
+
+    /// Decodes older saves that omit newer fields.
     enum CodingKeys: String, CodingKey {
-        case id, name, dosesPerDay, isEnabled
+        case id, name, dosesPerDay, isEnabled, reminderEnabled, reminderTimes
     }
 
     init(from decoder: Decoder) throws {
@@ -614,6 +667,20 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
         name = try container.decode(String.self, forKey: .name)
         dosesPerDay = try container.decode(Int.self, forKey: .dosesPerDay)
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        reminderEnabled = try container.decodeIfPresent(Bool.self, forKey: .reminderEnabled) ?? false
+        reminderTimes = try container.decodeIfPresent([SupplementReminderTime].self, forKey: .reminderTimes)
+            ?? Self.defaultTimes(for: dosesPerDay)
+        syncReminderTimes()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(dosesPerDay, forKey: .dosesPerDay)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(reminderEnabled, forKey: .reminderEnabled)
+        try container.encode(reminderTimes, forKey: .reminderTimes)
     }
 }
 

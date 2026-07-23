@@ -109,7 +109,7 @@ struct WorkoutSection: View {
     }
 }
 
-extension WorkoutEntry: @retroactive Identifiable {}
+extension WorkoutEntry: Identifiable {}
 
 struct AddWorkoutSheet: View {
     @Bindable var log: DailyLog

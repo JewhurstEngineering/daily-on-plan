@@ -765,7 +765,7 @@ struct SupplementsSettingsForm: View {
                     }
                 ))
             } footer: {
-                Text("Or hide individual items below.")
+                Text("Or hide individual items below. Dose reminders are per supplement — turn them on and set a time for each dose.")
             }
 
             if settings.showSupplementsSection {
@@ -776,36 +776,25 @@ struct SupplementsSettingsForm: View {
                         settings.supplements = list
                         save()
                     }
-                    ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, supplement in
-                        HStack {
-                            Toggle(isOn: Binding(
-                                get: { settings.supplements[index].isEnabled },
+                    ForEach(Array(settings.supplements.enumerated()), id: \.element.id) { index, _ in
+                        SupplementSettingsRow(
+                            supplement: Binding(
+                                get: { settings.supplements[index] },
                                 set: { newValue in
                                     var list = settings.supplements
-                                    list[index].isEnabled = newValue
+                                    list[index] = newValue
                                     settings.supplements = list
                                     save()
                                 }
-                            )) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(supplement.name)
-                                    Text("\(supplement.dosesPerDay) dose\(supplement.dosesPerDay == 1 ? "" : "s")/day")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                            ),
+                            canDelete: !defaultIDs.contains(settings.supplements[index].id),
+                            onDelete: {
+                                var list = settings.supplements
+                                list.removeAll { $0.id == settings.supplements[index].id }
+                                settings.supplements = list
+                                save()
                             }
-                            if !defaultIDs.contains(supplement.id) {
-                                Button(role: .destructive) {
-                                    var list = settings.supplements
-                                    list.removeAll { $0.id == supplement.id }
-                                    settings.supplements = list
-                                    save()
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                        }
+                        )
                     }
                 }
 
@@ -820,7 +809,7 @@ struct SupplementsSettingsForm: View {
                 } header: {
                     Text("Add your own")
                 } footer: {
-                    Text("Custom supplements show on the day card with the built-in list.")
+                    Text("Custom supplements show on the day card with the built-in list. You can set reminders after adding.")
                 }
             }
         }
@@ -847,5 +836,79 @@ struct SupplementsSettingsForm: View {
 
     private func save() {
         try? modelContext.save()
+        Task { await NotificationService.shared.reschedule(using: settings) }
+    }
+}
+
+private struct SupplementSettingsRow: View {
+    @Binding var supplement: SupplementDefinition
+    var canDelete: Bool
+    var onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Toggle(isOn: $supplement.isEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(supplement.name)
+                        Text("\(supplement.dosesPerDay) dose\(supplement.dosesPerDay == 1 ? "" : "s")/day")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if canDelete {
+                    Button(role: .destructive, action: onDelete) {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+
+            if supplement.isEnabled {
+                Stepper(
+                    "Doses: \(supplement.dosesPerDay)",
+                    value: Binding(
+                        get: { supplement.dosesPerDay },
+                        set: { newValue in
+                            supplement.dosesPerDay = newValue
+                            supplement.syncReminderTimes()
+                        }
+                    ),
+                    in: 1...8
+                )
+
+                Toggle("Reminders", isOn: $supplement.reminderEnabled)
+
+                if supplement.reminderEnabled {
+                    ForEach(0..<supplement.dosesPerDay, id: \.self) { doseIndex in
+                        DatePicker(
+                            "Dose \(doseIndex + 1)",
+                            selection: Binding(
+                                get: {
+                                    let time = supplement.reminderTimes[doseIndex]
+                                    return Calendar.current.date(
+                                        bySettingHour: time.hour,
+                                        minute: time.minute,
+                                        second: 0,
+                                        of: Date()
+                                    ) ?? Date()
+                                },
+                                set: { date in
+                                    let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                    supplement.syncReminderTimes()
+                                    guard supplement.reminderTimes.indices.contains(doseIndex) else { return }
+                                    supplement.reminderTimes[doseIndex] = SupplementReminderTime(
+                                        hour: comps.hour ?? 8,
+                                        minute: comps.minute ?? 0
+                                    )
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

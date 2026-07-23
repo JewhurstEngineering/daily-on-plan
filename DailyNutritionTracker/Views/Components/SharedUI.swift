@@ -166,15 +166,15 @@ struct CigaretteGlyph: View {
             let bodyWidth = w - tipWidth - filterWidth - w * 0.08
 
             // Ash / tip
-            var tip = Path(roundedRect: CGRect(x: w * 0.04, y: cigY, width: tipWidth, height: cigHeight), cornerRadius: cigHeight / 2)
+            let tip = Path(roundedRect: CGRect(x: w * 0.04, y: cigY, width: tipWidth, height: cigHeight), cornerRadius: cigHeight / 2)
             context.fill(tip, with: .color(.secondary.opacity(0.55)))
 
             // Paper body
-            var paper = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth, y: cigY, width: bodyWidth, height: cigHeight), cornerRadius: 1)
+            let paper = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth, y: cigY, width: bodyWidth, height: cigHeight), cornerRadius: 1)
             context.fill(paper, with: .color(.primary.opacity(0.85)))
 
             // Filter
-            var filter = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth + bodyWidth, y: cigY, width: filterWidth, height: cigHeight), cornerRadius: cigHeight / 3)
+            let filter = Path(roundedRect: CGRect(x: w * 0.04 + tipWidth + bodyWidth, y: cigY, width: filterWidth, height: cigHeight), cornerRadius: cigHeight / 3)
             context.fill(filter, with: .color(.orange.opacity(0.85)))
 
             // Little smoke wisp
@@ -203,18 +203,33 @@ struct GoalRingView: View {
     @Environment(\.accentTheme) private var theme
     @Environment(\.accentProgress) private var progressColor
 
-    private var progress: Double {
+    /// Uncapped ratio used for overage arc (capped visually at +100% = two full loops).
+    private var ratio: Double {
         guard goal > 0 else { return 0 }
-        return min(Double(current) / Double(goal), 1.2)
+        return Double(current) / Double(goal)
+    }
+
+    private var fillProgress: Double {
+        min(max(ratio, 0), 1)
+    }
+
+    /// How far past 100% to draw in red, starting again at 12 o’clock (max one extra lap).
+    private var overageProgress: Double {
+        guard ratio > 1 else { return 0 }
+        return min(ratio - 1, 1)
     }
 
     private var isOver: Bool { current > goal }
     private var isMet: Bool { goal > 0 && current >= goal }
 
-    private var strokeColor: Color {
-        if treatOverAsWarning, isOver { return theme.warning }
-        if successWhenMet, isMet { return theme.success }
+    private var baseStrokeColor: Color {
+        // Goal lap stays green when met/over; overage is drawn separately in red.
+        if isMet { return theme.success }
         return progressColor
+    }
+
+    private var overageColor: Color {
+        Color.red.opacity(0.9)
     }
 
     private var electrolyteColor: Color {
@@ -225,14 +240,28 @@ struct GoalRingView: View {
         ZStack {
             Circle()
                 .stroke(Color(.systemGray5), lineWidth: 12)
+
+            // Progress up to the goal (0 → 100%).
             Circle()
-                .trim(from: 0, to: min(progress, 1))
+                .trim(from: 0, to: fillProgress)
                 .stroke(
-                    strokeColor,
+                    baseStrokeColor,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.3), value: current)
+
+            // Overage past the goal wraps from 12 o’clock in red.
+            if overageProgress > 0 {
+                Circle()
+                    .trim(from: 0, to: overageProgress)
+                    .stroke(
+                        overageColor,
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 0.3), value: current)
+            }
 
             ForEach(Array(visibleElectrolyteSegments.enumerated()), id: \.offset) { _, segment in
                 Circle()
@@ -247,6 +276,7 @@ struct GoalRingView: View {
             VStack(spacing: 2) {
                 Text("\(current)")
                     .font(.title2.bold().monospacedDigit())
+                    .foregroundStyle(isOver ? overageColor : .primary)
                 Text("/ \(goal) \(unit)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -257,7 +287,7 @@ struct GoalRingView: View {
     }
 
     private var visibleElectrolyteSegments: [(start: Double, end: Double)] {
-        let fillEnd = min(progress, 1)
+        let fillEnd = fillProgress
         return electrolyteSegments.compactMap { segment in
             let start = max(0, min(segment.start, fillEnd))
             let end = max(0, min(segment.end, fillEnd))
@@ -270,6 +300,9 @@ struct GoalRingView: View {
 
     private var accessibilityText: String {
         var text = "\(current) of \(goal) \(unit)"
+        if isOver {
+            text += ", \(current - goal) over goal"
+        }
         if !electrolyteSegments.isEmpty {
             text += ", includes electrolytes"
         }

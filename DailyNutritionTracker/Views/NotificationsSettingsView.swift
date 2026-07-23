@@ -313,6 +313,32 @@ struct NotificationsSettingsView: View {
                     }
                 }
             }
+
+            Section {
+                let active = settings.supplements.filter { $0.isEnabled && $0.reminderEnabled }
+                if active.isEmpty {
+                    Text("No supplement dose reminders are on.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(active) { supplement in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(supplement.name)
+                                .font(.subheadline.weight(.semibold))
+                            Text(supplement.reminderTimes.prefix(supplement.dosesPerDay).map { timeLabel($0) }.joined(separator: " · "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                NavigationLink("Manage in Supplements") {
+                    SupplementsSettingsForm(settings: settings)
+                }
+            } header: {
+                Text("Supplement doses")
+            } footer: {
+                Text("Each enabled dose gets its own daily notification. Press and hold to Mark taken without opening the app. Configure times under Settings → Supplements or the gear on the Supplements card.")
+            }
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
@@ -344,6 +370,11 @@ struct NotificationsSettingsView: View {
 
     private func date(hour: Int, minute: Int) -> Date {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
+    }
+
+    private func timeLabel(_ time: SupplementReminderTime) -> String {
+        let date = date(hour: time.hour, minute: time.minute)
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     private func weekdayName(_ weekday: Int) -> String {

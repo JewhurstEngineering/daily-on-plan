@@ -287,8 +287,8 @@ struct ProteinSection: View {
     }
 }
 
-extension ProteinEntry: @retroactive Identifiable {}
-extension SavedMeal: @retroactive Identifiable {}
+extension ProteinEntry: Identifiable {}
+extension SavedMeal: Identifiable {}
 
 struct EditProteinAmountSheet: View {
     let entry: ProteinEntry

@@ -129,17 +129,8 @@ struct WeightBMISection: View {
 
             goalBlock
 
-            if onOpenBodyComposition != nil {
-                Button {
-                    onOpenBodyComposition?()
-                } label: {
-                    Label("Log body composition / clinic receipt", systemImage: "list.clipboard")
-                }
-                .buttonStyle(.bordered)
-            }
-
-            if isEditingWeight {
-                HStack {
+            HStack(spacing: 10) {
+                if isEditingWeight {
                     TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
@@ -156,16 +147,25 @@ struct WeightBMISection: View {
                         draftText = ""
                     }
                     .buttonStyle(.bordered)
+                } else {
+                    Button {
+                        syncDraftForEdit()
+                        isEditingWeight = true
+                        weightFocused = true
+                    } label: {
+                        Label(weight == nil ? "Log weight" : "Update weight", systemImage: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+
+                    if onOpenBodyComposition != nil {
+                        Button {
+                            onOpenBodyComposition?()
+                        } label: {
+                            Label("Body comp", systemImage: "list.clipboard")
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-            } else {
-                Button {
-                    syncDraftForEdit()
-                    isEditingWeight = true
-                    weightFocused = true
-                } label: {
-                    Label(weight == nil ? "Log weight" : "Update weight", systemImage: "pencil")
-                }
-                .buttonStyle(.bordered)
             }
 
             if !recentWeights.isEmpty {

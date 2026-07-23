@@ -83,7 +83,7 @@ struct BodyCompositionListView: View {
     }
 }
 
-extension BodyCompositionReading: @retroactive Identifiable {}
+extension BodyCompositionReading: Identifiable {}
 
 struct BodyCompositionEditView: View {
     var reading: BodyCompositionReading?

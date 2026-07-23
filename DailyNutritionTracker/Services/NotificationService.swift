@@ -13,6 +13,7 @@ enum NotificationKind: String {
     case drinkingCheckIn
     case motivation
     case bodyComposition
+    case supplement
 
     var deepLinkSection: String {
         switch self {
@@ -22,6 +23,7 @@ enum NotificationKind: String {
         case .smokingCheckIn: return "smoking"
         case .drinkingCheckIn: return "drinking"
         case .bodyComposition: return "bodyComposition"
+        case .supplement: return "supplements"
         case .eveningPlan, .ketosis, .genericCheckIn, .motivation: return "header"
         }
     }
@@ -33,9 +35,11 @@ enum NotificationActionID {
     static let ketosisYes = "ketosis.yes"
     static let ketosisNo = "ketosis.no"
     static let waterLogged = "water.logged"
+    static let supplementTaken = "supplement.taken"
     static let categoryEvening = "CATEGORY_EVENING_PLAN"
     static let categoryKetosis = "CATEGORY_KETOSIS"
     static let categoryWater = "CATEGORY_WATER"
+    static let categorySupplement = "CATEGORY_SUPPLEMENT"
 }
 
 extension Notification.Name {
@@ -196,6 +200,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         if settings.bodyCompReminderEnabled {
             scheduleBodyComposition(settings: settings, center: center)
         }
+
+        if settings.showSupplementsSection {
+            scheduleSupplements(settings: settings, center: center)
+        }
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -270,7 +278,19 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             options: []
         )
 
-        UNUserNotificationCenter.current().setNotificationCategories([evening, ketosis, water])
+        let taken = UNNotificationAction(
+            identifier: NotificationActionID.supplementTaken,
+            title: "Mark taken",
+            options: []
+        )
+        let supplement = UNNotificationCategory(
+            identifier: NotificationActionID.categorySupplement,
+            actions: [taken],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([evening, ketosis, water, supplement])
     }
 
     private func scheduleWater(settings: AppSettings, center: UNUserNotificationCenter) {
@@ -317,6 +337,33 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         center.add(request)
+    }
+
+    private func scheduleSupplements(settings: AppSettings, center: UNUserNotificationCenter) {
+        for supplement in settings.supplements where supplement.isEnabled && supplement.reminderEnabled {
+            for (index, time) in supplement.reminderTimes.enumerated() where index < supplement.dosesPerDay {
+                let content = UNMutableNotificationContent()
+                content.title = supplement.name
+                content.body = "Dose \(index + 1) of \(supplement.dosesPerDay) — press and hold to Mark taken."
+                content.sound = .default
+                content.categoryIdentifier = NotificationActionID.categorySupplement
+                content.userInfo = [
+                    "kind": NotificationKind.supplement.rawValue,
+                    "supplementId": supplement.id,
+                    "doseIndex": index
+                ]
+                var comps = DateComponents()
+                comps.hour = time.hour
+                comps.minute = time.minute
+                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+                let request = UNNotificationRequest(
+                    identifier: "supplement-\(supplement.id)-dose-\(index)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
+        }
     }
 
     private func scheduleBodyComposition(settings: AppSettings, center: UNUserNotificationCenter) {
@@ -386,6 +433,14 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             setKetosis(false)
         case NotificationActionID.waterLogged:
             logWaterDrink()
+        case NotificationActionID.supplementTaken:
+            let supplementId = info["supplementId"] as? String
+            let doseIndex: Int? = {
+                if let value = info["doseIndex"] as? Int { return value }
+                if let number = info["doseIndex"] as? NSNumber { return number.intValue }
+                return nil
+            }()
+            markSupplementTaken(supplementId: supplementId, doseIndex: doseIndex)
         case UNNotificationDefaultActionIdentifier:
             if let kind {
                 NotificationCenter.default.post(
@@ -427,5 +482,19 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let minimumSlots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
         log.fillNextWaterSlot(oz: bottle, ensuringMinimumSlots: minimumSlots)
         try? context.save()
+    }
+
+    private func markSupplementTaken(supplementId: String?, doseIndex: Int?) {
+        guard let container, let supplementId, let doseIndex, doseIndex >= 0 else { return }
+        let context = ModelContext(container)
+        let settings = DataStore.settings(in: context)
+        guard let supplement = settings.supplements.first(where: { $0.id == supplementId }),
+              doseIndex < supplement.dosesPerDay else { return }
+        let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
+        let key = supplement.doseKey(doseIndex)
+        if !log.completedSupplements.contains(key) {
+            log.completedSupplements.append(key)
+            try? context.save()
+        }
     }
 }

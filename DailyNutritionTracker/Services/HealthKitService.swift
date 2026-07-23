@@ -213,16 +213,19 @@ final class HealthKitService: ObservableObject {
         guard durationMinutes > 0 else { return }
         let end = date
         let start = date.addingTimeInterval(-Double(durationMinutes) * 60)
-        let workout = HKWorkout(
-            activityType: .other,
-            start: start,
-            end: end,
-            duration: Double(durationMinutes) * 60,
-            totalEnergyBurned: nil,
-            totalDistance: nil,
-            metadata: [HKMetadataKeyWorkoutBrandName: name]
-        )
-        try? await store.save(workout)
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .other
+
+        let builder = HKWorkoutBuilder(healthStore: store, configuration: configuration, device: .local())
+        do {
+            try await builder.beginCollection(at: start)
+            try await builder.addMetadata([HKMetadataKeyWorkoutBrandName: name])
+            try await builder.endCollection(at: end)
+            try await builder.finishWorkout()
+        } catch {
+            // Best-effort Health write; local log already saved.
+        }
     }
 
     private func deleteSamples(of type: HKQuantityType, on date: Date) async {
