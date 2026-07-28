@@ -40,7 +40,7 @@ struct DailyMetricPoint: Identifiable {
     var label: String { date.formatted(.dateTime.month(.abbreviated).day()) }
 }
 
-struct NamedCount: Identifiable {
+struct NamedCount: Identifiable, Hashable {
     var id: String { name }
     let name: String
     let count: Int

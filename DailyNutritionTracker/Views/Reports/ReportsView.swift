@@ -31,6 +31,16 @@ struct ReportsView: View {
 
                 Section("Overview") {
                     NavigationLink {
+                        EatingReportView(snapshot: currentSnapshot)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("What I’ve Been Eating", systemImage: "list.bullet.rectangle")
+                            Text("Day-by-day food & drink for this range")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    NavigationLink {
                         SnapshotReportView(snapshot: currentSnapshot)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
@@ -141,6 +151,7 @@ struct ReportsView: View {
 struct ReportMetricRow: View {
     let title: String
     let value: String
+    var valueColor: Color? = nil
 
     var body: some View {
         HStack {
@@ -150,6 +161,7 @@ struct ReportMetricRow: View {
             Text(value)
                 .fontWeight(.semibold)
                 .monospacedDigit()
+                .foregroundStyle(valueColor ?? .primary)
         }
         .font(.subheadline)
     }
