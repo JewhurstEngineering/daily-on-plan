@@ -9,6 +9,8 @@ struct DailyNutritionTrackerApp: App {
     init() {
         container = DataStore.makeContainer()
         NotificationService.shared.configure(container: container)
+        PhoneWatchBridge.shared.activate()
+        PhoneWatchBridge.shared.pushSnapshot()
     }
 
     var body: some Scene {

@@ -357,6 +357,7 @@ struct HydrationSection: View {
     private func persist() {
         try? modelContext.save()
         WidgetReloader.reloadAll()
+        PhoneWatchBridge.shared.pushSnapshot()
         Task {
             await healthKit.writeWater(ounces: log.totalHydrationOz(settings: settings), on: date)
         }

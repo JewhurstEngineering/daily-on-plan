@@ -15,339 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             Group {
                 if let settings {
-                    Form {
-                        Section("Appearance") {
-                            Text(AppIdentity.tagline)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-
-                            Picker("Appearance", selection: Binding(
-                                get: { settings.appearanceMode },
-                                set: {
-                                    settings.appearanceMode = $0
-                                    save(settings)
-                                }
-                            )) {
-                                ForEach(AppearanceMode.allCases) { mode in
-                                    Text(mode.title).tag(mode)
-                                }
-                            }
-
-                            Text(appearanceFooter(for: settings.appearanceMode))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-
-                            Text("Color theme")
-                                .font(.subheadline)
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-                                ForEach(AccentTheme.pickerCases) { themeOption in
-                                    Button {
-                                        settings.accentTheme = themeOption
-                                        settings.customAccentHex = nil
-                                        save(settings)
-                                    } label: {
-                                        ZStack {
-                                            if let secondary = themeOption.pickerSecondary {
-                                                Circle()
-                                                    .fill(
-                                                        AngularGradient(
-                                                            colors: [themeOption.primary, secondary, themeOption.primary],
-                                                            center: .center
-                                                        )
-                                                    )
-                                                    .frame(width: 36, height: 36)
-                                            } else {
-                                                Circle()
-                                                    .fill(themeOption.color)
-                                                    .frame(width: 36, height: 36)
-                                            }
-                                            if settings.accentTheme == themeOption {
-                                                Image(systemName: "checkmark")
-                                                    .font(.caption.weight(.bold))
-                                                    .foregroundStyle(.white)
-                                            }
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(themeOption.title)
-                                }
-                            }
-
-                            ColorPicker(
-                                "Custom color",
-                                selection: Binding(
-                                    get: {
-                                        settings.accentPrimary
-                                    },
-                                    set: { newColor in
-                                        if let hex = newColor.toHexRGB() {
-                                            settings.customAccentHex = hex
-                                            settings.accentTheme = .custom
-                                            save(settings)
-                                        }
-                                    }
-                                ),
-                                supportsOpacity: false
-                            )
-
-                            if settings.accentTheme == .custom {
-                                HStack(spacing: 10) {
-                                    Circle()
-                                        .fill(settings.accentPrimary)
-                                        .frame(width: 22, height: 22)
-                                        .overlay {
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundStyle(.white)
-                                        }
-                                    Text("Using custom color")
-                                        .font(.caption.weight(.semibold))
-                                    Spacer()
-                                    Button("Reset") {
-                                        settings.accentTheme = .onPlan
-                                        settings.customAccentHex = nil
-                                        save(settings)
-                                    }
-                                    .font(.caption)
-                                }
-                            }
-
-                            Text(settings.accentTheme.title)
-                                .font(.caption.weight(.semibold))
-                            Text(settings.accentTheme.subtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Section("Program") {
-                            Picker("Phase", selection: Binding(
-                                get: { settings.phase },
-                                set: {
-                                    settings.phase = $0
-                                    save(settings)
-                                }
-                            )) {
-                                ForEach(ProgramPhase.allCases) { phase in
-                                    Text(phase.title).tag(phase)
-                                }
-                            }
-                            Stepper(
-                                "Protein goal: \(settings.defaultProteinGoal) kcal",
-                                value: Binding(
-                                    get: { settings.defaultProteinGoal },
-                                    set: {
-                                        settings.defaultProteinGoal = $0
-                                        save(settings)
-                                    }
-                                ),
-                                in: AppLimits.proteinGoalMin...AppLimits.proteinGoalMax,
-                                step: 1
-                            )
-                        }
-
-                        Section {
-                            Toggle("Use kilograms", isOn: Binding(
-                                get: { settings.usesMetricWeight },
-                                set: {
-                                    settings.usesMetricWeight = $0
-                                    save(settings)
-                                }
-                            ))
-
-                            HStack {
-                                Text("Height")
-                                Spacer()
-                                Picker("Feet", selection: $heightFeet) {
-                                    ForEach(4...7, id: \.self) { Text("\($0) ft").tag($0) }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-
-                                Picker("Inches", selection: $heightInchesPart) {
-                                    ForEach(0...11, id: \.self) { Text("\($0) in").tag($0) }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                            }
-
-                            Text("Saved as \(heightFeet)'\(heightInchesPart)\"")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Stepper(
-                                settings.hasAge ? "Age: \(settings.ageYears)" : "Age: not set",
-                                value: Binding(
-                                    get: { settings.ageYears > 0 ? settings.ageYears : 30 },
-                                    set: {
-                                        settings.ageYears = $0
-                                        save(settings)
-                                    }
-                                ),
-                                in: 10...120
-                            )
-
-                            HStack {
-                                TextField("Goal weight", text: $goalWeightText)
-                                    .keyboardType(.decimalPad)
-                                    .focused($goalWeightFocused)
-                                    .onChange(of: goalWeightText) { _, newValue in
-                                        let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "," }
-                                        if filtered != newValue { goalWeightText = filtered }
-                                    }
-                                Text(settings.usesMetricWeight ? "kg" : "lb")
-                                    .foregroundStyle(.secondary)
-                            }
-                            if settings.hasGoalWeight {
-                                Button("Clear goal weight", role: .destructive) {
-                                    settings.goalWeightLbs = nil
-                                    goalWeightText = ""
-                                    save(settings)
-                                }
-                            }
-                        } header: {
-                            Text("Body metrics")
-                        } footer: {
-                            Text("Height and age prefill body composition receipts. BMI uses height with each day’s weight. Tape measurements (waist, arms, legs) live under Body measurements.")
-                        }
-                        .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
-                        .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
-                        .onChange(of: goalWeightFocused) { _, focused in
-                            if !focused { commitGoalWeight(settings) }
-                        }
-
-                        Section {
-                            NavigationLink {
-                                BodyCompositionListView(showsDismissButton: false)
-                            } label: {
-                                Label("Body composition", systemImage: "list.clipboard")
-                            }
-                            NavigationLink {
-                                BodyMeasurementsListView(showsDismissButton: false)
-                            } label: {
-                                Label("Body measurements", systemImage: "ruler")
-                            }
-                            NavigationLink {
-                                NotificationsSettingsView(settings: settings)
-                            } label: {
-                                Label("Notifications", systemImage: "bell.badge")
-                            }
-                            NavigationLink {
-                                MotivationQuotesSettingsView(settings: settings)
-                            } label: {
-                                Label("Motivational quotes", systemImage: "quote.bubble")
-                            }
-                            NavigationLink {
-                                DayLayoutSettingsView(settings: settings)
-                            } label: {
-                                Label("Day layout", systemImage: "list.bullet.rectangle")
-                            }
-                            NavigationLink {
-                                SavedMealsListView(settings: settings)
-                            } label: {
-                                Label("Saved meals", systemImage: "fork.knife")
-                            }
-                            NavigationLink {
-                                FoodPreferencesView(settings: settings)
-                            } label: {
-                                Label("Food preferences", systemImage: "heart.slash")
-                            }
-                            NavigationLink {
-                                FoodLookupSettingsView(settings: settings)
-                            } label: {
-                                Label("Food lookup", systemImage: "barcode.viewfinder")
-                            }
-                            NavigationLink {
-                                SmokingSettingsForm(settings: settings)
-                            } label: {
-                                Label("Smoking", systemImage: "smoke")
-                            }
-                            NavigationLink {
-                                DrinkingSettingsForm(settings: settings)
-                            } label: {
-                                Label("Drinking", systemImage: "wineglass")
-                            }
-                            NavigationLink {
-                                HydrationSettingsForm(settings: settings)
-                            } label: {
-                                Label("Hydration", systemImage: "drop.fill")
-                            }
-                            NavigationLink {
-                                SupplementsSettingsForm(settings: settings)
-                            } label: {
-                                Label("Supplements", systemImage: "pills.fill")
-                            }
-                            NavigationLink {
-                                BathroomSettingsForm(settings: settings)
-                            } label: {
-                                Label("Bathroom", systemImage: "toilet.fill")
-                            }
-                        } header: {
-                            Text("Tracking & habits")
-                        } footer: {
-                            Text("Day-to-day tracking options live here so Settings stays uncluttered.")
-                        }
-
-                        Section("My Presets") {
-                            if presets.isEmpty {
-                                Text("Save foods as presets when adding protein.")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(presets, id: \.id) { preset in
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text(preset.name)
-                                            Text("\(preset.servingLabel) · \(preset.calories) kcal")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        Button(role: .destructive) {
-                                            modelContext.delete(preset)
-                                            try? modelContext.save()
-                                        } label: {
-                                            Image(systemName: "trash")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Section("Hunger Scale") {
-                            Text(HungerScale.guidance)
-                            ForEach(HungerScale.levels, id: \.0) { level in
-                                Text("\(level.0): \(level.1)")
-                                    .font(.caption)
-                            }
-                        }
-
-                        Section {
-                            Text(HealthKitService.shared.authStatus.title)
-                                .font(.subheadline.weight(.semibold))
-                            if let message = HealthKitService.shared.lastMessage {
-                                Text(message)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Button(healthButtonTitle) {
-                                Task {
-                                    await HealthKitService.shared.requestAuthorization()
-                                }
-                            }
-                            if HealthKitService.shared.authStatus == .sharingDenied
-                                || HealthKitService.shared.authStatus == .sharingAuthorized {
-                                Button("Open Health / Settings") {
-                                    HealthKitService.shared.openHealthOrSystemSettings()
-                                }
-                            }
-                        } header: {
-                            Text("Health")
-                        } footer: {
-                            Text("Syncs water, weight, workouts, and alcoholic drinks to Apple Health. Cigarette counts stay in \(AppIdentity.displayName) only — HealthKit has no public nicotine type.")
-                        }
-                        .onAppear {
-                            HealthKitService.shared.refreshStatus()
-                        }
-                    }
+                    settingsForm(settings)
                 } else {
                     ProgressView()
                 }
@@ -389,6 +57,357 @@ struct SettingsView: View {
                     heightInchesPart = total % 12
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func settingsForm(_ settings: AppSettings) -> some View {
+        Form {
+            appearanceSection(settings)
+            programSection(settings)
+            bodyMetricsSection(settings)
+            trackingLinksSection(settings)
+            presetsSection
+            hungerScaleSection
+            healthSection
+            backupSection
+        }
+    }
+
+    @ViewBuilder
+    private func appearanceSection(_ settings: AppSettings) -> some View {
+        Section("Appearance") {
+            Text(AppIdentity.tagline)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Picker("Appearance", selection: Binding(
+                get: { settings.appearanceMode },
+                set: {
+                    settings.appearanceMode = $0
+                    save(settings)
+                }
+            )) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+
+            Text(appearanceFooter(for: settings.appearanceMode))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text("Color theme")
+                .font(.subheadline)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
+                ForEach(AccentTheme.pickerCases) { themeOption in
+                    Button {
+                        settings.accentTheme = themeOption
+                        settings.customAccentHex = nil
+                        save(settings)
+                    } label: {
+                        ZStack {
+                            if let secondary = themeOption.pickerSecondary {
+                                Circle()
+                                    .fill(
+                                        AngularGradient(
+                                            colors: [themeOption.primary, secondary, themeOption.primary],
+                                            center: .center
+                                        )
+                                    )
+                                    .frame(width: 36, height: 36)
+                            } else {
+                                Circle()
+                                    .fill(themeOption.color)
+                                    .frame(width: 36, height: 36)
+                            }
+                            if settings.accentTheme == themeOption {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(themeOption.title)
+                }
+            }
+
+            ColorPicker(
+                "Custom color",
+                selection: Binding(
+                    get: {
+                        settings.accentPrimary
+                    },
+                    set: { newColor in
+                        if let hex = newColor.toHexRGB() {
+                            settings.customAccentHex = hex
+                            settings.accentTheme = .custom
+                            save(settings)
+                        }
+                    }
+                ),
+                supportsOpacity: false
+            )
+
+            if settings.accentTheme == .custom {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(settings.accentPrimary)
+                        .frame(width: 22, height: 22)
+                        .overlay {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    Text("Using custom color")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Button("Reset") {
+                        settings.accentTheme = .onPlan
+                        settings.customAccentHex = nil
+                        save(settings)
+                    }
+                    .font(.caption)
+                }
+            }
+
+            Text(settings.accentTheme.title)
+                .font(.caption.weight(.semibold))
+            Text(settings.accentTheme.subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func programSection(_ settings: AppSettings) -> some View {
+        Section("Program") {
+            Picker("Phase", selection: Binding(
+                get: { settings.phase },
+                set: {
+                    settings.phase = $0
+                    save(settings)
+                }
+            )) {
+                ForEach(ProgramPhase.allCases) { phase in
+                    Text(phase.title).tag(phase)
+                }
+            }
+            Stepper(
+                "Protein goal: \(settings.defaultProteinGoal) kcal",
+                value: Binding(
+                    get: { settings.defaultProteinGoal },
+                    set: {
+                        settings.defaultProteinGoal = $0
+                        save(settings)
+                    }
+                ),
+                in: AppLimits.proteinGoalMin...AppLimits.proteinGoalMax,
+                step: 1
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func bodyMetricsSection(_ settings: AppSettings) -> some View {
+        Section {
+            Toggle("Use kilograms", isOn: Binding(
+                get: { settings.usesMetricWeight },
+                set: {
+                    settings.usesMetricWeight = $0
+                    save(settings)
+                }
+            ))
+
+            HStack {
+                Text("Height")
+                Spacer()
+                Picker("Feet", selection: $heightFeet) {
+                    ForEach(4...7, id: \.self) { Text("\($0) ft").tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+
+                Picker("Inches", selection: $heightInchesPart) {
+                    ForEach(0...11, id: \.self) { Text("\($0) in").tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+
+            Text("Saved as \(heightFeet)'\(heightInchesPart)\"")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Stepper(
+                settings.hasAge ? "Age: \(settings.ageYears)" : "Age: not set",
+                value: Binding(
+                    get: { settings.ageYears > 0 ? settings.ageYears : 30 },
+                    set: {
+                        settings.ageYears = $0
+                        save(settings)
+                    }
+                ),
+                in: 10...120
+            )
+
+            HStack {
+                TextField("Goal weight", text: $goalWeightText)
+                    .keyboardType(.decimalPad)
+                    .focused($goalWeightFocused)
+                    .onChange(of: goalWeightText) { _, newValue in
+                        let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "," }
+                        if filtered != newValue { goalWeightText = filtered }
+                    }
+                Text(settings.usesMetricWeight ? "kg" : "lb")
+                    .foregroundStyle(.secondary)
+            }
+            if settings.hasGoalWeight {
+                Button("Clear goal weight", role: .destructive) {
+                    settings.goalWeightLbs = nil
+                    goalWeightText = ""
+                    save(settings)
+                }
+            }
+        } header: {
+            Text("Body metrics")
+        } footer: {
+            Text("Height and age prefill body composition receipts. BMI uses height with each day’s weight. Tape measurements (waist, arms, legs) live under Body measurements.")
+        }
+        .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
+        .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
+        .onChange(of: goalWeightFocused) { _, focused in
+            if !focused { commitGoalWeight(settings) }
+        }
+    }
+
+    @ViewBuilder
+    private func trackingLinksSection(_ settings: AppSettings) -> some View {
+        Section {
+            NavigationLink {
+                BodyCompositionListView(showsDismissButton: false)
+            } label: {
+                Label("Body composition", systemImage: "list.clipboard")
+            }
+            NavigationLink {
+                BodyMeasurementsListView(showsDismissButton: false)
+            } label: {
+                Label("Body measurements", systemImage: "ruler")
+            }
+            NavigationLink {
+                NotificationsSettingsView(settings: settings)
+            } label: {
+                Label("Notifications", systemImage: "bell.badge")
+            }
+            NavigationLink {
+                MotivationQuotesSettingsView(settings: settings)
+            } label: {
+                Label("Motivational quotes", systemImage: "quote.bubble")
+            }
+            NavigationLink {
+                DayLayoutSettingsView(settings: settings)
+            } label: {
+                Label("Day layout", systemImage: "list.bullet.rectangle")
+            }
+            NavigationLink {
+                SavedMealsListView(settings: settings)
+            } label: {
+                Label("Saved meals", systemImage: "fork.knife")
+            }
+            NavigationLink {
+                FoodPreferencesView(settings: settings)
+            } label: {
+                Label("Food preferences", systemImage: "heart.slash")
+            }
+            NavigationLink {
+                FoodLookupSettingsView(settings: settings)
+            } label: {
+                Label("Food lookup", systemImage: "barcode.viewfinder")
+            }
+            NavigationLink {
+                SmokingSettingsForm(settings: settings)
+            } label: {
+                Label("Smoking", systemImage: "smoke")
+            }
+            NavigationLink {
+                DrinkingSettingsForm(settings: settings)
+            } label: {
+                Label("Drinking", systemImage: "wineglass")
+            }
+            NavigationLink {
+                HydrationSettingsForm(settings: settings)
+            } label: {
+                Label("Hydration", systemImage: "drop.fill")
+            }
+            NavigationLink {
+                SupplementsSettingsForm(settings: settings)
+            } label: {
+                Label("Supplements", systemImage: "pills.fill")
+            }
+            NavigationLink {
+                BathroomSettingsForm(settings: settings)
+            } label: {
+                Label("Bathroom", systemImage: "toilet.fill")
+            }
+        } header: {
+            Text("Tracking & habits")
+        } footer: {
+            Text("Day-to-day tracking options live here so Settings stays uncluttered.")
+        }
+    }
+
+    @ViewBuilder
+    private var presetsSection: some View {
+        Section("My Presets") {
+            if presets.isEmpty {
+                Text("Save foods as presets when adding protein.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(presets, id: \.id) { preset in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(preset.name)
+                            Text("\(preset.servingLabel) · \(preset.calories) kcal")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            modelContext.delete(preset)
+                            try? modelContext.save()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var hungerScaleSection: some View {
+        Section("Hunger Scale") {
+            Text(HungerScale.guidance)
+            ForEach(HungerScale.levels, id: \.0) { level in
+                Text("\(level.0): \(level.1)")
+                    .font(.caption)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var backupSection: some View {
+        Section {
+            NavigationLink {
+                BackupRestoreView { restored in
+                    settings = restored
+                }
+            } label: {
+                Label("Backup & restore", systemImage: "externaldrive.badge.timemachine")
+            }
+        } footer: {
+            Text("Full data backup for reinstalls. Separate from day Export reports.")
         }
     }
 
@@ -437,6 +456,37 @@ struct SettingsView: View {
         case .notDetermined: return "Request Apple Health access"
         case .sharingDenied: return "Request again / re-check"
         case .sharingAuthorized: return "Re-check Health permissions"
+        }
+    }
+
+    @ViewBuilder
+    private var healthSection: some View {
+        Section {
+            Text(HealthKitService.shared.authStatus.title)
+                .font(.subheadline.weight(.semibold))
+            if let message = HealthKitService.shared.lastMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Button(healthButtonTitle) {
+                Task {
+                    await HealthKitService.shared.requestAuthorization()
+                }
+            }
+            if HealthKitService.shared.authStatus == .sharingDenied
+                || HealthKitService.shared.authStatus == .sharingAuthorized {
+                Button("Open Health / Settings") {
+                    HealthKitService.shared.openHealthOrSystemSettings()
+                }
+            }
+        } header: {
+            Text("Health")
+        } footer: {
+            Text("Syncs water, weight, workouts, and alcoholic drinks to Apple Health. Cigarette counts stay in \(AppIdentity.displayName) only — HealthKit has no public nicotine type.")
+        }
+        .onAppear {
+            HealthKitService.shared.refreshStatus()
         }
     }
 }

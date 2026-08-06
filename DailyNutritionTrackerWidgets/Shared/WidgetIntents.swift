@@ -1,18 +1,5 @@
 import AppIntents
 import Foundation
-import SwiftData
-import WidgetKit
-
-enum WidgetIntentStore {
-    @MainActor
-    static func context() throws -> (ModelContext, AppSettings, DailyLog) {
-        let container = try SharedModelContainer.shared()
-        let context = ModelContext(container)
-        let settings = DataStore.settings(in: context)
-        let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
-        return (context, settings, log)
-    }
-}
 
 struct AddWaterBottleIntent: AppIntent {
     static var title: LocalizedStringResource = "Add Water Bottle"
@@ -21,14 +8,12 @@ struct AddWaterBottleIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        let bottle = max(settings.defaultBottleOz, 1)
-        let minimumSlots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
-        log.fillNextWaterSlot(oz: bottle, ensuringMinimumSlots: minimumSlots)
-        try context.save()
-        WidgetReloader.reloadAll()
-        let label = bottle == bottle.rounded() ? "\(Int(bottle))" : String(format: "%.1f", bottle)
-        return .result(dialog: IntentDialog("Logged \(label) oz of water."))
+        switch QuickAddService.addWaterBottle() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        }
     }
 }
 
@@ -39,14 +24,12 @@ struct AddCigaretteIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.smokingMode.showsSection else {
-            return .result(dialog: IntentDialog("Smoking tracking is turned off."))
+        switch QuickAddService.addCigarette() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        log.addCigarette()
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog("Logged 1 cigarette."))
     }
 }
 
@@ -56,14 +39,12 @@ struct AddSmokeUrgeIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.smokingMode.showsSection else {
-            return .result(dialog: IntentDialog("Smoking tracking is turned off."))
+        switch QuickAddService.addSmokeUrge() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        log.addUrge()
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog("Logged a smoking urge."))
     }
 }
 
@@ -80,15 +61,12 @@ struct AddDrinksIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.drinkingMode.showsSection else {
-            return .result(dialog: IntentDialog("Drinking tracking is turned off."))
+        switch QuickAddService.addDrinks(count) {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        let n = max(1, min(count, 10))
-        log.addDrinks(n)
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog(n == 1 ? "Logged 1 drink." : "Logged \(n) drinks."))
     }
 }
 
@@ -98,14 +76,12 @@ struct AddDrinkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.drinkingMode.showsSection else {
-            return .result(dialog: IntentDialog("Drinking tracking is turned off."))
+        switch QuickAddService.addDrinks(1) {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        log.addDrinks(1)
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog("Logged 1 drink."))
     }
 }
 
@@ -115,14 +91,12 @@ struct AddDrinkUrgeIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.drinkingMode.showsSection else {
-            return .result(dialog: IntentDialog("Drinking tracking is turned off."))
+        switch QuickAddService.addDrinkUrge() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        log.addDrinkUrge()
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog("Logged a drink urge."))
     }
 }
 
@@ -156,11 +130,12 @@ struct AddBathroomIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, _, log) = try WidgetIntentStore.context()
-        _ = log.addBathroomEvent(kind: kind.model)
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog("Logged \(kind.model.shortTitle.lowercased())."))
+        switch QuickAddService.addBathroom(kind: kind.model) {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        }
     }
 }
 
@@ -170,22 +145,12 @@ struct MarkNextSupplementIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, settings, log) = try WidgetIntentStore.context()
-        guard settings.showSupplementsSection else {
-            return .result(dialog: IntentDialog("Supplements are hidden."))
+        switch QuickAddService.markNextSupplement() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
         }
-        for def in settings.visibleSupplements {
-            for index in 0..<def.dosesPerDay {
-                let key = def.doseKey(index)
-                if !log.completedSupplements.contains(key) {
-                    log.completedSupplements.append(key)
-                    try context.save()
-                    WidgetReloader.reloadAll()
-                    return .result(dialog: IntentDialog("Marked \(def.name) dose \(index + 1)."))
-                }
-            }
-        }
-        return .result(dialog: IntentDialog("All supplement doses are done today."))
     }
 }
 
@@ -195,11 +160,12 @@ struct ToggleFollowedPlanIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, _, log) = try WidgetIntentStore.context()
-        log.followedPlan.toggle()
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog(log.followedPlan ? "Marked on plan." : "Marked off plan."))
+        switch QuickAddService.toggleFollowedPlan() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        }
     }
 }
 
@@ -209,10 +175,11 @@ struct ToggleKetosisIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (context, _, log) = try WidgetIntentStore.context()
-        log.ketosis.toggle()
-        try context.save()
-        WidgetReloader.reloadAll()
-        return .result(dialog: IntentDialog(log.ketosis ? "Marked in ketosis." : "Marked not in ketosis."))
+        switch QuickAddService.toggleKetosis() {
+        case .success(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        case .failure(let message):
+            return .result(dialog: IntentDialog(stringLiteral: message))
+        }
     }
 }

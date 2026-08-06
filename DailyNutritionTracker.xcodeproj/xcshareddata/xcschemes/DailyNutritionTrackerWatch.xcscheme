@@ -48,20 +48,6 @@
                ReferencedContainer = "container:DailyNutritionTracker.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E63EAEF58BF1A455170C9678"
-               BuildableName = "DailyNutritionTrackerWidgets.appex"
-               BlueprintName = "DailyNutritionTrackerWidgets"
-               ReferencedContainer = "container:DailyNutritionTracker.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -72,9 +58,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "A3F6EE4B2A954D70D63B8CC6"
-            BuildableName = "DailyNutritionTracker.app"
-            BlueprintName = "DailyNutritionTracker"
+            BlueprintIdentifier = "9B772E33855BDCB6E12C7236"
+            BuildableName = "DailyNutritionTrackerWatch.app"
+            BlueprintName = "DailyNutritionTrackerWatch"
             ReferencedContainer = "container:DailyNutritionTracker.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -95,9 +81,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "A3F6EE4B2A954D70D63B8CC6"
-            BuildableName = "DailyNutritionTracker.app"
-            BlueprintName = "DailyNutritionTracker"
+            BlueprintIdentifier = "9B772E33855BDCB6E12C7236"
+            BuildableName = "DailyNutritionTrackerWatch.app"
+            BlueprintName = "DailyNutritionTrackerWatch"
             ReferencedContainer = "container:DailyNutritionTracker.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -112,9 +98,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "A3F6EE4B2A954D70D63B8CC6"
-            BuildableName = "DailyNutritionTracker.app"
-            BlueprintName = "DailyNutritionTracker"
+            BlueprintIdentifier = "9B772E33855BDCB6E12C7236"
+            BuildableName = "DailyNutritionTrackerWatch.app"
+            BlueprintName = "DailyNutritionTrackerWatch"
             ReferencedContainer = "container:DailyNutritionTracker.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

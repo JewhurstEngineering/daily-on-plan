@@ -124,12 +124,14 @@ struct ContentView: View {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         snapToTodayIfNeeded()
+                        PhoneWatchBridge.shared.pushSnapshot()
                         Task {
                             let settings = DataStore.settings(in: modelContext)
                             await NotificationService.shared.reschedule(using: settings)
                         }
                     } else {
                         WidgetReloader.reloadAll()
+                        PhoneWatchBridge.shared.pushSnapshot()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openDaySection)) { note in

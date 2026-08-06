@@ -1,7 +1,10 @@
 # Xcode
 DerivedData/
 .derivedData/
+.derivedData*/
 .build-log.txt
+.build-*.log
+.build-backup.log
 build/
 *.xcuserstate
 xcuserdata/
