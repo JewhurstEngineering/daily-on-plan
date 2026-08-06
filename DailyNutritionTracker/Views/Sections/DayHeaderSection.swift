@@ -90,6 +90,8 @@ struct DayHeaderSection: View {
                 .frame(maxWidth: .infinity)
             }
 
+            remainingStatsStrip
+
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: $log.ketosis) {
                     Text("Ketosis")
@@ -156,6 +158,54 @@ struct DayHeaderSection: View {
         .onChange(of: settings.defaultProteinGoal) { _, _ in
             syncProteinGoalFromSettings()
         }
+    }
+
+    private var remainingStatsStrip: some View {
+        let waterOz = log.totalHydrationOz(settings: settings)
+        let proteinLeft = max(0, log.proteinGoal - log.totalProteinCalories)
+        let waterLeft = max(0, settings.hydrationTargetOz - waterOz)
+        let todayWeight = DataStore.weight(for: selectedDate, in: modelContext)
+
+        return HStack(spacing: 0) {
+            remainingStat(icon: "fork.knife", value: "\(proteinLeft) kcal", caption: "Left")
+            Divider().frame(height: 36)
+            remainingStat(icon: "drop.fill", value: "\(waterLeft) oz", caption: "Left")
+            if settings.smokingMode.showsSection {
+                Divider().frame(height: 36)
+                remainingStat(icon: "flame.fill", value: "\(log.cigarettesSmoked)", caption: "Cigs")
+            }
+            if settings.drinkingMode.showsSection {
+                Divider().frame(height: 36)
+                remainingStat(icon: "wineglass.fill", value: "\(log.drinksLogged)", caption: "Drinks")
+            }
+            if let todayWeight {
+                Divider().frame(height: 36)
+                remainingStat(
+                    icon: "scalemass.fill",
+                    value: String(format: "%.0f", todayWeight.weightLbs),
+                    caption: "Weight"
+                )
+            }
+        }
+        .padding(.vertical, 10)
+        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func remainingStat(icon: String, value: String, caption: String) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(caption)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func syncProteinGoalFromSettings() {

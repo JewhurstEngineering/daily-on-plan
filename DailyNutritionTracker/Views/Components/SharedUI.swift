@@ -1,5 +1,21 @@
 import SwiftUI
 import SwiftData
+import UIKit
+
+extension WaterSlotRecord {
+    /// SF Symbol that is guaranteed to exist on the running OS (avoids blank icons).
+    var resolvedSystemImage: String {
+        if UIImage(systemName: systemImage) != nil {
+            return systemImage
+        }
+        switch kind {
+        case .water, .electrolyte:
+            return "waterbottle.fill"
+        case .other:
+            return "takeoutbag.and.cup.and.straw.fill"
+        }
+    }
+}
 
 struct SectionCard<Content: View, Trailing: View>: View {
     let title: String
@@ -408,26 +424,61 @@ struct HydrationProgressBar: View {
 
 struct GlassButton: View {
     let isFilled: Bool
+    var drinkKind: HydrationDrinkKind = .water
+    var otherSubtype: HydrationOtherSubtype? = nil
     var isElectrolyte: Bool = false
     let label: String
     let action: () -> Void
     @Environment(\.accentProgress) private var progressColor
 
+    private var resolvedKind: HydrationDrinkKind {
+        if isElectrolyte { return .electrolyte }
+        return drinkKind
+    }
+
+    private var resolvedRecord: WaterSlotRecord {
+        WaterSlotRecord(
+            oz: 1,
+            kind: resolvedKind,
+            otherSubtype: otherSubtype,
+            isElectrolyte: isElectrolyte
+        )
+    }
+
     private var fillColor: Color {
-        isElectrolyte ? Color.yellow.opacity(0.95) : progressColor
+        switch resolvedKind {
+        case .water:
+            return progressColor
+        case .electrolyte:
+            return Color.yellow.opacity(0.95)
+        case .other:
+            switch otherSubtype ?? .other {
+            case .soda: return Color.pink.opacity(0.85)
+            case .tea: return Color.green.opacity(0.75)
+            case .coffee: return Color.brown.opacity(0.85)
+            case .juice: return Color.orange.opacity(0.85)
+            case .sparkling: return Color.cyan.opacity(0.8)
+            case .milk: return Color.gray.opacity(0.7)
+            case .other: return Color.secondary
+            }
+        }
+    }
+
+    private var iconName: String {
+        isFilled ? resolvedRecord.resolvedSystemImage : "waterbottle"
     }
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: isFilled ? "waterbottle.fill" : "waterbottle")
+                    Image(systemName: iconName)
                         .font(.title3)
                         .foregroundStyle(isFilled ? fillColor : Color.secondary)
-                    if isElectrolyte {
+                    if isFilled && resolvedRecord.showsElectrolyteBadge {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(isFilled ? Color.orange : Color.secondary)
+                            .foregroundStyle(Color.orange)
                             .offset(x: 6, y: -4)
                     }
                 }
@@ -440,7 +491,7 @@ struct GlassButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isFilled ? fillColor.opacity(isElectrolyte ? 0.18 : 0.12) : Color(.tertiarySystemFill))
+            .background(isFilled ? fillColor.opacity(resolvedKind == .electrolyte ? 0.18 : 0.12) : Color(.tertiarySystemFill))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -449,7 +500,7 @@ struct GlassButton: View {
 
     private var accessibilityText: String {
         if !isFilled { return "Empty bottle, \(label)" }
-        return isElectrolyte ? "Electrolyte \(label)" : "Water \(label)"
+        return "\(resolvedRecord.displayLabel) \(label)"
     }
 }
 

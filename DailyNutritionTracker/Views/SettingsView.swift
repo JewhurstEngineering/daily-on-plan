@@ -207,7 +207,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Body metrics")
                         } footer: {
-                            Text("Height and age prefill body composition receipts. BMI uses height with each day’s weight.")
+                            Text("Height and age prefill body composition receipts. BMI uses height with each day’s weight. Tape measurements (waist, arms, legs) live under Body measurements.")
                         }
                         .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
                         .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
@@ -220,6 +220,11 @@ struct SettingsView: View {
                                 BodyCompositionListView(showsDismissButton: false)
                             } label: {
                                 Label("Body composition", systemImage: "list.clipboard")
+                            }
+                            NavigationLink {
+                                BodyMeasurementsListView(showsDismissButton: false)
+                            } label: {
+                                Label("Body measurements", systemImage: "ruler")
                             }
                             NavigationLink {
                                 NotificationsSettingsView(settings: settings)
@@ -245,6 +250,11 @@ struct SettingsView: View {
                                 FoodPreferencesView(settings: settings)
                             } label: {
                                 Label("Food preferences", systemImage: "heart.slash")
+                            }
+                            NavigationLink {
+                                FoodLookupSettingsView(settings: settings)
+                            } label: {
+                                Label("Food lookup", systemImage: "barcode.viewfinder")
                             }
                             NavigationLink {
                                 SmokingSettingsForm(settings: settings)
@@ -924,3 +934,139 @@ private struct SupplementSettingsRow: View {
         .padding(.vertical, 4)
     }
 }
+
+struct FoodLookupSettingsView: View {
+    @Bindable var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+    @FocusState private var keyFocused: Bool
+
+    @State private var keyVisible = false
+    @State private var isTesting = false
+    @State private var testResult: USDAFoodDataClient.KeyTestResult?
+    @State private var lastTestedKey = ""
+
+    private var keyBinding: Binding<String> {
+        Binding(
+            get: { settings.usdaAPIKey },
+            set: {
+                settings.usdaAPIKey = $0
+                try? modelContext.save()
+                if $0.trimmingCharacters(in: .whitespacesAndNewlines) != lastTestedKey {
+                    testResult = nil
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack(alignment: .center, spacing: 8) {
+                    Group {
+                        if keyVisible {
+                            TextField("USDA API key", text: keyBinding)
+                        } else {
+                            SecureField("USDA API key", text: keyBinding)
+                        }
+                    }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($keyFocused)
+                    .textContentType(.password)
+                    .font(.body.monospaced())
+
+                    Button(keyVisible ? "Hide" : "View") {
+                        keyVisible.toggle()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.borderless)
+                }
+
+                Button {
+                    Task { await runKeyTest() }
+                } label: {
+                    if isTesting {
+                        HStack {
+                            ProgressView()
+                            Text("Testing key…")
+                        }
+                    } else {
+                        Label("Test API key", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                }
+                .disabled(settings.usdaAPIKey.isEmpty || isTesting)
+
+                if let testResult {
+                    Label(testResult.message, systemImage: testResult.succeeded ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                        .font(.footnote)
+                        .foregroundStyle(testResult.succeeded ? Color.green : Color.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if !settings.usdaAPIKey.isEmpty {
+                    Button("Clear key", role: .destructive) {
+                        settings.usdaAPIKey = ""
+                        testResult = nil
+                        lastTestedKey = ""
+                        keyVisible = false
+                        try? modelContext.save()
+                    }
+                }
+            } header: {
+                Text("USDA FoodData Central")
+            } footer: {
+                Text("Free key from api.data.gov — used only when you search USDA from Add Protein. ~1,000 requests/hour. Testing runs a tiny “egg” search.")
+            }
+
+            Section {
+                Label("No API key required", systemImage: "checkmark.seal")
+                    .foregroundStyle(.secondary)
+                Text("Barcode scans use Open Food Facts with a custom User-Agent. Read-only lookups only.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Open Food Facts")
+            }
+
+            Section("Attribution") {
+                Text("Product data © Open Food Facts contributors (ODbL). Nutrition search data from USDA FoodData Central.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Link("Get a USDA API key", destination: URL(string: "https://api.data.gov/signup/")!)
+                Link("Open Food Facts API", destination: URL(string: "https://world.openfoodfacts.org/data")!)
+            }
+        }
+        .navigationTitle("Food lookup")
+        .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar(focus: $keyFocused)
+        .onChange(of: keyFocused) { _, focused in
+            // Auto-test once when you leave the key field after pasting/typing.
+            if !focused,
+               !settings.usdaAPIKey.isEmpty,
+               settings.usdaAPIKey != lastTestedKey,
+               !isTesting {
+                Task { await runKeyTest() }
+            }
+        }
+    }
+
+    @MainActor
+    private func runKeyTest() async {
+        let key = settings.usdaAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else {
+            testResult = USDAFoodDataClient.KeyTestResult(
+                succeeded: false,
+                message: "Paste a USDA API key first.",
+                sampleFoodName: nil
+            )
+            return
+        }
+        isTesting = true
+        testResult = nil
+        let result = await USDAFoodDataClient.testAPIKey(key)
+        testResult = result
+        lastTestedKey = key
+        isTesting = false
+    }
+}
+

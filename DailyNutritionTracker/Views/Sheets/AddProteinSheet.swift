@@ -79,6 +79,16 @@ struct AddProteinSheet: View {
     @State private var countTowardHydration = false
     @State private var hydrationOz: Double = 8
 
+    @State private var showBarcodeScanner = false
+    @State private var isLookingUpBarcode = false
+    @State private var barcodeError: String?
+    @State private var confirmCandidate: RemoteFoodCandidate?
+
+    @State private var usdaResults: [RemoteFoodCandidate] = []
+    @State private var isSearchingUSDA = false
+    @State private var usdaError: String?
+    @State private var usdaSearchTask: Task<Void, Never>?
+
     @FocusState private var searchFocused: Bool
     @FocusState private var caloriesFocused: Bool
     @FocusState private var customNameFocused: Bool
@@ -217,6 +227,29 @@ struct AddProteinSheet: View {
             } message: {
                 Text(HungerScale.guidance)
             }
+            .sheet(isPresented: $showBarcodeScanner) {
+                BarcodeScannerSheet { code in
+                    Task { await lookupBarcode(code) }
+                }
+            }
+            .sheet(item: $confirmCandidate) { candidate in
+                RemoteFoodConfirmSheet(candidate: candidate, log: log, settings: settings) {
+                    onSaved?()
+                    dismiss()
+                }
+            }
+            .alert("Lookup", isPresented: Binding(
+                get: { barcodeError != nil },
+                set: { if !$0 { barcodeError = nil } }
+            )) {
+                Button("OK", role: .cancel) { barcodeError = nil }
+                Button("Add custom") {
+                    barcodeError = nil
+                    beginCustomEntry()
+                }
+            } message: {
+                Text(barcodeError ?? "")
+            }
             .onChange(of: servings) { _, _ in
                 if !caloriesFocused {
                     syncCaloriesFromServings()
@@ -230,8 +263,21 @@ struct AddProteinSheet: View {
                     syncCaloriesFromServings()
                 }
             }
+            .onChange(of: search) { _, newValue in
+                scheduleUSDASearch(for: newValue)
+            }
             .onAppear {
                 searchFocused = true
+            }
+            .overlay {
+                if isLookingUpBarcode {
+                    ZStack {
+                        Color.black.opacity(0.2).ignoresSafeArea()
+                        ProgressView("Looking up…")
+                            .padding(20)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
             }
         }
     }
@@ -250,6 +296,8 @@ struct AddProteinSheet: View {
                 if !search.isEmpty {
                     Button {
                         search = ""
+                        usdaResults = []
+                        usdaError = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -258,8 +306,14 @@ struct AddProteinSheet: View {
                 }
             }
 
+            Button {
+                showBarcodeScanner = true
+            } label: {
+                Label("Scan barcode", systemImage: "barcode.viewfinder")
+            }
+
             if searchResults.isEmpty {
-                Text(search.isEmpty ? "Type a name to search the full list." : "No matches. Add it as a custom food.")
+                Text(search.isEmpty ? "Type a name to search the full list." : "No local matches.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -294,6 +348,10 @@ struct AddProteinSheet: View {
                 }
             }
 
+            if shouldShowUSDASection {
+                usdaSection
+            }
+
             Button {
                 beginCustomEntry()
             } label: {
@@ -302,7 +360,62 @@ struct AddProteinSheet: View {
         } header: {
             Text("Find food")
         } footer: {
-            Text("Search everything — lean, shakes, snacks, and foods you’ve saved. Category is set automatically when you pick one.")
+            Text("Search local foods first. Scan a package barcode (Open Food Facts) or search USDA when needed. Results save as presets.")
+        }
+    }
+
+    private var shouldShowUSDASection: Bool {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else { return false }
+        return searchResults.count < 3 || !usdaResults.isEmpty || isSearchingUSDA || usdaError != nil
+    }
+
+    @ViewBuilder
+    private var usdaSection: some View {
+        if settings.usdaAPIKey.isEmpty {
+            Text("Add a USDA API key in Settings → Food lookup to search the USDA database.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            if isSearchingUSDA {
+                HStack {
+                    ProgressView()
+                    Text("Searching USDA…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let usdaError {
+                Text(usdaError)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if !usdaResults.isEmpty {
+                Text("USDA results")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(usdaResults) { item in
+                    Button {
+                        confirmCandidate = item
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                            Text(item.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if !isSearchingUSDA, usdaError == nil, searchResults.count < 3 {
+                Button("Search USDA") {
+                    Task { await runUSDASearch(force: true) }
+                }
+            }
         }
     }
 
@@ -639,6 +752,81 @@ struct AddProteinSheet: View {
                 servingsPerUnit: 1
             )
             modelContext.insert(preset)
+        }
+    }
+
+    // MARK: - Remote lookup
+
+    private func lookupBarcode(_ code: String) async {
+        await MainActor.run { isLookingUpBarcode = true }
+        do {
+            let candidate = try await OpenFoodFactsClient.product(barcode: code)
+            await MainActor.run {
+                isLookingUpBarcode = false
+                confirmCandidate = candidate
+            }
+        } catch {
+            await MainActor.run {
+                isLookingUpBarcode = false
+                barcodeError = error.localizedDescription
+            }
+        }
+    }
+
+    private func scheduleUSDASearch(for query: String) {
+        usdaSearchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2, !settings.usdaAPIKey.isEmpty else {
+            usdaResults = []
+            usdaError = nil
+            isSearchingUSDA = false
+            return
+        }
+        // Only auto-search when local hits are thin.
+        guard searchResults.count < 3 else {
+            usdaResults = []
+            usdaError = nil
+            return
+        }
+        usdaSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled else { return }
+            await runUSDASearch(force: false)
+        }
+    }
+
+    private func runUSDASearch(force: Bool) async {
+        let trimmed = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return }
+        if settings.usdaAPIKey.isEmpty {
+            await MainActor.run {
+                usdaError = RemoteFoodError.missingAPIKey.localizedDescription
+            }
+            return
+        }
+        if !force, searchResults.count >= 3 { return }
+
+        await MainActor.run {
+            isSearchingUSDA = true
+            usdaError = nil
+        }
+        do {
+            let results = try await USDAFoodDataClient.search(query: trimmed, apiKey: settings.usdaAPIKey)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                usdaResults = results
+                isSearchingUSDA = false
+                if results.isEmpty {
+                    usdaError = "No USDA matches for “\(trimmed)”."
+                }
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                isSearchingUSDA = false
+                usdaResults = []
+                usdaError = error.localizedDescription
+            }
         }
     }
 }

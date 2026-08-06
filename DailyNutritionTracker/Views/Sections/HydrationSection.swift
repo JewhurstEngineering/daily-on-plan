@@ -11,6 +11,11 @@ struct HydrationSection: View {
 
     @State private var showBottleMenu = false
     @State private var showConfig = false
+    @State private var showBarcodeScanner = false
+    @State private var isLookingUpBarcode = false
+    @State private var barcodeError: String?
+    @State private var confirmCandidate: DrinkScanCandidate?
+    @State private var scanTargetIndex: Int?
 
     private var bottleOz: Double { max(settings.defaultBottleOz, 1) }
 
@@ -38,6 +43,19 @@ struct HydrationSection: View {
 
     private var totalOz: Int { log.totalHydrationOz(settings: settings) }
     private var proteinOz: Int { log.proteinHydrationOz(settings: settings) }
+
+    private var typeSummary: String {
+        let filled = log.waterSlots.compactMap { $0 }
+        guard !filled.isEmpty else { return "Long-press a bottle for type + size, or scan a drink" }
+        var counts: [String: Int] = [:]
+        var order: [String] = []
+        for slot in filled {
+            let key = slot.displayLabel
+            if counts[key] == nil { order.append(key) }
+            counts[key, default: 0] += 1
+        }
+        return order.map { "\($0) ×\(counts[$0] ?? 0)" }.joined(separator: " · ")
+    }
 
     var body: some View {
         SectionCard(
@@ -74,29 +92,37 @@ struct HydrationSection: View {
             }
 
             HStack(spacing: 6) {
-                Image(systemName: log.hasElectrolyteDrink ? "bolt.fill" : "bolt")
+                Image(systemName: log.hasElectrolyteDrink ? "bolt.fill" : "drop.fill")
                     .foregroundStyle(log.hasElectrolyteDrink ? Color.orange : Color.secondary)
-                Text(log.hasElectrolyteDrink
-                     ? "Electrolyte logged (\(log.electrolyteDrinkCount))"
-                     : "Long-press a bottle for type + size")
+                Text(typeSummary)
                     .font(.caption)
-                    .foregroundStyle(log.hasElectrolyteDrink ? .primary : .secondary)
+                    .foregroundStyle(.secondary)
             }
 
-            Button {
-                showBottleMenu = true
-            } label: {
-                HStack {
-                    Text("Drink size")
-                    Spacer()
-                    Text(nextBottleLabel)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button {
+                    showBottleMenu = true
+                } label: {
+                    HStack {
+                        Text("Drink size")
+                        Spacer()
+                        Text(nextBottleLabel)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .buttonStyle(.plain)
+
+                Button {
+                    scanTargetIndex = nil
+                    showBarcodeScanner = true
+                } label: {
+                    Label("Scan", systemImage: "barcode.viewfinder")
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.plain)
             .confirmationDialog("Drink size", isPresented: $showBottleMenu, titleVisibility: .visible) {
                 ForEach(bottleOptions, id: \.value) { option in
                     Button(option.label) {
@@ -107,17 +133,18 @@ struct HydrationSection: View {
                 Button("Cancel", role: .cancel) {}
             }
 
-            Text("Tap to fill or undo. Long-press for water/electrolyte and size. +\(nextBottleLabel) adds another bottle beyond the target grid.")
+            Text("Tap to fill or undo. Long-press for water / electrolyte / other and size. Scan a package to confirm oz + type.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
                 ForEach(Array(slots.enumerated()), id: \.offset) { index, value in
                     let filled = value != nil
-                    let electrolyte = value?.isElectrolyte == true
                     GlassButton(
                         isFilled: filled,
-                        isElectrolyte: electrolyte,
+                        drinkKind: value?.kind ?? .water,
+                        otherSubtype: value?.otherSubtype,
+                        isElectrolyte: value?.isElectrolyte == true,
                         label: filled ? formatOz(value!.oz) : nextBottleLabel
                     ) {
                         if index < log.waterSlots.count || filled {
@@ -130,38 +157,9 @@ struct HydrationSection: View {
                     }
                     .contextMenu {
                         if filled {
-                            Button {
-                                log.setWaterSlotElectrolyte(at: index, isElectrolyte: !electrolyte)
-                                persist()
-                            } label: {
-                                Label(
-                                    electrolyte ? "Mark as plain water" : "Mark as electrolyte",
-                                    systemImage: electrolyte ? "waterbottle" : "bolt.fill"
-                                )
-                            }
-                            Button("Clear", role: .destructive) {
-                                log.toggleWaterSlot(at: index, fillOz: bottleOz)
-                                persist()
-                            }
+                            filledContextMenu(index: index, record: value!)
                         } else {
-                            Menu {
-                                ForEach(bottleOptions, id: \.value) { option in
-                                    Button(option.label) {
-                                        ensureAndFill(index: index, oz: option.value, electrolyte: false)
-                                    }
-                                }
-                            } label: {
-                                Label("Fill as water", systemImage: "waterbottle.fill")
-                            }
-                            Menu {
-                                ForEach(bottleOptions, id: \.value) { option in
-                                    Button(option.label) {
-                                        ensureAndFill(index: index, oz: option.value, electrolyte: true)
-                                    }
-                                }
-                            } label: {
-                                Label("Fill as electrolyte", systemImage: "bolt.fill")
-                            }
+                            emptyContextMenu(index: index)
                         }
                     }
                 }
@@ -188,6 +186,34 @@ struct HydrationSection: View {
                 }
             })
         }
+        .sheet(isPresented: $showBarcodeScanner) {
+            BarcodeScannerSheet { code in
+                Task { await lookupBarcode(code) }
+            }
+        }
+        .sheet(item: $confirmCandidate) { candidate in
+            HydrationDrinkConfirmSheet(candidate: candidate, defaultOz: bottleOz) { oz, kind, subtype in
+                applyScannedDrink(oz: oz, kind: kind, otherSubtype: subtype)
+            }
+        }
+        .alert("Lookup", isPresented: Binding(
+            get: { barcodeError != nil },
+            set: { if !$0 { barcodeError = nil } }
+        )) {
+            Button("OK", role: .cancel) { barcodeError = nil }
+        } message: {
+            Text(barcodeError ?? "")
+        }
+        .overlay {
+            if isLookingUpBarcode {
+                ZStack {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    ProgressView("Looking up…")
+                        .padding(20)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
         .onAppear {
             if log.waterSlots.count < targetSlotCount {
                 log.ensureWaterSlotCount(targetSlotCount)
@@ -196,12 +222,129 @@ struct HydrationSection: View {
         }
     }
 
-    private func ensureAndFill(index: Int, oz: Double, electrolyte: Bool) {
+    @ViewBuilder
+    private func emptyContextMenu(index: Int) -> some View {
+        Menu {
+            ForEach(bottleOptions, id: \.value) { option in
+                Button(option.label) {
+                    ensureAndFill(index: index, oz: option.value, kind: .water)
+                }
+            }
+        } label: {
+            Label("Fill as water", systemImage: "waterbottle.fill")
+        }
+        Menu {
+            ForEach(bottleOptions, id: \.value) { option in
+                Button(option.label) {
+                    ensureAndFill(index: index, oz: option.value, kind: .electrolyte)
+                }
+            }
+        } label: {
+            Label("Fill as electrolyte", systemImage: "bolt.fill")
+        }
+        Menu {
+            ForEach(HydrationOtherSubtype.allCases) { subtype in
+                Menu {
+                    ForEach(bottleOptions, id: \.value) { option in
+                        Button(option.label) {
+                            ensureAndFill(index: index, oz: option.value, kind: .other, otherSubtype: subtype)
+                        }
+                    }
+                } label: {
+                    Label(
+                        subtype.title,
+                        systemImage: WaterSlotRecord(oz: 1, kind: .other, otherSubtype: subtype).resolvedSystemImage
+                    )
+                }
+            }
+        } label: {
+            Label("Fill as other", systemImage: "drop.fill")
+        }
+        Button {
+            scanTargetIndex = index
+            showBarcodeScanner = true
+        } label: {
+            Label("Scan barcode", systemImage: "barcode.viewfinder")
+        }
+    }
+
+    @ViewBuilder
+    private func filledContextMenu(index: Int, record: WaterSlotRecord) -> some View {
+        Button {
+            log.setWaterSlotKind(at: index, kind: .water)
+            persist()
+        } label: {
+            Label("Mark as water", systemImage: "waterbottle.fill")
+        }
+        Button {
+            log.setWaterSlotKind(at: index, kind: .electrolyte)
+            persist()
+        } label: {
+            Label("Mark as electrolyte", systemImage: "bolt.fill")
+        }
+        Menu {
+            ForEach(HydrationOtherSubtype.allCases) { subtype in
+                Button {
+                    log.setWaterSlotKind(at: index, kind: .other, otherSubtype: subtype)
+                    persist()
+                } label: {
+                    Label(
+                        subtype.title,
+                        systemImage: WaterSlotRecord(oz: 1, kind: .other, otherSubtype: subtype).resolvedSystemImage
+                    )
+                }
+            }
+        } label: {
+            Label("Mark as other", systemImage: "drop.fill")
+        }
+        Button("Clear", role: .destructive) {
+            log.toggleWaterSlot(at: index, fillOz: bottleOz)
+            persist()
+        }
+    }
+
+    private func ensureAndFill(
+        index: Int,
+        oz: Double,
+        kind: HydrationDrinkKind,
+        otherSubtype: HydrationOtherSubtype? = nil
+    ) {
         if index >= log.waterSlots.count {
             log.ensureWaterSlotCount(targetSlotCount)
         }
-        log.setWaterSlot(at: index, oz: oz, isElectrolyte: electrolyte)
+        log.setWaterSlot(at: index, oz: oz, kind: kind, otherSubtype: otherSubtype)
         persist()
+    }
+
+    private func applyScannedDrink(oz: Double, kind: HydrationDrinkKind, otherSubtype: HydrationOtherSubtype?) {
+        if let index = scanTargetIndex {
+            ensureAndFill(index: index, oz: oz, kind: kind, otherSubtype: otherSubtype)
+        } else {
+            log.fillNextWaterSlot(
+                oz: oz,
+                ensuringMinimumSlots: targetSlotCount,
+                kind: kind,
+                otherSubtype: otherSubtype
+            )
+            persist()
+        }
+        scanTargetIndex = nil
+    }
+
+    private func lookupBarcode(_ code: String) async {
+        await MainActor.run { isLookingUpBarcode = true }
+        do {
+            let candidate = try await OpenFoodFactsClient.drink(barcode: code)
+            await MainActor.run {
+                isLookingUpBarcode = false
+                confirmCandidate = candidate
+            }
+        } catch {
+            await MainActor.run {
+                isLookingUpBarcode = false
+                barcodeError = error.localizedDescription
+            }
+        }
     }
 
     private func formatOz(_ oz: Double) -> String {
@@ -213,6 +356,7 @@ struct HydrationSection: View {
 
     private func persist() {
         try? modelContext.save()
+        WidgetReloader.reloadAll()
         Task {
             await healthKit.writeWater(ounces: log.totalHydrationOz(settings: settings), on: date)
         }
@@ -274,7 +418,7 @@ struct HydrationConfigSheet: View {
                 } header: {
                     Text("Daily goal")
                 } footer: {
-                    Text("Type any number like 180. Not locked to bottle-size multiples. Long-press bottles on the day view to mark electrolytes.")
+                    Text("Type any number like 180. Long-press bottles to set water, electrolyte, or other (tea, soda…).")
                 }
 
                 Section("Default drink size") {
@@ -311,32 +455,36 @@ struct HydrationConfigSheet: View {
                                     try? modelContext.save()
                                 }
                             ),
-                            in: 4...32,
+                            in: 4...40,
                             step: 1
                         )
                     }
                 } header: {
                     Text("Protein drinks")
-                } footer: {
-                    Text("When on, protein shakes and ready-to-drink items add fluid ounces to today’s hydration total (in addition to protein calories).")
                 }
 
                 if onOpenFullSettings != nil {
                     Section {
-                        Button("Open full Settings…") {
+                        Button("Open full Hydration settings") {
                             onOpenFullSettings?()
                         }
                     }
                 }
             }
             .navigationTitle("Hydration Goals")
-            .keyboardDoneToolbar(focus: $targetFocused)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         commitTarget()
-                        Keyboard.dismiss()
                         dismiss()
+                    }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        targetFocused = false
+                        commitTarget()
                     }
                 }
             }
@@ -350,8 +498,8 @@ struct HydrationConfigSheet: View {
     }
 
     private func commitTarget() {
-        if let value = Int(targetText.filter(\.isNumber)) {
-            settings.hydrationTargetOz = min(max(value, 16), 400)
+        if let value = Int(targetText), value > 0 {
+            settings.hydrationTargetOz = min(400, max(16, value))
             targetText = "\(settings.hydrationTargetOz)"
             try? modelContext.save()
         }

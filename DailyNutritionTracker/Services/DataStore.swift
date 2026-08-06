@@ -4,20 +4,8 @@ import SwiftData
 @MainActor
 enum DataStore {
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([
-            DailyLog.self,
-            FeelingEntry.self,
-            ProteinEntry.self,
-            WorkoutEntry.self,
-            WeightEntry.self,
-            BodyCompositionReading.self,
-            CustomFoodPreset.self,
-            SavedMeal.self,
-            AppSettings.self
-        ])
-        let config = ModelConfiguration(isStoredInMemoryOnly: false)
         do {
-            return try ModelContainer(for: schema, configurations: [config])
+            return try SharedModelContainer.shared()
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -41,6 +29,18 @@ enum DataStore {
     }
 
     static func log(for date: Date, in context: ModelContext, defaultGoal: Int = 500) -> DailyLog {
+        if let existing = existingLog(for: date, in: context) {
+            return existing
+        }
+        let start = DateHelpers.startOfDay(date)
+        let created = DailyLog(date: start, proteinGoal: defaultGoal)
+        context.insert(created)
+        try? context.save()
+        return created
+    }
+
+    /// Returns an existing day log without creating one.
+    static func existingLog(for date: Date, in context: ModelContext) -> DailyLog? {
         let start = DateHelpers.startOfDay(date)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
         var descriptor = FetchDescriptor<DailyLog>(
@@ -49,13 +49,7 @@ enum DataStore {
             }
         )
         descriptor.fetchLimit = 1
-        if let existing = try? context.fetch(descriptor).first {
-            return existing
-        }
-        let created = DailyLog(date: start, proteinGoal: defaultGoal)
-        context.insert(created)
-        try? context.save()
-        return created
+        return try? context.fetch(descriptor).first
     }
 
     static func weight(for date: Date, in context: ModelContext) -> WeightEntry? {

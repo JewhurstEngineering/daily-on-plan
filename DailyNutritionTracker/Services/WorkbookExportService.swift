@@ -244,8 +244,8 @@ enum WorkbookExportService {
         rows.append(["Electrolyte drinks", "\(log.electrolyteDrinkCount)"])
         let drinks = log.waterSlots.compactMap { slot -> String? in
             guard let slot else { return nil }
-            let label = formatOz(slot.oz)
-            return slot.isElectrolyte ? "\(label) electrolyte" : label
+            let amount = formatOz(slot.oz)
+            return "\(slot.displayLabel) \(amount)"
         }.joined(separator: ", ")
         rows.append(["Drinks", drinks.isEmpty ? "—" : drinks])
         rows.append([])

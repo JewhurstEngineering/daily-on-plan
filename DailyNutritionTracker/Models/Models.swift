@@ -471,46 +471,99 @@ final class DailyLog {
         waterSlots = slots
     }
 
-    func toggleWaterSlot(at index: Int, fillOz: Double, isElectrolyte: Bool = false) {
+    func toggleWaterSlot(
+        at index: Int,
+        fillOz: Double,
+        kind: HydrationDrinkKind = .water,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        isElectrolyte: Bool = false
+    ) {
         var slots = waterSlots
         while slots.count <= index { slots.append(nil) }
         if slots[index] != nil {
             slots[index] = nil
         } else {
-            slots[index] = WaterSlotRecord(oz: fillOz, isElectrolyte: isElectrolyte)
+            slots[index] = WaterSlotRecord(
+                oz: fillOz,
+                kind: isElectrolyte ? .electrolyte : kind,
+                otherSubtype: otherSubtype,
+                isElectrolyte: isElectrolyte
+            )
         }
         waterSlots = slots
     }
 
-    func setWaterSlot(at index: Int, oz: Double, isElectrolyte: Bool) {
+    func setWaterSlot(
+        at index: Int,
+        oz: Double,
+        kind: HydrationDrinkKind = .water,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        isElectrolyte: Bool = false
+    ) {
         var slots = waterSlots
         while slots.count <= index { slots.append(nil) }
-        slots[index] = WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte)
+        slots[index] = WaterSlotRecord(
+            oz: oz,
+            kind: isElectrolyte ? .electrolyte : kind,
+            otherSubtype: otherSubtype,
+            isElectrolyte: isElectrolyte
+        )
         waterSlots = slots
     }
 
-    func setWaterSlotElectrolyte(at index: Int, isElectrolyte: Bool) {
+    func setWaterSlotKind(
+        at index: Int,
+        kind: HydrationDrinkKind,
+        otherSubtype: HydrationOtherSubtype? = nil
+    ) {
         var slots = waterSlots
         guard index < slots.count, var record = slots[index] else { return }
-        record.isElectrolyte = isElectrolyte
+        record.kind = kind
+        record.otherSubtype = kind == .other ? (otherSubtype ?? .other) : nil
         slots[index] = record
         waterSlots = slots
     }
 
-    func appendFilledWaterSlot(oz: Double, isElectrolyte: Bool = false) {
+    func setWaterSlotElectrolyte(at index: Int, isElectrolyte: Bool) {
+        setWaterSlotKind(at: index, kind: isElectrolyte ? .electrolyte : .water)
+    }
+
+    func appendFilledWaterSlot(
+        oz: Double,
+        kind: HydrationDrinkKind = .water,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        isElectrolyte: Bool = false
+    ) {
         var slots = waterSlots
-        slots.append(WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte))
+        slots.append(WaterSlotRecord(
+            oz: oz,
+            kind: isElectrolyte ? .electrolyte : kind,
+            otherSubtype: otherSubtype,
+            isElectrolyte: isElectrolyte
+        ))
         waterSlots = slots
     }
 
     /// Fills the first empty slot, or appends if all filled.
-    func fillNextWaterSlot(oz: Double, ensuringMinimumSlots minimum: Int = 1, isElectrolyte: Bool = false) {
+    func fillNextWaterSlot(
+        oz: Double,
+        ensuringMinimumSlots minimum: Int = 1,
+        kind: HydrationDrinkKind = .water,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        isElectrolyte: Bool = false
+    ) {
         var slots = waterSlots
         while slots.count < minimum { slots.append(nil) }
+        let record = WaterSlotRecord(
+            oz: oz,
+            kind: isElectrolyte ? .electrolyte : kind,
+            otherSubtype: otherSubtype,
+            isElectrolyte: isElectrolyte
+        )
         if let empty = slots.firstIndex(where: { $0 == nil }) {
-            slots[empty] = WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte)
+            slots[empty] = record
         } else {
-            slots.append(WaterSlotRecord(oz: oz, isElectrolyte: isElectrolyte))
+            slots.append(record)
         }
         waterSlots = slots
     }
@@ -605,6 +658,113 @@ final class WeightEntry {
         self.date = Calendar.current.startOfDay(for: date)
         self.weightLbs = weightLbs
         self.timeLogged = timeLogged
+    }
+}
+
+/// Tape-measure session (neck, waist/stomach, arms, legs, etc.) tracked over time.
+@Model
+final class BodyMeasurementEntry {
+    var id: UUID
+    var date: Date
+    var neckInchesStored: Double?
+    var chestInchesStored: Double?
+    var waistInchesStored: Double?
+    var hipsInchesStored: Double?
+    var leftArmInchesStored: Double?
+    var rightArmInchesStored: Double?
+    var leftThighInchesStored: Double?
+    var rightThighInchesStored: Double?
+    var notes: String
+    var createdAt: Date
+
+    init(
+        date: Date = Date(),
+        neckInches: Double? = nil,
+        chestInches: Double? = nil,
+        waistInches: Double? = nil,
+        hipsInches: Double? = nil,
+        leftArmInches: Double? = nil,
+        rightArmInches: Double? = nil,
+        leftThighInches: Double? = nil,
+        rightThighInches: Double? = nil,
+        notes: String = ""
+    ) {
+        self.id = UUID()
+        self.date = Calendar.current.startOfDay(for: date)
+        self.neckInchesStored = Self.normalized(neckInches)
+        self.chestInchesStored = Self.normalized(chestInches)
+        self.waistInchesStored = Self.normalized(waistInches)
+        self.hipsInchesStored = Self.normalized(hipsInches)
+        self.leftArmInchesStored = Self.normalized(leftArmInches)
+        self.rightArmInchesStored = Self.normalized(rightArmInches)
+        self.leftThighInchesStored = Self.normalized(leftThighInches)
+        self.rightThighInchesStored = Self.normalized(rightThighInches)
+        self.notes = notes
+        self.createdAt = Date()
+    }
+
+    private static func normalized(_ value: Double?) -> Double? {
+        guard let value, value > 0 else { return nil }
+        return value
+    }
+
+    var neckInches: Double? {
+        get { neckInchesStored }
+        set { neckInchesStored = Self.normalized(newValue) }
+    }
+    var chestInches: Double? {
+        get { chestInchesStored }
+        set { chestInchesStored = Self.normalized(newValue) }
+    }
+    var waistInches: Double? {
+        get { waistInchesStored }
+        set { waistInchesStored = Self.normalized(newValue) }
+    }
+    var hipsInches: Double? {
+        get { hipsInchesStored }
+        set { hipsInchesStored = Self.normalized(newValue) }
+    }
+    var leftArmInches: Double? {
+        get { leftArmInchesStored }
+        set { leftArmInchesStored = Self.normalized(newValue) }
+    }
+    var rightArmInches: Double? {
+        get { rightArmInchesStored }
+        set { rightArmInchesStored = Self.normalized(newValue) }
+    }
+    var leftThighInches: Double? {
+        get { leftThighInchesStored }
+        set { leftThighInchesStored = Self.normalized(newValue) }
+    }
+    var rightThighInches: Double? {
+        get { rightThighInchesStored }
+        set { rightThighInchesStored = Self.normalized(newValue) }
+    }
+
+    var filledCount: Int {
+        [
+            neckInches, chestInches, waistInches, hipsInches,
+            leftArmInches, rightArmInches, leftThighInches, rightThighInches
+        ].compactMap { $0 }.count
+    }
+
+    func summaryLine(usesMetric: Bool) -> String {
+        var parts: [String] = []
+        let unit = usesMetric ? "cm" : "in"
+        func fmt(_ inches: Double?) -> String? {
+            guard let inches else { return nil }
+            let value = usesMetric ? inches * 2.54 : inches
+            return String(format: "%.1f %@", value, unit)
+        }
+        if let w = fmt(waistInches) { parts.append("Waist \(w)") }
+        if let n = fmt(neckInches) { parts.append("Neck \(n)") }
+        if let a = fmt(leftArmInches ?? rightArmInches) { parts.append("Arm \(a)") }
+        if let t = fmt(leftThighInches ?? rightThighInches) { parts.append("Thigh \(t)") }
+        if parts.isEmpty {
+            return filledCount == 0 ? "No measurements" : "\(filledCount) measurements"
+        }
+        if parts.count <= 3 { return parts.joined(separator: " · ") }
+        return parts.prefix(3).joined(separator: " · ") + " +\(parts.count - 3)"
     }
 }
 
@@ -717,37 +877,153 @@ final class BodyCompositionReading {
     }
 }
 
+enum HydrationDrinkKind: String, Codable, CaseIterable, Identifiable, Hashable {
+    case water
+    case electrolyte
+    case other
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .water: return "Water"
+        case .electrolyte: return "Electrolyte"
+        case .other: return "Other"
+        }
+    }
+}
+
+enum HydrationOtherSubtype: String, Codable, CaseIterable, Identifiable, Hashable {
+    case soda
+    case tea
+    case coffee
+    case juice
+    case sparkling
+    case milk
+    case other
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .soda: return "Soda"
+        case .tea: return "Tea"
+        case .coffee: return "Coffee"
+        case .juice: return "Juice"
+        case .sparkling: return "Sparkling"
+        case .milk: return "Milk"
+        case .other: return "Other"
+        }
+    }
+}
+
 struct WaterSlotRecord: Codable, Equatable, Hashable {
     var oz: Double
-    var isElectrolyte: Bool
+    var kind: HydrationDrinkKind
+    var otherSubtype: HydrationOtherSubtype?
 
-    init(oz: Double, isElectrolyte: Bool = false) {
+    init(
+        oz: Double,
+        kind: HydrationDrinkKind = .water,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        isElectrolyte: Bool = false
+    ) {
         self.oz = oz
-        self.isElectrolyte = isElectrolyte
+        if isElectrolyte {
+            self.kind = .electrolyte
+            self.otherSubtype = nil
+        } else {
+            self.kind = kind
+            self.otherSubtype = kind == .other ? (otherSubtype ?? .other) : nil
+        }
     }
+
+    var isElectrolyte: Bool {
+        get { kind == .electrolyte }
+        set {
+            if newValue {
+                kind = .electrolyte
+                otherSubtype = nil
+            } else if kind == .electrolyte {
+                kind = .water
+                otherSubtype = nil
+            }
+        }
+    }
+
+    var displayLabel: String {
+        switch kind {
+        case .water: return HydrationDrinkKind.water.title
+        case .electrolyte: return HydrationDrinkKind.electrolyte.title
+        case .other: return (otherSubtype ?? .other).title
+        }
+    }
+
+    var systemImage: String {
+        switch kind {
+        case .water:
+            return "waterbottle.fill"
+        case .electrolyte:
+            return "waterbottle.fill"
+        case .other:
+            switch otherSubtype ?? .other {
+            case .soda:
+                // soda.can.fill arrived in SF Symbols 6 / iOS 18 — blank on earlier OS.
+                if #available(iOS 18.0, *) { return "soda.can.fill" }
+                return "takeoutbag.and.cup.and.straw.fill"
+            case .tea:
+                return "cup.and.saucer.fill"
+            case .coffee:
+                if #available(iOS 17.0, *) { return "mug.fill" }
+                return "cup.and.saucer.fill"
+            case .juice:
+                return "wineglass.fill"
+            case .sparkling:
+                return "waterbottle.fill"
+            case .milk:
+                return "cup.and.saucer.fill"
+            case .other:
+                return "drop.fill"
+            }
+        }
+    }
+
+    var showsElectrolyteBadge: Bool { kind == .electrolyte }
 }
 
 private struct WaterSlotStored: Codable {
     var oz: Double
     var e: Bool?
+    var k: String?
+    var s: String?
 
-    init(oz: Double, e: Bool? = nil) {
+    init(oz: Double, e: Bool? = nil, k: String? = nil, s: String? = nil) {
         self.oz = oz
         self.e = e
+        self.k = k
+        self.s = s
     }
 
     init(from record: WaterSlotRecord?) {
         if let record {
             self.oz = record.oz
-            self.e = record.isElectrolyte ? true : nil
+            self.e = record.kind == .electrolyte ? true : nil
+            self.k = record.kind.rawValue
+            self.s = record.kind == .other ? (record.otherSubtype ?? .other).rawValue : nil
         } else {
             self.oz = -1
             self.e = nil
+            self.k = nil
+            self.s = nil
         }
     }
 
     var asRecord: WaterSlotRecord? {
         guard oz >= 0 else { return nil }
+        if let k, let kind = HydrationDrinkKind(rawValue: k) {
+            let subtype = s.flatMap(HydrationOtherSubtype.init(rawValue:))
+            return WaterSlotRecord(oz: oz, kind: kind, otherSubtype: subtype)
+        }
         return WaterSlotRecord(oz: oz, isElectrolyte: e == true)
     }
 }
@@ -1004,6 +1280,9 @@ final class AppSettings {
     var proteinDrinksCountTowardHydrationStored: Bool?
     var defaultShakeHydrationOzStored: Double?
 
+    // Food lookup (USDA FoodData Central)
+    var usdaAPIKeyStored: String?
+
     // Body composition reminders
     var bodyCompReminderEnabledStored: Bool?
     var bodyCompReminderCadenceRaw: String?
@@ -1128,6 +1407,11 @@ final class AppSettings {
     var defaultShakeHydrationOz: Double {
         get { defaultShakeHydrationOzStored ?? 8 }
         set { defaultShakeHydrationOzStored = max(1, min(newValue, 64)) }
+    }
+
+    var usdaAPIKey: String {
+        get { usdaAPIKeyStored ?? "" }
+        set { usdaAPIKeyStored = newValue.trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
     var bodyCompReminderEnabled: Bool {

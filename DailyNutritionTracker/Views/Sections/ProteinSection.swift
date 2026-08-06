@@ -16,7 +16,26 @@ struct ProteinSection: View {
     @State private var editTimeEntry: ProteinEntry?
     @State private var suggestionChips: [SuggestionItem] = []
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
-    @Query(sort: \SavedMeal.name) private var savedMeals: [SavedMeal]
+    @Query(sort: \SavedMeal.createdAt, order: .reverse) private var savedMeals: [SavedMeal]
+
+    private var recentMeals: [SavedMeal] {
+        UsageSuggestions.recentMealChips(meals: savedMeals, limit: 4)
+    }
+
+    private var yesterdayLog: DailyLog? {
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: DateHelpers.startOfDay(log.date)) else {
+            return nil
+        }
+        return DataStore.existingLog(for: yesterday, in: modelContext)
+    }
+
+    private var canCopyYesterday: Bool {
+        guard let yesterdayLog else { return false }
+        return !yesterdayLog.proteinEntries.isEmpty
+            || !yesterdayLog.checkedFatsAndVeggies.isEmpty
+            || !yesterdayLog.checkedFruits.isEmpty
+            || !yesterdayLog.checkedMiscItems.isEmpty
+    }
 
     var body: some View {
         SectionCard(
@@ -48,13 +67,13 @@ struct ProteinSection: View {
                 }
             }
 
-            if !savedMeals.isEmpty {
-                Text("Saved meals")
+            if !recentMeals.isEmpty {
+                Text("Recent meals")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(savedMeals, id: \.id) { meal in
+                        ForEach(recentMeals, id: \.id) { meal in
                             Button(meal.name) {
                                 MealLogger.apply(components: meal.components, to: log, settings: settings)
                                 try? modelContext.save()
@@ -91,6 +110,16 @@ struct ProteinSection: View {
                         showMeals = true
                     } label: {
                         Label("Meals", systemImage: "square.stack.3d.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if canCopyYesterday {
+                    Button {
+                        copyYesterday()
+                    } label: {
+                        Label("Copy yesterday", systemImage: "arrow.uturn.backward")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -251,15 +280,22 @@ struct ProteinSection: View {
     private func addSuggestion(_ item: SuggestionItem) {
         let totalCalories = item.calories ?? 35
         let category = item.proteinCategory ?? ProteinCategory.other.rawValue
+        let servings = max(item.servings, 0.5)
+        let servingSize: String
+        if abs(servings - 1) < 0.01 {
+            servingSize = "1 serving"
+        } else {
+            servingSize = String(format: "%.1f× serving", servings)
+        }
         let entry = ProteinEntry(
             name: item.name,
-            servingSize: item.subtitle ?? "1 serving",
+            servingSize: servingSize,
             calories: totalCalories,
             proteinCategory: category,
-            servings: max(item.servings, 1),
+            servings: servings,
             hydrationOz: settings.suggestedHydrationOz(
                 forProteinCategory: category,
-                servings: max(item.servings, 1)
+                servings: servings
             )
         )
         modelContext.insert(entry)
@@ -282,6 +318,50 @@ struct ProteinSection: View {
         )
         modelContext.insert(entry)
         log.proteinEntries.append(entry)
+        try? modelContext.save()
+        refreshChips()
+    }
+
+    private func copyYesterday() {
+        guard let source = yesterdayLog else { return }
+        let now = Date()
+
+        for (index, protein) in source.sortedProteins.enumerated() {
+            let entry = ProteinEntry(
+                name: protein.name,
+                time: now.addingTimeInterval(TimeInterval(index)),
+                servingSize: protein.servingSize,
+                calories: protein.calories,
+                hungerBefore: 4,
+                hungerAfter: 6,
+                proteinCategory: protein.proteinCategory,
+                servings: protein.servings,
+                hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil
+            )
+            modelContext.insert(entry)
+            log.proteinEntries.append(entry)
+        }
+
+        for raw in source.checkedFatsAndVeggies {
+            let name = ChecklistStorage.name(of: raw)
+            if !log.checkedFatsAndVeggies.contains(where: { ChecklistStorage.name(of: $0) == name }) {
+                log.checkedFatsAndVeggies.append(raw)
+            }
+        }
+        for raw in source.checkedFruits {
+            let name = ChecklistStorage.name(of: raw)
+            if !log.checkedFruits.contains(where: { ChecklistStorage.name(of: $0) == name }) {
+                log.checkedFruits.append(raw)
+            }
+        }
+        for raw in source.checkedMiscItems {
+            guard log.checkedMiscItems.count < AppLimits.miscDailyLimit else { break }
+            let name = ChecklistStorage.name(of: raw)
+            if !log.checkedMiscItems.contains(where: { ChecklistStorage.name(of: $0) == name }) {
+                log.checkedMiscItems.append(raw)
+            }
+        }
+
         try? modelContext.save()
         refreshChips()
     }
@@ -468,6 +548,11 @@ struct QuickSnackSheet: View {
     @State private var customCalories = 55
     @FocusState private var customFocused: Bool
 
+    @State private var showBarcodeScanner = false
+    @State private var isLookingUpBarcode = false
+    @State private var barcodeError: String?
+    @State private var confirmCandidate: RemoteFoodCandidate?
+
     private var recentSnacks: [SuggestionItem] {
         UsageSuggestions.snackChips(in: modelContext, limit: 6)
     }
@@ -483,6 +568,14 @@ struct QuickSnackSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Button {
+                        showBarcodeScanner = true
+                    } label: {
+                        Label("Scan barcode", systemImage: "barcode.viewfinder")
+                    }
+                }
+
                 if !recentSnacks.isEmpty {
                     Section("Recent") {
                         ForEach(recentSnacks) { item in
@@ -534,6 +627,47 @@ struct QuickSnackSheet: View {
                 }
             }
             .keyboardDoneToolbar(focus: $customFocused)
+            .sheet(isPresented: $showBarcodeScanner) {
+                BarcodeScannerSheet { code in
+                    Task { await lookupBarcode(code) }
+                }
+            }
+            .sheet(item: $confirmCandidate) { candidate in
+                RemoteFoodConfirmSheet(
+                    candidate: candidate,
+                    log: log,
+                    settings: settings,
+                    defaultProteinCategory: .snack
+                ) {
+                    onLogged?()
+                    dismiss()
+                }
+            }
+            .alert("Lookup", isPresented: Binding(
+                get: { barcodeError != nil },
+                set: { if !$0 { barcodeError = nil } }
+            )) {
+                Button("OK", role: .cancel) { barcodeError = nil }
+                Button("Add custom") {
+                    barcodeError = nil
+                    showCustom = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        customFocused = true
+                    }
+                }
+            } message: {
+                Text(barcodeError ?? "")
+            }
+            .overlay {
+                if isLookingUpBarcode {
+                    ZStack {
+                        Color.black.opacity(0.2).ignoresSafeArea()
+                        ProgressView("Looking up…")
+                            .padding(20)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
         }
     }
 
@@ -578,5 +712,21 @@ struct QuickSnackSheet: View {
         let name = customName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         logSnack(name: name, servingSize: "1 serving", calories: customCalories, servings: 1)
+    }
+
+    private func lookupBarcode(_ code: String) async {
+        await MainActor.run { isLookingUpBarcode = true }
+        do {
+            let candidate = try await OpenFoodFactsClient.product(barcode: code)
+            await MainActor.run {
+                isLookingUpBarcode = false
+                confirmCandidate = candidate
+            }
+        } catch {
+            await MainActor.run {
+                isLookingUpBarcode = false
+                barcodeError = error.localizedDescription
+            }
+        }
     }
 }

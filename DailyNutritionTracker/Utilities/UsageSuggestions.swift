@@ -1,21 +1,6 @@
 import Foundation
 import SwiftData
 
-enum AppLimits {
-    static let proteinGoalMin = 100
-    static let proteinGoalMax = 3000
-    static let proteinGoalStep = 1
-    static let customFeelingMaxChars = 18
-    static let miscDailyLimit = 4
-    static let defaultBottleOz = 16.9
-    static let hydrationTargetOz = 64
-    static let defaultDailyCigaretteLimit = 20 // 1 pack
-    static let defaultCigarettesPerPack = 20
-    static let cigaretteLimitMax = 60
-    static let defaultDailyDrinkLimit = 2
-    static let drinkLimitMax = 20
-}
-
 /// Encodes checklist rows as `name|||amount` (legacy plain names still parse).
 enum ChecklistStorage {
     static let separator = "|||"
@@ -103,16 +88,7 @@ enum UsageSuggestions {
         var seen = Set<String>()
         for entry in entries {
             if seen.insert(entry.name).inserted {
-                let unit = unitCalories(for: entry)
-                latest.append(
-                    SuggestionItem(
-                        name: entry.name,
-                        subtitle: "1 serving · \(unit) kcal",
-                        calories: unit,
-                        proteinCategory: entry.proteinCategory,
-                        servings: 1
-                    )
-                )
+                latest.append(chip(from: entry))
             }
             if latest.count >= limit { break }
         }
@@ -121,20 +97,16 @@ enum UsageSuggestions {
         var popular: [SuggestionItem] = []
         for name in popularNames where !latest.contains(where: { $0.name == name }) {
             if let sample = entries.first(where: { $0.name == name }) {
-                let unit = unitCalories(for: sample)
-                popular.append(
-                    SuggestionItem(
-                        name: name,
-                        subtitle: "1 serving · \(unit) kcal",
-                        calories: unit,
-                        proteinCategory: sample.proteinCategory,
-                        servings: 1
-                    )
-                )
+                popular.append(chip(from: sample))
             }
         }
 
         return Array((latest + popular).prefix(limit))
+    }
+
+    /// Recently created saved meals for one-tap whole-plate logging.
+    static func recentMealChips(meals: [SavedMeal], limit: Int = 4) -> [SavedMeal] {
+        Array(meals.sorted { $0.createdAt > $1.createdAt }.prefix(limit))
     }
 
     /// Recent snack-category protein entries for one-tap Snack sheet.
@@ -249,14 +221,23 @@ enum UsageSuggestions {
         return Array((latest + popular).prefix(limit)).map { SuggestionItem(name: $0) }
     }
 
-    private static func unitCalories(for entry: ProteinEntry) -> Int {
-        if entry.servings > 0 {
-            return max(1, Int((Double(entry.calories) / entry.servings).rounded()))
+    /// Chip uses last-logged servings + total kcal so one tap repeats the same amount.
+    private static func chip(from entry: ProteinEntry) -> SuggestionItem {
+        let servings = max(entry.servings, 0.5)
+        let total = max(entry.calories, 1)
+        let subtitle: String
+        if abs(servings - 1) < 0.01 {
+            subtitle = "\(entry.servingSize) · \(total) kcal"
+        } else {
+            subtitle = String(format: "%.1f× · %d kcal", servings, total)
         }
-        if let cat = ProteinCategory(rawValue: entry.proteinCategory), let per = cat.caloriesPerServing {
-            return per
-        }
-        return entry.calories
+        return SuggestionItem(
+            name: entry.name,
+            subtitle: subtitle,
+            calories: total,
+            proteinCategory: entry.proteinCategory,
+            servings: servings
+        )
     }
 
     private static func rankedNames(_ names: [String], limit: Int) -> [String] {

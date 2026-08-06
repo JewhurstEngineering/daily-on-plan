@@ -31,7 +31,7 @@ enum ExportService {
                     "water",
                     day,
                     "",
-                    slot.isElectrolyte ? "electrolyte" : "water",
+                    slot.displayLabel.lowercased(),
                     String(format: "%.1f", slot.oz),
                     "slot \(index + 1)"
                 ]))

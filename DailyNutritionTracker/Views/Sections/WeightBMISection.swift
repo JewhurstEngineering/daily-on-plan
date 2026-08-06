@@ -10,6 +10,7 @@ struct WeightBMISection: View {
     let onSave: (Double) -> Void
     var onOpenSettings: (() -> Void)? = nil
     var onOpenBodyComposition: (() -> Void)? = nil
+    var onOpenBodyMeasurements: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accentPrimary) private var accentPrimary
@@ -18,6 +19,9 @@ struct WeightBMISection: View {
     @State private var isEditingWeight = false
     @State private var editWeightTime = false
     @FocusState private var weightFocused: Bool
+    @Query(sort: \BodyMeasurementEntry.date, order: .reverse) private var measurementEntries: [BodyMeasurementEntry]
+
+    private var latestMeasurement: BodyMeasurementEntry? { measurementEntries.first }
 
     private var unitLabel: String { settings.usesMetricWeight ? "kg" : "lb" }
 
@@ -129,6 +133,20 @@ struct WeightBMISection: View {
 
             goalBlock
 
+            if let latestMeasurement {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Latest measurements")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(DateHelpers.formattedDay(latestMeasurement.date))
+                        .font(.subheadline.weight(.semibold))
+                    Text(latestMeasurement.summaryLine(usesMetric: settings.usesMetricWeight))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+
             HStack(spacing: 10) {
                 if isEditingWeight {
                     TextField(settings.usesMetricWeight ? "Weight (kg)" : "Weight (lb)", text: $draftText)
@@ -156,7 +174,19 @@ struct WeightBMISection: View {
                         Label(weight == nil ? "Log weight" : "Update weight", systemImage: "pencil")
                     }
                     .buttonStyle(.bordered)
+                }
+            }
 
+            if !isEditingWeight {
+                HStack(spacing: 10) {
+                    if onOpenBodyMeasurements != nil {
+                        Button {
+                            onOpenBodyMeasurements?()
+                        } label: {
+                            Label("Measure", systemImage: "ruler")
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     if onOpenBodyComposition != nil {
                         Button {
                             onOpenBodyComposition?()

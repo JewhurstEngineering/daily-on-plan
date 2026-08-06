@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,6 +12,7 @@ struct ContentView: View {
     @State private var showExport = false
     @State private var showReports = false
     @State private var showBodyComposition = false
+    @State private var showBodyMeasurements = false
     @State private var pendingScrollSection: String?
 
     private var theme: AccentTheme {
@@ -37,6 +39,7 @@ struct ContentView: View {
                     selectedDate: $selectedDate,
                     onOpenSettings: { showSettings = true },
                     onOpenBodyComposition: { showBodyComposition = true },
+                    onOpenBodyMeasurements: { showBodyMeasurements = true },
                     pendingScrollSection: $pendingScrollSection
                 )
                 .navigationTitle(AppIdentity.displayName)
@@ -101,6 +104,16 @@ struct ContentView: View {
                     .environment(\.accentProgress, accentProgress)
                     .preferredColorScheme(scheme)
                 }
+                .sheet(isPresented: $showBodyMeasurements) {
+                    NavigationStack {
+                        BodyMeasurementsListView()
+                    }
+                    .tint(accentPrimary)
+                    .environment(\.accentTheme, theme)
+                    .environment(\.accentPrimary, accentPrimary)
+                    .environment(\.accentProgress, accentProgress)
+                    .preferredColorScheme(scheme)
+                }
                 .task {
                     snapToTodayIfNeeded()
                     _ = DataStore.settings(in: modelContext)
@@ -115,6 +128,8 @@ struct ContentView: View {
                             let settings = DataStore.settings(in: modelContext)
                             await NotificationService.shared.reschedule(using: settings)
                         }
+                    } else {
+                        WidgetReloader.reloadAll()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openDaySection)) { note in
@@ -122,6 +137,8 @@ struct ContentView: View {
                     if let section = note.userInfo?["section"] as? String {
                         if section == "bodyComposition" {
                             showBodyComposition = true
+                        } else if section == "bodyMeasurements" {
+                            showBodyMeasurements = true
                         } else {
                             pendingScrollSection = section
                         }

@@ -34,28 +34,28 @@ struct EatingChecklistRow: Identifiable, Hashable {
 struct EatingHydrationSlotRow: Identifiable, Hashable {
     let id: Int
     let oz: Double
-    let isElectrolyte: Bool
+    let displayLabel: String
+    let kind: HydrationDrinkKind
+    let otherSubtype: HydrationOtherSubtype?
 
     var amountLabel: String {
         oz == oz.rounded() ? String(format: "%.0f oz", oz) : String(format: "%.1f oz", oz)
     }
 
     var label: String {
-        isElectrolyte ? "\(amountLabel) electrolyte" : amountLabel
+        "\(displayLabel) \(amountLabel)"
     }
 }
 
 struct EatingHydrationGroup: Identifiable, Hashable {
-    var id: String { "\(oz)-\(isElectrolyte)" }
+    var id: String { "\(displayLabel)-\(oz)" }
     let count: Int
     let oz: Double
-    let isElectrolyte: Bool
+    let displayLabel: String
 
     var label: String {
         let amount = oz == oz.rounded() ? String(format: "%.0f oz", oz) : String(format: "%.1f oz", oz)
-        let unit = isElectrolyte ? "\(amount) electrolyte" : amount
-        if count <= 1 { return unit }
-        return "\(count) × \(unit)"
+        return "\(displayLabel) \(count)×\(amount)"
     }
 }
 
@@ -94,22 +94,22 @@ struct EatingDaySummary: Identifiable, Hashable {
         !proteins.isEmpty || !checklist.isEmpty || hydrationOz > 0
     }
 
-    /// Bottles grouped by oz + electrolyte, e.g. "9 × 16.9 oz".
+    /// Bottles grouped by type + oz, e.g. "Water 8×16.9 oz", "Tea 1×12 oz".
     var groupedHydrationSlots: [EatingHydrationGroup] {
-        var order: [(oz: Double, isElectrolyte: Bool)] = []
+        var order: [(label: String, oz: Double)] = []
         var counts: [String: Int] = [:]
         for slot in hydrationSlots {
-            let key = "\(slot.oz)-\(slot.isElectrolyte)"
+            let key = "\(slot.displayLabel)-\(slot.oz)"
             if counts[key] == nil {
-                order.append((slot.oz, slot.isElectrolyte))
+                order.append((slot.displayLabel, slot.oz))
             }
             counts[key, default: 0] += 1
         }
         return order.map { item in
             EatingHydrationGroup(
-                count: counts["\(item.oz)-\(item.isElectrolyte)"] ?? 0,
+                count: counts["\(item.label)-\(item.oz)"] ?? 0,
                 oz: item.oz,
-                isElectrolyte: item.isElectrolyte
+                displayLabel: item.label
             )
         }
     }
@@ -150,7 +150,13 @@ struct EatingDaySummary: Identifiable, Hashable {
 
         let filledSlots = log.waterSlots.compactMap { $0 }
         let hydrationSlots = filledSlots.enumerated().map { index, slot in
-            EatingHydrationSlotRow(id: index, oz: slot.oz, isElectrolyte: slot.isElectrolyte)
+            EatingHydrationSlotRow(
+                id: index,
+                oz: slot.oz,
+                displayLabel: slot.displayLabel,
+                kind: slot.kind,
+                otherSubtype: slot.otherSubtype
+            )
         }
 
         return EatingDaySummary(

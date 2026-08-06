@@ -5,6 +5,7 @@ struct DayView: View {
     @Binding var selectedDate: Date
     var onOpenSettings: (() -> Void)? = nil
     var onOpenBodyComposition: (() -> Void)? = nil
+    var onOpenBodyMeasurements: (() -> Void)? = nil
     @Binding var pendingScrollSection: String?
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
@@ -18,11 +19,13 @@ struct DayView: View {
         selectedDate: Binding<Date>,
         onOpenSettings: (() -> Void)? = nil,
         onOpenBodyComposition: (() -> Void)? = nil,
+        onOpenBodyMeasurements: (() -> Void)? = nil,
         pendingScrollSection: Binding<String?> = .constant(nil)
     ) {
         self._selectedDate = selectedDate
         self.onOpenSettings = onOpenSettings
         self.onOpenBodyComposition = onOpenBodyComposition
+        self.onOpenBodyMeasurements = onOpenBodyMeasurements
         self._pendingScrollSection = pendingScrollSection
     }
 
@@ -113,7 +116,8 @@ struct DayView: View {
                     saveWeight(lbs, existing: todayWeight)
                 },
                 onOpenSettings: onOpenSettings,
-                onOpenBodyComposition: onOpenBodyComposition
+                onOpenBodyComposition: onOpenBodyComposition,
+                onOpenBodyMeasurements: onOpenBodyMeasurements
             )
             .id("weight")
         case .smoking:

@@ -26,6 +26,8 @@
 	<string>$(PRODUCT_DISPLAY_NAME) reads water, alcoholic drinks, and body weight from Apple Health to keep your daily log in sync.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>$(PRODUCT_DISPLAY_NAME) writes water, alcoholic drinks, workouts, and body weight to Apple Health when you log them. Cigarette counts stay in the app only — HealthKit has no public nicotine type.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>$(PRODUCT_DISPLAY_NAME) uses the camera to scan food package barcodes.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -40,6 +42,17 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.dailyonplan.tracker</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dailyonplan</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
