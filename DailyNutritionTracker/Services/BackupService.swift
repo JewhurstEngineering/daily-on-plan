@@ -104,17 +104,17 @@ enum BackupService {
             for protein in logDTO.proteinEntries {
                 let entry = protein.makeModel()
                 context.insert(entry)
-                log.proteinEntries.append(entry)
+                log.proteins.append(entry)
             }
             for workout in logDTO.workoutEntries {
                 let entry = workout.makeModel()
                 context.insert(entry)
-                log.workoutEntries.append(entry)
+                log.workouts.append(entry)
             }
             for feeling in logDTO.feelingEntries {
                 let entry = feeling.makeModel()
                 context.insert(entry)
-                log.feelingEntries.append(entry)
+                log.feelings.append(entry)
             }
         }
 
@@ -157,6 +157,10 @@ enum BackupService {
     }
 
     // MARK: - Snapshot build
+
+    static func snapshot(from context: ModelContext) throws -> BackupSnapshot {
+        try makeSnapshot(from: context)
+    }
 
     private static func makeSnapshot(from context: ModelContext) throws -> BackupSnapshot {
         let logs = try context.fetch(FetchDescriptor<DailyLog>(sortBy: [SortDescriptor(\.date)]))
@@ -281,9 +285,9 @@ struct DailyLogDTO: Codable {
         drinkEventsJSON = log.drinkEventsJSON
         drinkUrgesJSON = log.drinkUrgesJSON
         bathroomEventsJSON = log.bathroomEventsJSON
-        proteinEntries = log.proteinEntries.map(ProteinEntryDTO.init(from:))
-        workoutEntries = log.workoutEntries.map(WorkoutEntryDTO.init(from:))
-        feelingEntries = log.feelingEntries.map(FeelingEntryDTO.init(from:))
+        proteinEntries = log.proteins.map(ProteinEntryDTO.init(from:))
+        workoutEntries = log.workouts.map(WorkoutEntryDTO.init(from:))
+        feelingEntries = log.feelings.map(FeelingEntryDTO.init(from:))
     }
 
     func makeModel() -> DailyLog {

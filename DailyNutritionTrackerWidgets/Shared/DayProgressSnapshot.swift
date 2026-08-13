@@ -192,7 +192,7 @@ enum DaySnapshotReader {
             return DaySnapshot(
                 proteinCalories: log?.totalProteinCalories ?? 0,
                 proteinGoal: log?.proteinGoal ?? settings.defaultProteinGoal,
-                proteinEntryCount: log?.proteinEntries.count ?? 0,
+                proteinEntryCount: log?.proteins.count ?? 0,
                 waterOz: log?.totalHydrationOz(settings: settings) ?? 0,
                 waterTargetOz: settings.hydrationTargetOz,
                 bottleOz: max(settings.defaultBottleOz, 1),

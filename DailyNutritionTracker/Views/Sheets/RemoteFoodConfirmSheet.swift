@@ -113,7 +113,7 @@ struct RemoteFoodConfirmSheet: View {
                 )
             )
             modelContext.insert(entry)
-            log.proteinEntries.append(entry)
+            log.proteins.append(entry)
         }
 
         try? modelContext.save()

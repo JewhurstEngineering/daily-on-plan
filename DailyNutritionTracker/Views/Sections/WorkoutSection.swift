@@ -58,7 +58,7 @@ struct WorkoutSection: View {
                         Text("\(workout.durationMinutes) min")
                             .font(.subheadline.monospacedDigit())
                         Button(role: .destructive) {
-                            log.workoutEntries.removeAll { $0.id == workout.id }
+                            log.workouts.removeAll { $0.id == workout.id }
                             modelContext.delete(workout)
                             try? modelContext.save()
                             refreshChips()
@@ -88,7 +88,7 @@ struct WorkoutSection: View {
     }
 
     private var hasHistory: Bool {
-        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.workoutEntries).isEmpty
+        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.workouts).isEmpty
     }
 
     private func refreshChips() {
@@ -100,9 +100,9 @@ struct WorkoutSection: View {
         let sourceDay = DateHelpers.startOfDay(log.date)
         workout.timeLogged = newDate
         if targetDay != sourceDay {
-            log.workoutEntries.removeAll { $0.id == workout.id }
+            log.workouts.removeAll { $0.id == workout.id }
             let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
-            targetLog.workoutEntries.append(workout)
+            targetLog.workouts.append(workout)
         }
         try? modelContext.save()
         refreshChips()
@@ -153,7 +153,7 @@ struct AddWorkoutSheet: View {
                         Keyboard.dismiss()
                         let entry = WorkoutEntry(activityName: name, durationMinutes: minutes)
                         modelContext.insert(entry)
-                        log.workoutEntries.append(entry)
+                        log.workouts.append(entry)
                         try? modelContext.save()
                         Task {
                             await healthKit.writeWorkout(name: name, durationMinutes: minutes, on: Date())

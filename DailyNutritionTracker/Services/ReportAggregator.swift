@@ -116,21 +116,21 @@ struct ReportSnapshot {
     }
 
     var topProteins: [NamedCount] {
-        ranked(logs.flatMap(\.proteinEntries).map(\.name))
+        ranked(logs.flatMap(\.proteins).map(\.name))
     }
 
     // MARK: Feelings
 
     var feelingCounts: [NamedCount] {
-        ranked(logs.flatMap(\.feelingEntries).map(\.type))
+        ranked(logs.flatMap(\.feelings).map(\.type))
     }
 
     var feelingsPerDay: [DailyMetricPoint] {
-        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.feelingEntries.count)) }
+        logs.map { DailyMetricPoint(date: $0.date, value: Double($0.feelings.count)) }
     }
 
     var totalFeelings: Int {
-        logs.reduce(0) { $0 + $1.feelingEntries.count }
+        logs.reduce(0) { $0 + $1.feelings.count }
     }
 
     // MARK: Checklist
@@ -163,21 +163,21 @@ struct ReportSnapshot {
         logs.map { log in
             DailyMetricPoint(
                 date: log.date,
-                value: Double(log.workoutEntries.reduce(0) { $0 + $1.durationMinutes })
+                value: Double(log.workouts.reduce(0) { $0 + $1.durationMinutes })
             )
         }
     }
 
     var workoutActivityCounts: [NamedCount] {
-        ranked(logs.flatMap(\.workoutEntries).map(\.activityName))
+        ranked(logs.flatMap(\.workouts).map(\.activityName))
     }
 
     var totalWorkoutMinutes: Int {
-        logs.flatMap(\.workoutEntries).reduce(0) { $0 + $1.durationMinutes }
+        logs.flatMap(\.workouts).reduce(0) { $0 + $1.durationMinutes }
     }
 
     var totalWorkoutSessions: Int {
-        logs.flatMap(\.workoutEntries).count
+        logs.flatMap(\.workouts).count
     }
 
     // MARK: Hydration
@@ -642,8 +642,8 @@ struct ReportSnapshot {
                 loggedDays: weekLogs.count,
                 avgProtein: avgProtein,
                 avgWater: avgWater,
-                totalFeelings: weekLogs.reduce(0) { $0 + $1.feelingEntries.count },
-                totalWorkoutMinutes: weekLogs.flatMap(\.workoutEntries).reduce(0) { $0 + $1.durationMinutes },
+                totalFeelings: weekLogs.reduce(0) { $0 + $1.feelings.count },
+                totalWorkoutMinutes: weekLogs.flatMap(\.workouts).reduce(0) { $0 + $1.durationMinutes },
                 daysAtWaterTarget: weekLogs.filter { $0.totalHydrationOz(settings: settings) >= target }.count,
                 daysOnProteinGoal: weekLogs.filter {
                     $0.totalProteinCalories > 0 && $0.totalProteinCalories <= $0.proteinGoal

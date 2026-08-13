@@ -99,7 +99,7 @@ enum MealLogger {
                         servings: component.servings
                     )
                 )
-                log.proteinEntries.append(entry)
+                log.proteins.append(entry)
             case .vegetable:
                 let raw = ChecklistStorage.encode(
                     name: component.name,

@@ -108,7 +108,7 @@ struct SuggestionItem: Identifiable, Hashable {
 enum UsageSuggestions {
     static func proteinChips(in context: ModelContext, limit: Int = 8) -> [SuggestionItem] {
         let logs = allLogs(in: context)
-        let entries = logs.flatMap(\.proteinEntries).sorted { $0.time > $1.time }
+        let entries = logs.flatMap(\.proteins).sorted { $0.time > $1.time }
         if entries.isEmpty {
             return FoodCatalog.quickProteinPresets.map {
                 SuggestionItem(
@@ -150,7 +150,7 @@ enum UsageSuggestions {
     static func snackChips(in context: ModelContext, limit: Int = 6) -> [SuggestionItem] {
         let logs = allLogs(in: context)
         let entries = logs
-            .flatMap(\.proteinEntries)
+            .flatMap(\.proteins)
             .filter { $0.proteinCategory == ProteinCategory.snack.rawValue }
             .sorted { $0.time > $1.time }
 
@@ -241,7 +241,7 @@ enum UsageSuggestions {
             "Swimming", "Running", "Cardio", "Calisthenics"
         ]
         let logs = allLogs(in: context)
-        let names = logs.flatMap(\.workoutEntries).sorted { $0.timeLogged > $1.timeLogged }.map(\.activityName)
+        let names = logs.flatMap(\.workouts).sorted { $0.timeLogged > $1.timeLogged }.map(\.activityName)
         if names.isEmpty {
             return defaults.map { SuggestionItem(name: $0) }
         }

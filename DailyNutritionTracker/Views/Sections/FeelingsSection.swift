@@ -35,9 +35,9 @@ struct FeelingsSection: View {
             title: "Feelings & Cravings",
             systemImage: "heart.text.square",
             isCollapsed: settings.sectionCollapsedBinding(.feelings, context: modelContext),
-            collapsedMessage: log.feelingEntries.isEmpty
+            collapsedMessage: log.feelings.isEmpty
                 ? DaySectionID.feelings.collapsedMessage
-                : "\(log.feelingEntries.count) logged — tap the chevron to show."
+                : "\(log.feelings.count) logged — tap the chevron to show."
         ) {
             // Equal-width pills so all categories fit without scrolling.
             HStack(spacing: 4) {
@@ -93,7 +93,7 @@ struct FeelingsSection: View {
                             } else {
                                 let entry = FeelingEntry(type: type.rawValue, note: "", timeLogged: Date())
                                 modelContext.insert(entry)
-                                log.feelingEntries.append(entry)
+                                log.feelings.append(entry)
                                 try? modelContext.save()
                                 noteTarget = entry
                                 noteText = ""
@@ -108,7 +108,7 @@ struct FeelingsSection: View {
             }
             .buttonStyle(.bordered)
 
-            if !log.feelingEntries.isEmpty {
+            if !log.feelings.isEmpty {
                 DisclosureGroup(isExpanded: $showLogList) {
                     VStack(spacing: 0) {
                         ForEach(log.sortedFeelings.reversed(), id: \.id) { entry in
@@ -129,7 +129,7 @@ struct FeelingsSection: View {
                                 .foregroundStyle(accentPrimary)
                                 .buttonStyle(.plain)
                                 Button(role: .destructive) {
-                                    log.feelingEntries.removeAll { $0.id == entry.id }
+                                    log.feelings.removeAll { $0.id == entry.id }
                                     modelContext.delete(entry)
                                     try? modelContext.save()
                                 } label: {
@@ -147,7 +147,7 @@ struct FeelingsSection: View {
                         }
                     }
                 } label: {
-                    Text("Logged today (\(log.feelingEntries.count))")
+                    Text("Logged today (\(log.feelings.count))")
                         .font(.subheadline.weight(.semibold))
                 }
             }
@@ -202,7 +202,7 @@ struct FeelingsSection: View {
     private func addFeeling(_ type: String) {
         let entry = FeelingEntry(type: type, note: "", timeLogged: Date())
         modelContext.insert(entry)
-        log.feelingEntries.append(entry)
+        log.feelings.append(entry)
         try? modelContext.save()
     }
 
@@ -211,9 +211,9 @@ struct FeelingsSection: View {
         let sourceDay = DateHelpers.startOfDay(log.date)
         entry.timeLogged = newDate
         if targetDay != sourceDay {
-            log.feelingEntries.removeAll { $0.id == entry.id }
+            log.feelings.removeAll { $0.id == entry.id }
             let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
-            targetLog.feelingEntries.append(entry)
+            targetLog.feelings.append(entry)
         }
         try? modelContext.save()
     }

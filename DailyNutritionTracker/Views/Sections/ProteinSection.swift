@@ -31,7 +31,7 @@ struct ProteinSection: View {
 
     private var canCopyYesterday: Bool {
         guard let yesterdayLog else { return false }
-        return !yesterdayLog.proteinEntries.isEmpty
+        return !yesterdayLog.proteins.isEmpty
             || !yesterdayLog.checkedFatsAndVeggies.isEmpty
             || !yesterdayLog.checkedFats.isEmpty
             || !yesterdayLog.checkedFruits.isEmpty
@@ -240,7 +240,7 @@ struct ProteinSection: View {
     }
 
     private var hasHistory: Bool {
-        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.proteinEntries).isEmpty
+        !((try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []).flatMap(\.proteins).isEmpty
     }
 
     private func refreshChips() {
@@ -248,7 +248,7 @@ struct ProteinSection: View {
     }
 
     private func delete(_ entry: ProteinEntry) {
-        log.proteinEntries.removeAll { $0.id == entry.id }
+        log.proteins.removeAll { $0.id == entry.id }
         modelContext.delete(entry)
         try? modelContext.save()
         refreshChips()
@@ -259,9 +259,9 @@ struct ProteinSection: View {
         let sourceDay = DateHelpers.startOfDay(log.date)
         entry.time = newDate
         if targetDay != sourceDay {
-            log.proteinEntries.removeAll { $0.id == entry.id }
+            log.proteins.removeAll { $0.id == entry.id }
             let targetLog = DataStore.log(for: targetDay, in: modelContext, defaultGoal: settings.defaultProteinGoal)
-            targetLog.proteinEntries.append(entry)
+            targetLog.proteins.append(entry)
         }
         try? modelContext.save()
         refreshChips()
@@ -305,7 +305,7 @@ struct ProteinSection: View {
             )
         )
         modelContext.insert(entry)
-        log.proteinEntries.append(entry)
+        log.proteins.append(entry)
         try? modelContext.save()
         refreshChips()
     }
@@ -323,7 +323,7 @@ struct ProteinSection: View {
             )
         )
         modelContext.insert(entry)
-        log.proteinEntries.append(entry)
+        log.proteins.append(entry)
         try? modelContext.save()
         refreshChips()
     }
@@ -345,7 +345,7 @@ struct ProteinSection: View {
                 hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil
             )
             modelContext.insert(entry)
-            log.proteinEntries.append(entry)
+            log.proteins.append(entry)
         }
 
         for raw in source.checkedFatsAndVeggies {
@@ -714,7 +714,7 @@ struct QuickSnackSheet: View {
             servings: servings
         )
         modelContext.insert(entry)
-        log.proteinEntries.append(entry)
+        log.proteins.append(entry)
         try? modelContext.save()
         onLogged?()
         dismiss()

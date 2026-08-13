@@ -12,9 +12,25 @@ final class DailyLog {
     var waterOz: Int
     /// JSON array of slot values; `null`/omitted means empty. Example: `[16.9, 24.0, null]`.
     var waterDrinksJSON: String?
-    @Relationship(deleteRule: .cascade) var proteinEntries: [ProteinEntry]
-    @Relationship(deleteRule: .cascade) var workoutEntries: [WorkoutEntry]
-    @Relationship(deleteRule: .cascade) var feelingEntries: [FeelingEntry]
+    @Relationship(deleteRule: .cascade, inverse: \ProteinEntry.log)
+    var proteinEntries: [ProteinEntry]? = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkoutEntry.log)
+    var workoutEntries: [WorkoutEntry]? = []
+    @Relationship(deleteRule: .cascade, inverse: \FeelingEntry.log)
+    var feelingEntries: [FeelingEntry]? = []
+
+    var proteins: [ProteinEntry] {
+        get { proteinEntries ?? [] }
+        set { proteinEntries = newValue }
+    }
+    var workouts: [WorkoutEntry] {
+        get { workoutEntries ?? [] }
+        set { workoutEntries = newValue }
+    }
+    var feelings: [FeelingEntry] {
+        get { feelingEntries ?? [] }
+        set { feelingEntries = newValue }
+    }
     /// Vegetables (and any leftover uncategorized items). Fats used to live here too.
     var checkedFatsAndVeggies: [String]
     /// Dedicated fats list. Empty on v1 stores until `ChecklistStorage.migrateFatsSplit` runs.
@@ -90,19 +106,19 @@ final class DailyLog {
     }
 
     var totalProteinCalories: Int {
-        proteinEntries.reduce(0) { $0 + $1.calories }
+        proteins.reduce(0) { $0 + $1.calories }
     }
 
     var sortedFeelings: [FeelingEntry] {
-        feelingEntries.sorted { $0.timeLogged < $1.timeLogged }
+        feelings.sorted { $0.timeLogged < $1.timeLogged }
     }
 
     var sortedProteins: [ProteinEntry] {
-        proteinEntries.sorted { $0.time < $1.time }
+        proteins.sorted { $0.time < $1.time }
     }
 
     var sortedWorkouts: [WorkoutEntry] {
-        workoutEntries.sorted { $0.timeLogged < $1.timeLogged }
+        workouts.sorted { $0.timeLogged < $1.timeLogged }
     }
 
     var waterSlots: [WaterSlotRecord?] {
@@ -151,7 +167,7 @@ final class DailyLog {
 
     func proteinHydrationOz(settings: AppSettings) -> Int {
         guard settings.proteinDrinksCountTowardHydration else { return 0 }
-        let total = proteinEntries.reduce(0.0) { $0 + $1.hydrationOz }
+        let total = proteins.reduce(0.0) { $0 + $1.hydrationOz }
         return Int(total.rounded())
     }
 
@@ -583,6 +599,7 @@ final class FeelingEntry {
     var type: String
     var timeLogged: Date
     var note: String
+    var log: DailyLog?
 
     init(type: String, note: String = "", timeLogged: Date = Date()) {
         self.id = UUID()
@@ -605,6 +622,7 @@ final class ProteinEntry {
     var servings: Double
     /// Fluid ounces counted toward hydration when the setting is on (shakes, RTDs, etc.).
     var hydrationOzStored: Double?
+    var log: DailyLog?
 
     init(
         name: String,
@@ -641,6 +659,7 @@ final class WorkoutEntry {
     var activityName: String
     var durationMinutes: Int
     var timeLogged: Date
+    var log: DailyLog?
 
     init(activityName: String, durationMinutes: Int, timeLogged: Date = Date()) {
         self.id = UUID()

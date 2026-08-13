@@ -770,7 +770,7 @@ struct AddProteinSheet: View {
                 : nil
         )
         modelContext.insert(entry)
-        log.proteinEntries.append(entry)
+        log.proteins.append(entry)
 
         if includesMealSides, !mealSides.isEmpty {
             let components = mealSides.map { side in
