@@ -1,4 +1,6 @@
 name: DailyOnPlan
+attributes:
+  LastUpgradeCheck: "2660"
 options:
   bundleIdPrefix: com.dailyonplan
   deploymentTarget:
@@ -90,6 +92,7 @@ targets:
         includes:
           - AppGroupStore.swift
           - SharedModelContainer.swift
+          - CloudKitJournal.swift
           - QuickAddService.swift
           - WidgetReloader.swift
           - DayProgressSnapshot.swift
@@ -100,7 +103,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.macos
         PRODUCT_DISPLAY_NAME: Daily On Plan
         INFOPLIST_KEY_CFBundleDisplayName: Daily On Plan
-        INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
         INFOPLIST_KEY_CFBundleIconName: AppIcon
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -191,6 +193,10 @@ targets:
       path: Apps/iOS/DailyOnPlan/DailyOnPlaniOS.entitlements
       properties:
         com.apple.developer.healthkit: true
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.dailyonplan.tracker
+        com.apple.developer.icloud-services:
+          - CloudKit
         com.apple.security.application-groups:
           - group.com.dailyonplan.tracker
   DailyOnPlaniOSWidgets:
@@ -241,9 +247,6 @@ targets:
           - Info.plist
           - "**/*.entitlements"
       - path: SharedWatch
-      - path: Apps/Shared
-        excludes:
-          - Assets.xcassets/AppIcon.appiconset
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.watchkitapp
@@ -268,9 +271,6 @@ targets:
         WKRunsIndependentlyOfCompanionApp: true
         CFBundleDisplayName: Daily On Plan
     dependencies:
-      - target: OnPlanCoreWatch
-        embed: true
-        codeSign: true
       - target: DailyOnPlanWatchWidgets
         embed: true
       - sdk: WatchConnectivity.framework
@@ -302,8 +302,6 @@ targets:
           - "@executable_path/Frameworks"
           - "@executable_path/../../Frameworks"
     dependencies:
-      - target: OnPlanCoreWatch
-        embed: false
       - sdk: WidgetKit.framework
       - sdk: SwiftUI.framework
 schemes:
