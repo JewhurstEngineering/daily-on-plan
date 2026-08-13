@@ -64,11 +64,12 @@ struct PhoneSettingsView: View {
                     } label: {
                         Label("About", systemImage: "info.circle")
                     }
-                    LabeledContent("Watch") {
-                        Text("Snapshot + quick-add")
-                            .foregroundStyle(.secondary)
+                    NavigationLink {
+                        PhoneWatchSettings()
+                    } label: {
+                        Label("Apple Watch", systemImage: "applewatch")
                     }
-                    Text("The Watch shows today’s rings and can log water, bathroom, smokes, and drinks when the iPhone is reachable.")
+                    Text("Configure the three Watch quick-add buttons. Logging still needs the iPhone reachable.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

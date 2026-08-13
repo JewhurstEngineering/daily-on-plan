@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OnPlanCore
 
 /// Shared quick-add writes used by widgets and the Watch phone bridge.
 @MainActor
@@ -18,15 +19,25 @@ enum QuickAddService {
     }
 
     static func addWaterBottle() -> Result {
+        addHydration(oz: nil, electrolyte: false)
+    }
+
+    static func addHydration(oz: Double?, electrolyte: Bool) -> Result {
         do {
             let (context, settings, log) = try context()
-            let bottle = max(settings.defaultBottleOz, 1)
-            let minimumSlots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
-            log.fillNextWaterSlot(oz: bottle, ensuringMinimumSlots: minimumSlots)
+            let bottle = max(oz ?? settings.defaultBottleOz, 1)
+            let minimumSlots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / max(settings.defaultBottleOz, 1))))
+            log.fillNextWaterSlot(
+                oz: bottle,
+                ensuringMinimumSlots: minimumSlots,
+                kind: electrolyte ? .electrolyte : .water,
+                isElectrolyte: electrolyte
+            )
             try context.save()
             notifySideEffects()
             let label = bottle == bottle.rounded() ? "\(Int(bottle))" : String(format: "%.1f", bottle)
-            return .success(message: "Logged \(label) oz of water.")
+            let kind = electrolyte ? "electrolytes" : "water"
+            return .success(message: "Logged \(label) oz of \(kind).")
         } catch {
             return .failure(message: error.localizedDescription)
         }
@@ -155,6 +166,7 @@ enum QuickAddService {
     #if os(iOS)
     static func makeWatchSnapshot() -> WatchDaySnapshot {
         let day = DaySnapshotReader.today()
+        let quick = DisplayPreferenceStore.load().watchQuickAdd
         return WatchDaySnapshot(
             proteinCalories: day.proteinCalories,
             proteinGoal: day.proteinGoal,
@@ -170,7 +182,9 @@ enum QuickAddService {
             bathroomEnabled: day.bathroomEnabled,
             followedPlan: day.followedPlan,
             ketosis: day.ketosis,
-            updatedAt: Date()
+            updatedAt: Date(),
+            quickAddSlots: quick.resolvedSlots.map(\.rawValue),
+            hydrationSizesOz: quick.hydrationSizesOz
         )
     }
     #endif

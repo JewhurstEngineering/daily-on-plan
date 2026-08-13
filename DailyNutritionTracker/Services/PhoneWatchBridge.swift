@@ -59,6 +59,10 @@ final class PhoneWatchBridge: NSObject, ObservableObject {
         switch action {
         case .addWater:
             result = QuickAddService.addWaterBottle()
+        case .addHydration:
+            let oz = message[WatchConnectivityKeys.ounces] as? Double
+            let electrolyte = message[WatchConnectivityKeys.electrolyte] as? Bool ?? false
+            result = QuickAddService.addHydration(oz: oz, electrolyte: electrolyte)
         case .addCigarette:
             result = QuickAddService.addCigarette()
         case .addDrink:

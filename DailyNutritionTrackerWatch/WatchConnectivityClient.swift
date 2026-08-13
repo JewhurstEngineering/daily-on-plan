@@ -35,6 +35,13 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
         send(action: .addWater)
     }
 
+    func addHydration(ounces: Double, electrolyte: Bool) {
+        send(action: .addHydration, extras: [
+            WatchConnectivityKeys.ounces: ounces,
+            WatchConnectivityKeys.electrolyte: electrolyte
+        ])
+    }
+
     func addCigarette() {
         send(action: .addCigarette)
     }
@@ -51,7 +58,7 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
         send(action: .addBathroomStool)
     }
 
-    private func send(action: WatchConnectivityKeys.Action) {
+    private func send(action: WatchConnectivityKeys.Action, extras: [String: Any] = [:]) {
         guard let session else {
             lastError = "WatchConnectivity unavailable."
             return
@@ -67,7 +74,8 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
 
         isSending = true
         lastError = nil
-        let message: [String: Any] = [WatchConnectivityKeys.action: action.rawValue]
+        var message: [String: Any] = [WatchConnectivityKeys.action: action.rawValue]
+        extras.forEach { message[$0.key] = $0.value }
         session.sendMessage(message, replyHandler: { [weak self] reply in
             Task { @MainActor in
                 self?.isSending = false

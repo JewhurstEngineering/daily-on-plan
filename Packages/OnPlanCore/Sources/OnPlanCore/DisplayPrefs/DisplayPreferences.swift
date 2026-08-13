@@ -16,6 +16,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
     public var colorVision: ColorVision
     public var distinguishWithoutColor: Bool
     public var highContrast: Bool
+    /// iPhone-configured Watch quick-add (pushed to Watch in the day snapshot).
+    public var watchQuickAdd: WatchQuickAdd
 
     public enum AppearanceMode: String, Codable, Sendable, CaseIterable {
         case system
@@ -281,7 +283,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         textSize: .defaultSize,
         colorVision: .typical,
         distinguishWithoutColor: false,
-        highContrast: false
+        highContrast: false,
+        watchQuickAdd: .default
     )
 
     public init(
@@ -298,7 +301,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         textSize: InterfaceSize = .defaultSize,
         colorVision: ColorVision = .typical,
         distinguishWithoutColor: Bool = false,
-        highContrast: Bool = false
+        highContrast: Bool = false,
+        watchQuickAdd: WatchQuickAdd = .default
     ) {
         self.launchAtLogin = launchAtLogin
         self.showInMenuBar = showInMenuBar
@@ -314,6 +318,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         self.colorVision = colorVision
         self.distinguishWithoutColor = distinguishWithoutColor
         self.highContrast = highContrast
+        self.watchQuickAdd = watchQuickAdd
     }
 
     public init(from decoder: Decoder) throws {
@@ -332,6 +337,73 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision = try c.decodeIfPresent(ColorVision.self, forKey: .colorVision) ?? .typical
         distinguishWithoutColor = try c.decodeIfPresent(Bool.self, forKey: .distinguishWithoutColor) ?? false
         highContrast = try c.decodeIfPresent(Bool.self, forKey: .highContrast) ?? false
+        watchQuickAdd = try c.decodeIfPresent(WatchQuickAdd.self, forKey: .watchQuickAdd) ?? .default
+    }
+}
+
+public struct WatchQuickAdd: Codable, Sendable, Equatable {
+    public var slots: [Action]
+    public var hydrationSizesOz: [Double]
+
+    public static let slotCount = 3
+    public static let sizePresets: [Double] = [8, 12, 16.9, 20, 24, 33.8]
+
+    public static let `default` = WatchQuickAdd(
+        slots: [.water, .electrolyte, .smoking],
+        hydrationSizesOz: [8, 12, 16.9, 24]
+    )
+
+    public init(slots: [Action], hydrationSizesOz: [Double]) {
+        self.slots = Self.normalized(slots)
+        self.hydrationSizesOz = hydrationSizesOz.isEmpty ? Self.default.hydrationSizesOz : hydrationSizesOz
+    }
+
+    public var resolvedSlots: [Action] { Self.normalized(slots) }
+
+    public static func normalized(_ slots: [Action]) -> [Action] {
+        var result = Array(slots.prefix(slotCount))
+        let fallback: [Action] = [.water, .electrolyte, .smoking]
+        while result.count < slotCount {
+            result.append(fallback[result.count % fallback.count])
+        }
+        return result
+    }
+
+    public enum Action: String, Codable, Sendable, CaseIterable, Identifiable {
+        case water
+        case electrolyte
+        case smoking
+        case drinking
+        case bathroomUrine
+        case bathroomStool
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .water: return "Water"
+            case .electrolyte: return "Electrolytes"
+            case .smoking: return "Smoking"
+            case .drinking: return "Drinking"
+            case .bathroomUrine: return "Urine"
+            case .bathroomStool: return "Stool"
+            }
+        }
+
+        public var systemImage: String {
+            switch self {
+            case .water: return "drop.fill"
+            case .electrolyte: return "bolt.fill"
+            case .smoking: return "flame.fill"
+            case .drinking: return "wineglass.fill"
+            case .bathroomUrine: return "drop"
+            case .bathroomStool: return "leaf"
+            }
+        }
+
+        public var needsHydrationSize: Bool {
+            self == .water || self == .electrolyte
+        }
     }
 }
 

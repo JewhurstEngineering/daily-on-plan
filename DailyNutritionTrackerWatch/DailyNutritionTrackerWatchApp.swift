@@ -5,25 +5,29 @@ import WatchConnectivity
 struct DailyNutritionTrackerWatchApp: App {
     @StateObject private var connectivity = WatchConnectivityClient.shared
 
-    init() {
-        WatchConnectivityClient.shared.activate()
-    }
-
     var body: some Scene {
         WindowGroup {
             WatchRootView()
                 .environmentObject(connectivity)
+                .onAppear {
+                    connectivity.activate()
+                }
         }
     }
 }
 
 struct WatchRootView: View {
     @EnvironmentObject private var connectivity: WatchConnectivityClient
+    @State private var page = 0
 
     var body: some View {
-        TabView {
+        TabView(selection: $page) {
             WatchSummaryView()
-            WatchActionsView()
+                .tag(0)
+            WatchActionsView {
+                page = 0
+            }
+            .tag(1)
         }
         #if os(watchOS)
         .tabViewStyle(.verticalPage)
@@ -139,74 +143,119 @@ struct WatchSummaryView: View {
 
 struct WatchActionsView: View {
     @EnvironmentObject private var connectivity: WatchConnectivityClient
+    var onLogged: () -> Void
+    @State private var nestedAction: String?
 
     private var snapshot: WatchDaySnapshot { connectivity.snapshot }
+    private var busy: Bool { !connectivity.isReachable || connectivity.isSending }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                Text("Quick Add")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                actionButton(
-                    title: "+\(snapshot.bottleLabel) oz",
-                    systemImage: "drop.fill",
-                    tint: .cyan,
-                    disabled: !connectivity.isReachable || connectivity.isSending
-                ) {
-                    connectivity.addWater()
-                }
-
-                if snapshot.bathroomEnabled {
-                    actionButton(
-                        title: "Urine",
-                        systemImage: "drop",
-                        tint: .blue,
-                        disabled: !connectivity.isReachable || connectivity.isSending
-                    ) {
-                        connectivity.addBathroomUrine()
-                    }
-                    actionButton(
-                        title: "Stool",
-                        systemImage: "leaf",
-                        tint: .brown,
-                        disabled: !connectivity.isReachable || connectivity.isSending
-                    ) {
-                        connectivity.addBathroomStool()
-                    }
-                }
-
-                if snapshot.smokingEnabled {
-                    actionButton(
-                        title: "Cigarette",
-                        systemImage: "flame.fill",
-                        tint: .orange,
-                        disabled: !connectivity.isReachable || connectivity.isSending
-                    ) {
-                        connectivity.addCigarette()
-                    }
-                }
-
-                if snapshot.drinkingEnabled {
-                    actionButton(
-                        title: "Drink",
-                        systemImage: "wineglass.fill",
-                        tint: .purple,
-                        disabled: !connectivity.isReachable || connectivity.isSending
-                    ) {
-                        connectivity.addDrink()
-                    }
-                }
-
-                if !connectivity.isReachable {
-                    Text("iPhone unreachable — open the app on your phone.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                if let nestedAction {
+                    nestedPage(for: nestedAction)
+                } else {
+                    rootPage
                 }
             }
             .padding(.horizontal, 4)
+        }
+    }
+
+    private var rootPage: some View {
+        VStack(spacing: 8) {
+            Text("Quick Add")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            ForEach(snapshot.resolvedQuickAddSlots, id: \.self) { slot in
+                let meta = WatchQuickAddMeta(slot)
+                actionButton(
+                    title: meta.title,
+                    systemImage: meta.systemImage,
+                    tint: meta.tint,
+                    disabled: busy && !meta.needsSize
+                ) {
+                    if meta.needsSize {
+                        nestedAction = slot
+                    } else {
+                        perform(slot)
+                        finishLog()
+                    }
+                }
+            }
+
+            if let error = connectivity.lastError {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            } else if !connectivity.isReachable {
+                Text("iPhone unreachable — open the app on your phone.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nestedPage(for slot: String) -> some View {
+        let meta = WatchQuickAddMeta(slot)
+        HStack {
+            Button {
+                nestedAction = nil
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+            }
+            .buttonStyle(.bordered)
+            Spacer()
+        }
+
+        Text(meta.title)
+            .font(.headline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+        ForEach(snapshot.resolvedHydrationSizes, id: \.self) { oz in
+            let label = oz == oz.rounded() ? "\(Int(oz)) oz" : String(format: "%.1f oz", oz)
+            actionButton(
+                title: "+\(label)",
+                systemImage: meta.systemImage,
+                tint: meta.tint,
+                disabled: busy
+            ) {
+                connectivity.addHydration(ounces: oz, electrolyte: slot == "electrolyte")
+                finishLog()
+            }
+        }
+
+        if !connectivity.isReachable {
+            Text("iPhone unreachable — open the app on your phone.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private func finishLog() {
+        nestedAction = nil
+        onLogged()
+    }
+
+    private func perform(_ slot: String) {
+        switch slot {
+        case "smoking":
+            connectivity.addCigarette()
+        case "drinking":
+            connectivity.addDrink()
+        case "bathroomUrine":
+            connectivity.addBathroomUrine()
+        case "bathroomStool":
+            connectivity.addBathroomStool()
+        case "electrolyte":
+            nestedAction = slot
+        default:
+            nestedAction = slot
         }
     }
 
@@ -224,5 +273,47 @@ struct WatchActionsView: View {
         .buttonStyle(.borderedProminent)
         .tint(tint)
         .disabled(disabled)
+    }
+}
+
+private struct WatchQuickAddMeta {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let needsSize: Bool
+
+    init(_ slot: String) {
+        switch slot {
+        case "electrolyte":
+            title = "Electrolytes"
+            systemImage = "bolt.fill"
+            tint = .yellow
+            needsSize = true
+        case "smoking":
+            title = "Smoking"
+            systemImage = "flame.fill"
+            tint = .orange
+            needsSize = false
+        case "drinking":
+            title = "Drinking"
+            systemImage = "wineglass.fill"
+            tint = .purple
+            needsSize = false
+        case "bathroomUrine":
+            title = "Urine"
+            systemImage = "drop"
+            tint = .blue
+            needsSize = false
+        case "bathroomStool":
+            title = "Stool"
+            systemImage = "leaf"
+            tint = .brown
+            needsSize = false
+        default:
+            title = "Water"
+            systemImage = "drop.fill"
+            tint = .cyan
+            needsSize = true
+        }
     }
 }
