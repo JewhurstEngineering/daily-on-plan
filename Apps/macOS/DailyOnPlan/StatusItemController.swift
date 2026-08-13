@@ -3,7 +3,8 @@ import SwiftUI
 import Combine
 import OnPlanCore
 
-/// AppKit status item — SwiftUI `MenuBarExtra` labels get clipped/`…` truncated.
+/// Previously hosted an AppKit `NSStatusItem`. macOS 26 Control Center drops
+/// those in a SwiftUI Settings-only app; the extra now lives in `MenuBarExtra`.
 @MainActor
 final class StatusItemController: NSObject {
     private var item: NSStatusItem?
@@ -20,6 +21,7 @@ final class StatusItemController: NSObject {
     func start(store: OnPlanStore) {
         self.store = store
         makeItem(store: store)
+        refreshTitle()
 
         store.$preferences
             .receive(on: DispatchQueue.main)
@@ -45,15 +47,17 @@ final class StatusItemController: NSObject {
                 self.applyPopoverAppearance(prefs)
             }
             .store(in: &cancellables)
-
-        refreshTitle()
     }
 
     private func makeItem(store: OnPlanStore) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.autosaveName = "DailyOnPlan.StatusItem"
+        item.isVisible = true
         if let button = item.button {
+            button.image = Self.menuBarLogo()
             button.imagePosition = .imageLeft
             button.imageScaling = .scaleProportionallyDown
+            button.title = "On Plan"
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.sendAction(on: [.leftMouseUp])
@@ -112,6 +116,7 @@ final class StatusItemController: NSObject {
     }
 
     func refreshTitle() {
+        item?.isVisible = true
         guard let store, let button = item?.button else { return }
         button.image = Self.menuBarLogo()
         button.imagePosition = .imageLeft
@@ -203,6 +208,7 @@ final class StatusItemController: NSObject {
         }
         let image = NSImage(systemSymbolName: "checkmark.seal.fill", accessibilityDescription: "Daily On Plan")
         image?.isTemplate = true
+        image?.size = NSSize(width: 18, height: 18)
         return image
     }
 }

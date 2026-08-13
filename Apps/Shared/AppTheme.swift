@@ -485,8 +485,9 @@ final class SystemAppearanceMonitor: ObservableObject {
     private init() {
         isDark = Self.read()
         observation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
-            let dark = Self.read()
-            DispatchQueue.main.async { self?.isDark = dark }
+            Task { @MainActor in
+                self?.isDark = Self.read()
+            }
         }
     }
 
