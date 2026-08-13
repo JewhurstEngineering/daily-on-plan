@@ -76,11 +76,22 @@ struct DataSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 SettingsPanel(
+                    title: "iCloud journal",
+                    systemImage: "icloud",
+                    subtitle: "Same day log as iPhone."
+                ) {
+                    Text("Protein, water, plan flags, and the rest of the journal sync with iPhone over iCloud when this Mac is signed into the same Apple ID. Theme and menu bar layout stay on this Mac. First sync can take a minute after you open the iPhone app.")
+                        .appFont(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                SettingsPanel(
                     title: "Backup on iPhone",
                     systemImage: "externaldrive",
                     subtitle: "Full backup and restore live on iPhone."
                 ) {
-                    Text("Create and restore backups from the iPhone app. This Mac reads the shared day log; export a backup on iPhone before deleting the app. Report exports from iPhone cannot restore data.")
+                    Text("Create and restore backups from the iPhone app. Export a backup on iPhone before deleting the app. Report exports from iPhone cannot restore data.")
                         .appFont(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

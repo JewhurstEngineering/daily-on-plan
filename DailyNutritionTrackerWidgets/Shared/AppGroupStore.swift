@@ -66,21 +66,25 @@ enum AppGroupStore {
         }
     }
 
-    static func makeConfiguration(
-        cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .none
-    ) -> ModelConfiguration {
+    static func makeConfiguration(cloudKitEnabled: Bool) -> ModelConfiguration {
         migrateLegacyStoreIfNeeded()
+        if cloudKitEnabled {
+            return ModelConfiguration(
+                "OnPlanJournal",
+                schema: schema,
+                groupContainer: .identifier(identifier),
+                cloudKitDatabase: .private(AppGroupIDs.cloudKitContainer)
+            )
+        }
         return ModelConfiguration(
             schema: schema,
             url: storeURL,
-            cloudKitDatabase: cloudKitDatabase
+            cloudKitDatabase: .none
         )
     }
 
-    static func makeContainer(
-        cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .none
-    ) throws -> ModelContainer {
-        let config = makeConfiguration(cloudKitDatabase: cloudKitDatabase)
+    static func makeContainer(cloudKitEnabled: Bool = false) throws -> ModelContainer {
+        let config = makeConfiguration(cloudKitEnabled: cloudKitEnabled)
         return try ModelContainer(for: schema, configurations: [config])
     }
 }

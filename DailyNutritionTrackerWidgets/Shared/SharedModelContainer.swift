@@ -1,9 +1,14 @@
 import Foundation
 import SwiftData
 import OnPlanCore
+import os.log
 
 enum SharedModelContainer {
     private static var cached: ModelContainer?
+    private static let log = Logger(subsystem: "com.dailyonplan", category: "CloudKit")
+
+    private(set) static var usesCloudKit = false
+    private(set) static var cloudKitError: String?
 
     @MainActor
     static func shared() throws -> ModelContainer {
@@ -11,16 +16,19 @@ enum SharedModelContainer {
 
         let container: ModelContainer
         #if WIDGET_EXTENSION
-        container = try AppGroupStore.makeContainer(cloudKitDatabase: .none)
+        container = try AppGroupStore.makeContainer(cloudKitEnabled: false)
+        usesCloudKit = false
         #else
         do {
-            container = try AppGroupStore.makeContainer(
-                cloudKitDatabase: .private(AppGroupIDs.cloudKitContainer)
-            )
+            container = try AppGroupStore.makeContainer(cloudKitEnabled: true)
+            usesCloudKit = true
+            cloudKitError = nil
+            log.info("Opened journal with CloudKit \(AppGroupIDs.cloudKitContainer, privacy: .public)")
         } catch {
-            // SwiftData CloudKit requires optional relationships; current @Model
-            // graphs may fail to open. Fall back to the same App Group file locally.
-            container = try AppGroupStore.makeContainer(cloudKitDatabase: .none)
+            cloudKitError = error.localizedDescription
+            usesCloudKit = false
+            log.error("CloudKit journal failed: \(error.localizedDescription, privacy: .public)")
+            container = try AppGroupStore.makeContainer(cloudKitEnabled: false)
         }
         #endif
         cached = container

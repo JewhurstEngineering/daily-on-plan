@@ -10,9 +10,14 @@ struct DailyOnPlanApp: App {
 
     init() {
         container = DataStore.makeContainer()
+        CloudKitLegacyImport.runIfNeeded()
         NotificationService.shared.configure(container: container)
         PhoneWatchBridge.shared.activate()
         PhoneWatchBridge.shared.pushSnapshot()
+        CloudKitJournal.observeRemoteChanges {
+            PhoneWatchBridge.shared.pushSnapshot()
+            WidgetReloader.reloadAll()
+        }
     }
 
     var body: some Scene {

@@ -41,20 +41,39 @@ enum DataStore {
     }
 
     /// Returns an existing day log without creating one.
+    /// If CloudKit has more than one row for the same calendar day (Mac used to
+    /// insert an empty "today"), pick the row with the most activity.
     static func existingLog(for date: Date, in context: ModelContext) -> DailyLog? {
         let start = DateHelpers.startOfDay(date)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
-        var descriptor = FetchDescriptor<DailyLog>(
+        let descriptor = FetchDescriptor<DailyLog>(
             predicate: #Predicate { log in
                 log.date >= start && log.date < end
             }
         )
-        descriptor.fetchLimit = 1
-        guard let log = try? context.fetch(descriptor).first else { return nil }
+        let logs = (try? context.fetch(descriptor)) ?? []
+        let log = logs.max(by: { activityScore($0) < activityScore($1) })
+        guard let log else { return nil }
         #if !WIDGET_EXTENSION
         ChecklistStorage.migrateFatsSplit(on: log)
         #endif
         return log
+    }
+
+    static func existingSettings(in context: ModelContext) -> AppSettings? {
+        var descriptor = FetchDescriptor<AppSettings>()
+        descriptor.fetchLimit = 1
+        return try? context.fetch(descriptor).first
+    }
+
+    private static func activityScore(_ log: DailyLog) -> Int {
+        log.proteins.count * 10
+            + log.totalProteinCalories
+            + log.slotWaterOz
+            + log.cigarettesSmoked
+            + log.drinksLogged
+            + log.urineCount
+            + log.stoolCount
     }
 
     static func migrateChecklistSplitIfNeeded(in context: ModelContext) {

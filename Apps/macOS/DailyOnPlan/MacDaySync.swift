@@ -1,4 +1,5 @@
 import SwiftData
+import Foundation
 import OnPlanCore
 
 enum MacDaySync {
@@ -14,5 +15,17 @@ enum MacDaySync {
         }
         store.setSnapshot(DaySnapshotBuilder.build(in: ctx))
         WidgetReloader.reloadAll()
+    }
+
+    @MainActor
+    static func startObserving(store: OnPlanStore) {
+        CloudKitJournal.observeRemoteChanges {
+            refresh(store: store)
+        }
+        Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
+            Task { @MainActor in
+                refresh(store: store)
+            }
+        }
     }
 }

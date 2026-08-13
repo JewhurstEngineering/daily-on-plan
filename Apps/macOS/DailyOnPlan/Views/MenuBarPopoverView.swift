@@ -59,6 +59,9 @@ struct MenuBarPopoverView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .appThemed(store.preferences)
         .appIntrinsicScale(store.preferences.interfaceSize.scale)
+        .onAppear {
+            MacDaySync.refresh(store: store)
+        }
     }
 
     private var header: some View {
@@ -76,9 +79,22 @@ struct MenuBarPopoverView: View {
                         .appFont(.caption)
                         .foregroundStyle(snapshot.isStale ? .orange : .secondary)
                 }
+                Text(iCloudStatusLine)
+                    .appFont(.caption2)
+                    .foregroundStyle(SharedModelContainer.usesCloudKit ? Color.secondary : Color.orange)
             }
             Spacer(minLength: 0)
         }
+    }
+
+    private var iCloudStatusLine: String {
+        if SharedModelContainer.usesCloudKit {
+            return "iCloud on"
+        }
+        if let error = SharedModelContainer.cloudKitError {
+            return "iCloud off: \(error)"
+        }
+        return "iCloud off"
     }
 
     @ViewBuilder

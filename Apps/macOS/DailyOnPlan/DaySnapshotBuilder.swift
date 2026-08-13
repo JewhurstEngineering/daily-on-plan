@@ -5,24 +5,30 @@ import OnPlanCore
 enum DaySnapshotBuilder {
     @MainActor
     static func build(in context: ModelContext, date: Date = Date()) -> ChromeSnapshot {
-        let settings = DataStore.settings(in: context)
-        let log = DataStore.log(for: date, in: context, defaultGoal: settings.defaultProteinGoal)
+        let settings = DataStore.existingSettings(in: context)
+        let log = DataStore.existingLog(for: date, in: context)
+        let waterOz: Int
+        if let log, let settings {
+            waterOz = log.totalHydrationOz(settings: settings)
+        } else {
+            waterOz = log?.slotWaterOz ?? 0
+        }
         return ChromeSnapshot(
             generatedAt: Date(),
-            followedPlan: log.followedPlan,
-            ketosis: log.ketosis,
-            proteinCalories: log.totalProteinCalories,
-            proteinGoal: log.proteinGoal,
-            waterOz: log.totalHydrationOz(settings: settings),
-            waterTargetOz: settings.hydrationTargetOz,
-            bottleOz: max(settings.defaultBottleOz, 1),
-            cigarettes: log.cigarettesSmoked,
-            drinks: log.drinksLogged,
-            urineCount: log.urineCount,
-            stoolCount: log.stoolCount,
-            smokingEnabled: settings.smokingMode.showsSection,
-            drinkingEnabled: settings.drinkingMode.showsSection,
-            bathroomEnabled: settings.showBathroomSection
+            followedPlan: log?.followedPlan ?? true,
+            ketosis: log?.ketosis ?? true,
+            proteinCalories: log?.totalProteinCalories ?? 0,
+            proteinGoal: log?.proteinGoal ?? settings?.defaultProteinGoal ?? 500,
+            waterOz: waterOz,
+            waterTargetOz: settings?.hydrationTargetOz ?? AppLimits.hydrationTargetOz,
+            bottleOz: max(settings?.defaultBottleOz ?? AppLimits.defaultBottleOz, 1),
+            cigarettes: log?.cigarettesSmoked ?? 0,
+            drinks: log?.drinksLogged ?? 0,
+            urineCount: log?.urineCount ?? 0,
+            stoolCount: log?.stoolCount ?? 0,
+            smokingEnabled: settings?.smokingMode.showsSection ?? false,
+            drinkingEnabled: settings?.drinkingMode.showsSection ?? false,
+            bathroomEnabled: settings?.showBathroomSection ?? true
         )
     }
 }
