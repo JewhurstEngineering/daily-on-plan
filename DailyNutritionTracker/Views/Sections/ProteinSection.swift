@@ -33,6 +33,7 @@ struct ProteinSection: View {
         guard let yesterdayLog else { return false }
         return !yesterdayLog.proteinEntries.isEmpty
             || !yesterdayLog.checkedFatsAndVeggies.isEmpty
+            || !yesterdayLog.checkedFats.isEmpty
             || !yesterdayLog.checkedFruits.isEmpty
             || !yesterdayLog.checkedMiscItems.isEmpty
     }
@@ -90,7 +91,7 @@ struct ProteinSection: View {
                     onWillPresentSheet?(scrollAnchor)
                     showAdd = true
                 } label: {
-                    Label("Add protein", systemImage: "plus.circle.fill")
+                    Label("Log meal", systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -127,7 +128,7 @@ struct ProteinSection: View {
             }
 
             if log.sortedProteins.isEmpty {
-                Text("Log meals with a multiplier (1×, 3×, 6×…) and hunger before/after. Or use Saved meals / Suggest.")
+                Text("Log a meal with protein, sides, and hunger in one step. Snack, saved meals, and the checklist are still there for leftovers.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -189,7 +190,12 @@ struct ProteinSection: View {
             }
         }
         .sheet(isPresented: $showAdd, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
-            AddProteinSheet(log: log, settings: settings) {
+            AddProteinSheet(
+                log: log,
+                settings: settings,
+                navigationTitleText: "Log meal",
+                includesMealSides: true
+            ) {
                 refreshChips()
             }
         }
@@ -346,6 +352,12 @@ struct ProteinSection: View {
             let name = ChecklistStorage.name(of: raw)
             if !log.checkedFatsAndVeggies.contains(where: { ChecklistStorage.name(of: $0) == name }) {
                 log.checkedFatsAndVeggies.append(raw)
+            }
+        }
+        for raw in source.checkedFats {
+            let name = ChecklistStorage.name(of: raw)
+            if !log.checkedFats.contains(where: { ChecklistStorage.name(of: $0) == name }) {
+                log.checkedFats.append(raw)
             }
         }
         for raw in source.checkedFruits {

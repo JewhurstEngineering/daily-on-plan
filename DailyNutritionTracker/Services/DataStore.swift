@@ -17,6 +17,7 @@ enum DataStore {
         if let existing = try? context.fetch(descriptor).first {
             let before = existing.notificationsDefaultsVersionStored ?? 0
             existing.migrateNotificationDefaultsIfNeeded()
+            migrateChecklistSplitIfNeeded(in: context)
             if before < 5 {
                 try? context.save()
             }
@@ -49,7 +50,31 @@ enum DataStore {
             }
         )
         descriptor.fetchLimit = 1
-        return try? context.fetch(descriptor).first
+        guard let log = try? context.fetch(descriptor).first else { return nil }
+        #if !WIDGET_EXTENSION
+        ChecklistStorage.migrateFatsSplit(on: log)
+        #endif
+        return log
+    }
+
+    static func migrateChecklistSplitIfNeeded(in context: ModelContext) {
+        #if WIDGET_EXTENSION
+        return
+        #else
+        let logs = (try? context.fetch(FetchDescriptor<DailyLog>())) ?? []
+        var changed = false
+        for log in logs {
+            let beforeFats = log.checkedFats.count
+            let beforeVeg = log.checkedFatsAndVeggies.count
+            ChecklistStorage.migrateFatsSplit(on: log)
+            if log.checkedFats.count != beforeFats || log.checkedFatsAndVeggies.count != beforeVeg {
+                changed = true
+            }
+        }
+        if changed {
+            try? context.save()
+        }
+        #endif
     }
 
     static func weight(for date: Date, in context: ModelContext) -> WeightEntry? {
@@ -121,5 +146,34 @@ enum DataStore {
         )
         descriptor.fetchLimit = 1
         return try? context.fetch(descriptor).first
+    }
+
+    static func bodyMeasurements(from start: Date, to end: Date, in context: ModelContext) -> [BodyMeasurementEntry] {
+        let startDay = DateHelpers.startOfDay(start)
+        let endExclusive = Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(end)) ?? end
+        let descriptor = FetchDescriptor<BodyMeasurementEntry>(
+            predicate: #Predicate { entry in
+                entry.date >= startDay && entry.date < endExclusive
+            },
+            sortBy: [SortDescriptor(\.date, order: .forward)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    static func allBodyMeasurements(in context: ModelContext) -> [BodyMeasurementEntry] {
+        let descriptor = FetchDescriptor<BodyMeasurementEntry>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    static func hasAnyJournalData(in context: ModelContext) -> Bool {
+        var logs = FetchDescriptor<DailyLog>()
+        logs.fetchLimit = 1
+        if let found = try? context.fetch(logs), !found.isEmpty { return true }
+        var weights = FetchDescriptor<WeightEntry>()
+        weights.fetchLimit = 1
+        if let found = try? context.fetch(weights), !found.isEmpty { return true }
+        return false
     }
 }

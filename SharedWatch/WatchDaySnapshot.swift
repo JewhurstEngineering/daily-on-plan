@@ -81,10 +81,15 @@ enum WatchSnapshotCache {
     static func save(_ snapshot: WatchDaySnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         UserDefaults.standard.set(data, forKey: WatchConnectivityKeys.snapshotCacheKey)
+        UserDefaults(suiteName: "group.com.dailyonplan.tracker.watch")?
+            .set(data, forKey: WatchConnectivityKeys.snapshotCacheKey)
     }
 
     static func load() -> WatchDaySnapshot {
-        guard let data = UserDefaults.standard.data(forKey: WatchConnectivityKeys.snapshotCacheKey),
+        let suite = UserDefaults(suiteName: "group.com.dailyonplan.tracker.watch")
+        let data = suite?.data(forKey: WatchConnectivityKeys.snapshotCacheKey)
+            ?? UserDefaults.standard.data(forKey: WatchConnectivityKeys.snapshotCacheKey)
+        guard let data,
               let snapshot = try? JSONDecoder().decode(WatchDaySnapshot.self, from: data) else {
             return .empty
         }

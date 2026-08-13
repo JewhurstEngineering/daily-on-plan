@@ -100,14 +100,18 @@ enum MealLogger {
                     )
                 )
                 log.proteinEntries.append(entry)
-            case .vegetable, .fat:
+            case .vegetable:
                 let raw = ChecklistStorage.encode(
                     name: component.name,
                     amount: component.amount ?? component.servingLabel
                 )
-                if !log.checkedFatsAndVeggies.contains(where: { ChecklistStorage.name(of: $0) == component.name }) {
-                    log.checkedFatsAndVeggies.append(raw)
-                }
+                ChecklistStorage.appendUnique(raw, to: &log.checkedFatsAndVeggies)
+            case .fat:
+                let raw = ChecklistStorage.encode(
+                    name: component.name,
+                    amount: component.amount ?? component.servingLabel
+                )
+                ChecklistStorage.appendUnique(raw, to: &log.checkedFats)
             case .fruit:
                 let raw = ChecklistStorage.encode(
                     name: component.name,

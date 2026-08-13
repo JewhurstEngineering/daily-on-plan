@@ -1,5 +1,10 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
+#if os(macOS)
+import AppKit
+#endif
 
 enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
     case system
@@ -241,6 +246,7 @@ extension EnvironmentValues {
 extension Color {
     /// `#RRGGBB` for persistence (drops alpha).
     func toHexRGB() -> String? {
+        #if canImport(UIKit)
         let ui = UIColor(self)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         guard ui.getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
@@ -250,6 +256,18 @@ extension Color {
             Int(round(g * 255)),
             Int(round(b * 255))
         )
+        #elseif os(macOS)
+        let ns = NSColor(self)
+        guard let rgb = ns.usingColorSpace(.sRGB) else { return nil }
+        return String(
+            format: "#%02X%02X%02X",
+            Int(round(rgb.redComponent * 255)),
+            Int(round(rgb.greenComponent * 255)),
+            Int(round(rgb.blueComponent * 255))
+        )
+        #else
+        return nil
+        #endif
     }
 }
 

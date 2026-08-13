@@ -56,6 +56,7 @@ struct AddProteinSheet: View {
     @Bindable var log: DailyLog
     let settings: AppSettings
     var navigationTitleText: String = "Add Protein"
+    var includesMealSides: Bool = true
     var onSaved: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
@@ -89,6 +90,11 @@ struct AddProteinSheet: View {
     @State private var usdaError: String?
     @State private var usdaSearchTask: Task<Void, Never>?
 
+    @State private var mealSides: Set<MealSidePick> = []
+    @State private var vegSideChips: [SuggestionItem] = []
+    @State private var fatSideChips: [SuggestionItem] = []
+    @State private var fruitSideChips: [SuggestionItem] = []
+
     @FocusState private var searchFocused: Bool
     @FocusState private var caloriesFocused: Bool
     @FocusState private var customNameFocused: Bool
@@ -100,11 +106,13 @@ struct AddProteinSheet: View {
         settings: AppSettings,
         initialCategory: ProteinCategory = .veryLean,
         navigationTitleText: String = "Add Protein",
+        includesMealSides: Bool = true,
         onSaved: (() -> Void)? = nil
     ) {
         self.log = log
         self.settings = settings
         self.navigationTitleText = navigationTitleText
+        self.includesMealSides = includesMealSides
         self.onSaved = onSaved
     }
 
@@ -185,12 +193,14 @@ struct AddProteinSheet: View {
                     amountSection
                     detailsSection
                     hydrationSection
+                    if includesMealSides { mealSidesSection }
                     hungerSection
                 } else if showCustomForm {
                     customFoodSection
                     amountSection
                     detailsSection
                     hydrationSection
+                    if includesMealSides { mealSidesSection }
                     hungerSection
                 } else {
                     searchSection
@@ -207,7 +217,7 @@ struct AddProteinSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if selected != nil || showCustomForm {
-                        Button("Save") { save() }
+                        Button(includesMealSides ? "Log meal" : "Save") { save() }
                             .disabled(!canSave)
                     }
                 }
@@ -268,6 +278,7 @@ struct AddProteinSheet: View {
             }
             .onAppear {
                 searchFocused = true
+                refreshMealSideChips()
             }
             .overlay {
                 if isLookingUpBarcode {
@@ -590,6 +601,44 @@ struct AddProteinSheet: View {
         }
     }
 
+    private var mealSidesSection: some View {
+        Section {
+            mealSideGroup(title: "Vegetables", chips: vegSideChips, category: .vegetable)
+            if settings.phase.allowsFatsAndFruits {
+                mealSideGroup(title: "Fats", chips: fatSideChips, category: .fat)
+                mealSideGroup(title: "Fruits", chips: fruitSideChips, category: .fruit)
+            } else {
+                Text("Fats and fruits unlock in Week 2+.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Also on this meal")
+        } footer: {
+            Text("One confirm logs protein plus sides. Use Fats, Veggies & More later for leftovers.")
+        }
+    }
+
+    @ViewBuilder
+    private func mealSideGroup(title: String, chips: [SuggestionItem], category: FoodCategory) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        if chips.isEmpty {
+            Text("No suggestions yet")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            FlexibleMealSideChips(items: chips, category: category, selection: $mealSides)
+        }
+    }
+
+    private func refreshMealSideChips() {
+        vegSideChips = UsageSuggestions.checklistChips(category: .vegetable, phase: settings.phase, in: modelContext)
+        fatSideChips = UsageSuggestions.checklistChips(category: .fat, phase: settings.phase, in: modelContext)
+        fruitSideChips = UsageSuggestions.checklistChips(category: .fruit, phase: settings.phase, in: modelContext)
+    }
+
     // MARK: - Actions
 
     private func select(_ item: ProteinSearchItem) {
@@ -723,6 +772,19 @@ struct AddProteinSheet: View {
         modelContext.insert(entry)
         log.proteinEntries.append(entry)
 
+        if includesMealSides, !mealSides.isEmpty {
+            let components = mealSides.map { side in
+                MealComponent(
+                    name: side.name,
+                    category: side.category,
+                    servingLabel: side.amount,
+                    unitCalories: 0,
+                    amount: side.amount
+                )
+            }
+            MealLogger.apply(components: components, to: log, settings: settings)
+        }
+
         try? modelContext.save()
         onSaved?()
         dismiss()
@@ -827,6 +889,51 @@ struct AddProteinSheet: View {
                 usdaResults = []
                 usdaError = error.localizedDescription
             }
+        }
+    }
+}
+
+private struct MealSidePick: Hashable, Identifiable {
+    var id: String { "\(category.rawValue)-\(name)" }
+    var category: FoodCategory
+    var name: String
+    var amount: String
+}
+
+private struct FlexibleMealSideChips: View {
+    let items: [SuggestionItem]
+    let category: FoodCategory
+    @Binding var selection: Set<MealSidePick>
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(items) { item in
+                    let pick = MealSidePick(
+                        category: category,
+                        name: item.name,
+                        amount: item.amount ?? item.subtitle ?? ChecklistStorage.defaultAmount(for: item.name, category: category)
+                    )
+                    let selected = selection.contains(pick)
+                    Button {
+                        if selected {
+                            selection.remove(pick)
+                        } else {
+                            selection.insert(pick)
+                        }
+                    } label: {
+                        Text(item.name)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(selected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.12))
+                            .foregroundStyle(selected ? Color.accentColor : Color.primary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
         }
     }
 }

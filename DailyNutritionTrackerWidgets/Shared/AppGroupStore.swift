@@ -1,8 +1,15 @@
 import Foundation
 import SwiftData
+import OnPlanCore
 
 enum AppGroupStore {
-    static let identifier = "group.com.dailyonplan.tracker"
+    static var identifier: String {
+        #if os(macOS)
+        AppGroupIDs.macOS
+        #else
+        AppGroupIDs.iOS
+        #endif
+    }
     static let storeFileName = "DailyOnPlan.store"
 
     /// Shared SwiftData store URL inside the App Group container.
@@ -59,12 +66,21 @@ enum AppGroupStore {
         }
     }
 
-    static func makeConfiguration() -> ModelConfiguration {
+    static func makeConfiguration(
+        cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .none
+    ) -> ModelConfiguration {
         migrateLegacyStoreIfNeeded()
         return ModelConfiguration(
             schema: schema,
             url: storeURL,
-            cloudKitDatabase: .none
+            cloudKitDatabase: cloudKitDatabase
         )
+    }
+
+    static func makeContainer(
+        cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .none
+    ) throws -> ModelContainer {
+        let config = makeConfiguration(cloudKitDatabase: cloudKitDatabase)
+        return try ModelContainer(for: schema, configurations: [config])
     }
 }

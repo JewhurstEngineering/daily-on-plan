@@ -5,7 +5,7 @@ import WidgetKit
 @MainActor
 enum BackupService {
     static let formatIdentifier = "dailyonplan.backup"
-    static let currentVersion = 1
+    static let currentVersion = 2
     static let fileExtension = "dopbackup"
 
     enum BackupError: LocalizedError {
@@ -244,6 +244,8 @@ struct DailyLogDTO: Codable {
     var waterOz: Int
     var waterDrinksJSON: String?
     var checkedFatsAndVeggies: [String]
+    /// Present in backup v2+. Missing on v1 — fats still live in `checkedFatsAndVeggies`.
+    var checkedFats: [String]?
     var checkedMiscItems: [String]
     var checkedFruits: [String]
     var completedSupplements: [String]
@@ -268,6 +270,7 @@ struct DailyLogDTO: Codable {
         waterOz = log.waterOz
         waterDrinksJSON = log.waterDrinksJSON
         checkedFatsAndVeggies = log.checkedFatsAndVeggies
+        checkedFats = log.checkedFats
         checkedMiscItems = log.checkedMiscItems
         checkedFruits = log.checkedFruits
         completedSupplements = log.completedSupplements
@@ -294,6 +297,8 @@ struct DailyLogDTO: Codable {
         log.waterOz = waterOz
         log.waterDrinksJSON = waterDrinksJSON
         log.checkedFatsAndVeggies = checkedFatsAndVeggies
+        log.checkedFats = checkedFats ?? []
+        ChecklistStorage.migrateFatsSplit(on: log)
         log.checkedMiscItems = checkedMiscItems
         log.checkedFruits = checkedFruits
         log.completedSupplements = completedSupplements

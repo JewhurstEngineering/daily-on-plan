@@ -25,9 +25,7 @@ struct ChecklistSection: View {
         ) {
             checklistGroup(
                 title: "Vegetables",
-                items: log.checkedFatsAndVeggies.filter { raw in
-                    FoodCatalog.vegetables.contains(where: { $0.name == ChecklistStorage.name(of: raw) })
-                },
+                items: ChecklistStorage.vegetables(in: log),
                 category: .vegetable,
                 chips: vegChips
             )
@@ -35,9 +33,7 @@ struct ChecklistSection: View {
             if settings.phase.allowsFatsAndFruits {
                 checklistGroup(
                     title: "Fats",
-                    items: log.checkedFatsAndVeggies.filter { raw in
-                        FoodCatalog.fats.contains(where: { $0.name == ChecklistStorage.name(of: raw) })
-                    },
+                    items: ChecklistStorage.fats(in: log),
                     category: .fat,
                     chips: fatChips
                 )
@@ -101,7 +97,10 @@ struct ChecklistSection: View {
                 onWillPresentSheet?(scrollAnchor)
             }
         }
-        .onAppear { refreshChips() }
+        .onAppear {
+            ChecklistStorage.migrateFatsSplit(on: log)
+            refreshChips()
+        }
     }
 
     @ViewBuilder
@@ -193,15 +192,14 @@ struct ChecklistSection: View {
         let encoded = ChecklistStorage.encode(name: name, amount: amount)
         switch category {
         case .fruit:
-            guard !log.checkedFruits.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
-            log.checkedFruits.append(encoded)
+            ChecklistStorage.appendUnique(encoded, to: &log.checkedFruits)
         case .misc:
             guard log.checkedMiscItems.count < AppLimits.miscDailyLimit else { return }
-            guard !log.checkedMiscItems.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
-            log.checkedMiscItems.append(encoded)
+            ChecklistStorage.appendUnique(encoded, to: &log.checkedMiscItems)
+        case .fat:
+            ChecklistStorage.appendUnique(encoded, to: &log.checkedFats)
         default:
-            guard !log.checkedFatsAndVeggies.contains(where: { ChecklistStorage.name(of: $0) == name }) else { return }
-            log.checkedFatsAndVeggies.append(encoded)
+            ChecklistStorage.appendUnique(encoded, to: &log.checkedFatsAndVeggies)
         }
         try? modelContext.save()
         refreshChips()
@@ -213,6 +211,8 @@ struct ChecklistSection: View {
             log.checkedFruits.removeAll { $0 == item }
         case .misc:
             log.checkedMiscItems.removeAll { $0 == item }
+        case .fat:
+            log.checkedFats.removeAll { $0 == item }
         default:
             log.checkedFatsAndVeggies.removeAll { $0 == item }
         }
@@ -232,6 +232,10 @@ struct ChecklistSection: View {
         case .misc:
             if let idx = log.checkedMiscItems.firstIndex(of: editingRaw) {
                 log.checkedMiscItems[idx] = encoded
+            }
+        case .fat:
+            if let idx = log.checkedFats.firstIndex(of: editingRaw) {
+                log.checkedFats[idx] = encoded
             }
         default:
             if let idx = log.checkedFatsAndVeggies.firstIndex(of: editingRaw) {

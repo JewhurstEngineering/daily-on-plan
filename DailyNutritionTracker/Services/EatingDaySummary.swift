@@ -127,17 +127,13 @@ struct EatingDaySummary: Identifiable, Hashable {
         }
 
         var checklist: [EatingChecklistRow] = []
-        for raw in log.checkedFatsAndVeggies {
+        for raw in ChecklistStorage.vegetables(in: log) {
             let parsed = ChecklistStorage.parse(raw)
-            let category: FoodCategory
-            if FoodCatalog.vegetables.contains(where: { $0.name == parsed.name }) {
-                category = .vegetable
-            } else if FoodCatalog.fats.contains(where: { $0.name == parsed.name }) {
-                category = .fat
-            } else {
-                category = .misc
-            }
-            checklist.append(EatingChecklistRow(category: category, name: parsed.name, amount: parsed.amount))
+            checklist.append(EatingChecklistRow(category: .vegetable, name: parsed.name, amount: parsed.amount))
+        }
+        for raw in ChecklistStorage.fats(in: log) {
+            let parsed = ChecklistStorage.parse(raw)
+            checklist.append(EatingChecklistRow(category: .fat, name: parsed.name, amount: parsed.amount))
         }
         for raw in log.checkedFruits {
             let parsed = ChecklistStorage.parse(raw)

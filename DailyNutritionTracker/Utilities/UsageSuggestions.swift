@@ -28,6 +28,43 @@ enum ChecklistStorage {
         return "\(parsed.name) · \(parsed.amount)"
     }
 
+    static func isFat(_ raw: String) -> Bool {
+        let name = name(of: raw)
+        return FoodCatalog.fats.contains { $0.name == name }
+    }
+
+    static func isVegetable(_ raw: String) -> Bool {
+        let name = name(of: raw)
+        return FoodCatalog.vegetables.contains { $0.name == name }
+    }
+
+    static func appendUnique(_ encoded: String, to array: inout [String]) {
+        let itemName = name(of: encoded)
+        guard !array.contains(where: { name(of: $0) == itemName }) else { return }
+        array.append(encoded)
+    }
+
+    static func vegetables(in log: DailyLog) -> [String] {
+        log.checkedFatsAndVeggies.filter { !isFat($0) }
+    }
+
+    static func fats(in log: DailyLog) -> [String] {
+        if !log.checkedFats.isEmpty {
+            return log.checkedFats
+        }
+        return log.checkedFatsAndVeggies.filter(isFat)
+    }
+
+    /// Moves fat items out of the combined veggies array into `checkedFats`. Safe to call repeatedly.
+    static func migrateFatsSplit(on log: DailyLog) {
+        let fatRaws = log.checkedFatsAndVeggies.filter(isFat)
+        guard !fatRaws.isEmpty else { return }
+        for raw in fatRaws {
+            appendUnique(raw, to: &log.checkedFats)
+        }
+        log.checkedFatsAndVeggies.removeAll(where: isFat)
+    }
+
     static func defaultAmount(for name: String, category: FoodCategory) -> String {
         let foods: [CatalogFood]
         switch category {
@@ -151,15 +188,12 @@ enum UsageSuggestions {
             raws = logs.flatMap(\.checkedFruits)
         case .misc:
             raws = logs.flatMap(\.checkedMiscItems)
+        case .fat:
+            raws = logs.flatMap { ChecklistStorage.fats(in: $0) }
+        case .vegetable:
+            raws = logs.flatMap { ChecklistStorage.vegetables(in: $0) }
         default:
-            raws = logs.flatMap(\.checkedFatsAndVeggies).filter { raw in
-                let name = ChecklistStorage.name(of: raw)
-                switch category {
-                case .vegetable: return FoodCatalog.vegetables.contains(where: { $0.name == name })
-                case .fat: return FoodCatalog.fats.contains(where: { $0.name == name })
-                default: return false
-                }
-            }
+            raws = logs.flatMap(\.checkedFatsAndVeggies)
         }
 
         if raws.isEmpty {

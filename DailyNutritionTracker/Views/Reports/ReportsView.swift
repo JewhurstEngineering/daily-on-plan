@@ -4,6 +4,7 @@ import Charts
 struct ReportsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    var showsCloseButton: Bool = true
 
     @State private var range: ReportRange = .days30
     @State private var endDate = Date()
@@ -93,6 +94,23 @@ struct ReportsView: View {
                     } label: {
                         Label("Weight & BMI", systemImage: "scalemass")
                     }
+                    if currentSnapshot.showsBathroomReport {
+                        NavigationLink {
+                            BathroomReportView(snapshot: currentSnapshot)
+                        } label: {
+                            Label("Bathroom", systemImage: "toilet")
+                        }
+                    }
+                    NavigationLink {
+                        BodyCompositionReportView(snapshot: currentSnapshot)
+                    } label: {
+                        Label("Body composition", systemImage: "figure.arms.open")
+                    }
+                    NavigationLink {
+                        TapeMeasurementsReportView(snapshot: currentSnapshot)
+                    } label: {
+                        Label("Tape measurements", systemImage: "ruler")
+                    }
                     if currentSnapshot.showsSmokingReport {
                         NavigationLink {
                             SmokingReportView(snapshot: currentSnapshot)
@@ -116,8 +134,10 @@ struct ReportsView: View {
             }
             .navigationTitle("Reports")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                if showsCloseButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { dismiss() }
+                    }
                 }
             }
             .onAppear { refresh() }
@@ -665,6 +685,185 @@ struct SupplementsReportView: View {
             .padding()
         }
         .navigationTitle("Supplements")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct BathroomReportView: View {
+    let snapshot: ReportSnapshot
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ReportMetricRow(title: "Urine", value: "\(snapshot.totalUrine)")
+                ReportMetricRow(title: "Stool", value: "\(snapshot.totalStool)")
+                ReportMetricRow(
+                    title: "Days logged",
+                    value: "\(snapshot.daysWithBathroomLog)/\(snapshot.logs.count)"
+                )
+
+                if snapshot.totalUrine > 0 {
+                    Text("Urine / day")
+                        .font(.headline)
+                    Chart(snapshot.urineSeries) { point in
+                        BarMark(
+                            x: .value("Day", point.date),
+                            y: .value("Count", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                    }
+                    .frame(height: 180)
+                }
+
+                if snapshot.totalStool > 0 {
+                    Text("Stool / day")
+                        .font(.headline)
+                    Chart(snapshot.stoolSeries) { point in
+                        BarMark(
+                            x: .value("Day", point.date),
+                            y: .value("Count", point.value)
+                        )
+                        .foregroundStyle(Color.orange)
+                    }
+                    .frame(height: 180)
+                }
+
+                if snapshot.totalUrine == 0 && snapshot.totalStool == 0 {
+                    EmptyReportHint()
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Bathroom")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct BodyCompositionReportView: View {
+    let snapshot: ReportSnapshot
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                let unit = snapshot.settings.usesMetricWeight ? "kg" : "lb"
+                ReportMetricRow(title: "Readings", value: "\(snapshot.bodyCompositions.count)")
+                if let fat = snapshot.latestFatPercent {
+                    ReportMetricRow(title: "Latest fat %", value: String(format: "%.1f%%", fat))
+                }
+                if let bmi = snapshot.latestBodyCompBMI {
+                    ReportMetricRow(
+                        title: "Latest BMI",
+                        value: String(format: "%.1f (%@)", bmi, BMICalculator.category(for: bmi))
+                    )
+                }
+                if let weight = snapshot.latestBodyCompWeightDisplay {
+                    ReportMetricRow(title: "Latest weight", value: String(format: "%.1f %@", weight, unit))
+                }
+                if let fatMass = snapshot.latestFatMassDisplay {
+                    ReportMetricRow(title: "Latest fat mass", value: String(format: "%.1f %@", fatMass, unit))
+                }
+
+                if !snapshot.fatPercentSeries.isEmpty {
+                    Text("Body fat %")
+                        .font(.headline)
+                    Chart(snapshot.fatPercentSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value("Fat %", point.value)
+                        )
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value("Fat %", point.value)
+                        )
+                    }
+                    .frame(height: 200)
+                    .chartYAxisLabel("%")
+                }
+
+                if !snapshot.bodyCompWeightSeries.isEmpty {
+                    Text("Weight")
+                        .font(.headline)
+                    Chart(snapshot.bodyCompWeightSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value("Weight", point.value)
+                        )
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value("Weight", point.value)
+                        )
+                    }
+                    .frame(height: 200)
+                    .chartYAxisLabel(unit)
+                }
+
+                if snapshot.bodyCompositions.isEmpty {
+                    EmptyReportHint()
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Body composition")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct TapeMeasurementsReportView: View {
+    let snapshot: ReportSnapshot
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                let unit = snapshot.settings.usesMetricWeight ? "cm" : "in"
+                ReportMetricRow(title: "Sessions", value: "\(snapshot.measurements.count)")
+                if let waist = snapshot.latestWaistDisplay {
+                    ReportMetricRow(title: "Latest waist", value: String(format: "%.1f %@", waist, unit))
+                }
+                if let summary = snapshot.latestMeasurementSummary {
+                    ReportMetricRow(title: "Latest", value: summary)
+                }
+
+                if !snapshot.waistSeries.isEmpty {
+                    Text("Waist")
+                        .font(.headline)
+                    Chart(snapshot.waistSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value("Waist", point.value)
+                        )
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value("Waist", point.value)
+                        )
+                    }
+                    .frame(height: 200)
+                    .chartYAxisLabel(unit)
+                }
+
+                if snapshot.neckSeries.count >= 2 {
+                    Text("Neck")
+                        .font(.headline)
+                    Chart(snapshot.neckSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value("Neck", point.value)
+                        )
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value("Neck", point.value)
+                        )
+                    }
+                    .frame(height: 200)
+                    .chartYAxisLabel(unit)
+                }
+
+                if snapshot.measurements.isEmpty {
+                    EmptyReportHint()
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Tape measurements")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

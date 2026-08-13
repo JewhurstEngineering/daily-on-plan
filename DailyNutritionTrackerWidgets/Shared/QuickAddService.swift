@@ -152,6 +152,7 @@ enum QuickAddService {
         }
     }
 
+    #if os(iOS)
     static func makeWatchSnapshot() -> WatchDaySnapshot {
         let day = DaySnapshotReader.today()
         return WatchDaySnapshot(
@@ -172,6 +173,7 @@ enum QuickAddService {
             updatedAt: Date()
         )
     }
+    #endif
 
     private static func notifySideEffects() {
         WidgetReloader.reloadAll()

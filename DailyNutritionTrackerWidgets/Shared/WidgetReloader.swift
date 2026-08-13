@@ -21,15 +21,25 @@ enum WidgetKind {
 }
 
 enum WidgetFamilies {
-    static let all: [WidgetFamily] = [
-        .accessoryCircular,
-        .accessoryRectangular,
-        .accessoryInline,
-        .systemSmall,
-        .systemMedium,
-        .systemLarge,
-        .systemExtraLarge
-    ]
+    static var all: [WidgetFamily] {
+        #if os(iOS)
+        [
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline,
+            .systemSmall,
+            .systemMedium,
+            .systemLarge,
+            .systemExtraLarge
+        ]
+        #else
+        [
+            .systemSmall,
+            .systemMedium,
+            .systemLarge
+        ]
+        #endif
+    }
 }
 
 enum WidgetReloader {

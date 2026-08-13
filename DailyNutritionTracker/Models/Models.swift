@@ -15,7 +15,10 @@ final class DailyLog {
     @Relationship(deleteRule: .cascade) var proteinEntries: [ProteinEntry]
     @Relationship(deleteRule: .cascade) var workoutEntries: [WorkoutEntry]
     @Relationship(deleteRule: .cascade) var feelingEntries: [FeelingEntry]
+    /// Vegetables (and any leftover uncategorized items). Fats used to live here too.
     var checkedFatsAndVeggies: [String]
+    /// Dedicated fats list. Empty on v1 stores until `ChecklistStorage.migrateFatsSplit` runs.
+    var checkedFats: [String] = []
     var checkedMiscItems: [String]
     var checkedFruits: [String]
     var completedSupplements: [String]
@@ -45,6 +48,7 @@ final class DailyLog {
         self.workoutEntries = []
         self.feelingEntries = []
         self.checkedFatsAndVeggies = []
+        self.checkedFats = []
         self.checkedMiscItems = []
         self.checkedFruits = []
         self.completedSupplements = []

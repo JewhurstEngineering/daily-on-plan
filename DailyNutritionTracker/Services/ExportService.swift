@@ -134,9 +134,13 @@ enum ExportService {
                     ""
                 ]))
             }
-            for item in log.checkedFatsAndVeggies {
+            for item in ChecklistStorage.vegetables(in: log) {
                 let parsed = ChecklistStorage.parse(item)
-                lines.append(csvRow(["checklist", day, "", "fatOrVeg", parsed.name, parsed.amount]))
+                lines.append(csvRow(["checklist", day, "", "vegetable", parsed.name, parsed.amount]))
+            }
+            for item in ChecklistStorage.fats(in: log) {
+                let parsed = ChecklistStorage.parse(item)
+                lines.append(csvRow(["checklist", day, "", "fat", parsed.name, parsed.amount]))
             }
             for item in log.checkedFruits {
                 let parsed = ChecklistStorage.parse(item)
@@ -358,14 +362,8 @@ enum ExportService {
                     }
                 }
 
-                let veg = log.checkedFatsAndVeggies.filter { raw in
-                    let name = ChecklistStorage.name(of: raw)
-                    return FoodCatalog.vegetables.contains(where: { $0.name == name })
-                }
-                let fats = log.checkedFatsAndVeggies.filter { raw in
-                    let name = ChecklistStorage.name(of: raw)
-                    return FoodCatalog.fats.contains(where: { $0.name == name })
-                }
+                let veg = ChecklistStorage.vegetables(in: log)
+                let fats = ChecklistStorage.fats(in: log)
                 if !veg.isEmpty || !fats.isEmpty || !log.checkedFruits.isEmpty {
                     drawLine("Fats, Fruits & Vegetables", font: .boldSystemFont(ofSize: 12))
                     for raw in veg {

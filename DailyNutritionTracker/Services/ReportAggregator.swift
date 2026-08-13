@@ -88,6 +88,8 @@ struct ReportSnapshot {
     let end: Date
     let logs: [DailyLog]
     let weights: [WeightEntry]
+    let bodyCompositions: [BodyCompositionReading]
+    let measurements: [BodyMeasurementEntry]
     let settings: AppSettings
 
     var dayCount: Int {
@@ -134,11 +136,11 @@ struct ReportSnapshot {
     // MARK: Checklist
 
     var vegetableCounts: [NamedCount] {
-        ranked(checklistNames(from: logs.flatMap(\.checkedFatsAndVeggies), category: .vegetable))
+        ranked(checklistNames(from: logs.flatMap { ChecklistStorage.vegetables(in: $0) }, category: .vegetable))
     }
 
     var fatCounts: [NamedCount] {
-        ranked(checklistNames(from: logs.flatMap(\.checkedFatsAndVeggies), category: .fat))
+        ranked(checklistNames(from: logs.flatMap { ChecklistStorage.fats(in: $0) }, category: .fat))
     }
 
     var fruitCounts: [NamedCount] {
@@ -151,11 +153,7 @@ struct ReportSnapshot {
 
     var veggiesPerDay: [DailyMetricPoint] {
         logs.map { log in
-            let count = log.checkedFatsAndVeggies.filter { raw in
-                let name = ChecklistStorage.name(of: raw)
-                return FoodCatalog.vegetables.contains(where: { $0.name == name })
-            }.count
-            return DailyMetricPoint(date: log.date, value: Double(count))
+            DailyMetricPoint(date: log.date, value: Double(ChecklistStorage.vegetables(in: log).count))
         }
     }
 
@@ -196,6 +194,42 @@ struct ReportSnapshot {
         logs.filter { $0.totalHydrationOz(settings: settings) >= settings.hydrationTargetOz }.count
     }
 
+    // MARK: Bathroom
+
+    var urineSeries: [DailyMetricPoint] {
+        logs.map { log in
+            DailyMetricPoint(
+                date: log.date,
+                value: Double(log.bathroomEvents.filter { $0.kind == .urine }.count)
+            )
+        }
+    }
+
+    var stoolSeries: [DailyMetricPoint] {
+        logs.map { log in
+            DailyMetricPoint(
+                date: log.date,
+                value: Double(log.bathroomEvents.filter { $0.kind == .stool }.count)
+            )
+        }
+    }
+
+    var totalUrine: Int {
+        logs.reduce(0) { $0 + $1.bathroomEvents.filter { $0.kind == .urine }.count }
+    }
+
+    var totalStool: Int {
+        logs.reduce(0) { $0 + $1.bathroomEvents.filter { $0.kind == .stool }.count }
+    }
+
+    var daysWithBathroomLog: Int {
+        logs.filter { !$0.bathroomEvents.isEmpty }.count
+    }
+
+    var showsBathroomReport: Bool {
+        settings.showBathroomSection || totalUrine > 0 || totalStool > 0
+    }
+
     // MARK: Weight
 
     var weightSeries: [DailyMetricPoint] {
@@ -231,6 +265,64 @@ struct ReportSnapshot {
         guard let goal = settings.goalWeightLbs, let last = weights.last else { return nil }
         let delta = last.weightLbs - goal
         return settings.usesMetricWeight ? delta * 0.453592 : delta
+    }
+
+    // MARK: Body composition
+
+    var fatPercentSeries: [DailyMetricPoint] {
+        bodyCompositions.map { DailyMetricPoint(date: $0.date, value: $0.fatPercent) }
+    }
+
+    var bodyCompWeightSeries: [DailyMetricPoint] {
+        bodyCompositions.map {
+            let value = settings.usesMetricWeight ? $0.weightLbs * 0.453592 : $0.weightLbs
+            return DailyMetricPoint(date: $0.date, value: value)
+        }
+    }
+
+    var latestFatPercent: Double? {
+        bodyCompositions.last.map(\.fatPercent)
+    }
+
+    var latestBodyCompBMI: Double? {
+        bodyCompositions.last.map(\.bmi)
+    }
+
+    var latestBodyCompWeightDisplay: Double? {
+        guard let last = bodyCompositions.last else { return nil }
+        return settings.usesMetricWeight ? last.weightLbs * 0.453592 : last.weightLbs
+    }
+
+    var latestFatMassDisplay: Double? {
+        guard let last = bodyCompositions.last else { return nil }
+        return settings.usesMetricWeight ? last.fatMassLbs * 0.453592 : last.fatMassLbs
+    }
+
+    // MARK: Tape measurements
+
+    var waistSeries: [DailyMetricPoint] {
+        measurements.compactMap { entry in
+            guard let waist = entry.waistInches else { return nil }
+            let value = settings.usesMetricWeight ? waist * 2.54 : waist
+            return DailyMetricPoint(date: entry.date, value: value)
+        }
+    }
+
+    var neckSeries: [DailyMetricPoint] {
+        measurements.compactMap { entry in
+            guard let neck = entry.neckInches else { return nil }
+            let value = settings.usesMetricWeight ? neck * 2.54 : neck
+            return DailyMetricPoint(date: entry.date, value: value)
+        }
+    }
+
+    var latestWaistDisplay: Double? {
+        guard let waist = measurements.last(where: { $0.waistInches != nil })?.waistInches else { return nil }
+        return settings.usesMetricWeight ? waist * 2.54 : waist
+    }
+
+    var latestMeasurementSummary: String? {
+        measurements.last.map { $0.summaryLine(usesMetric: settings.usesMetricWeight) }
     }
 
     // MARK: Smoking
@@ -633,6 +725,16 @@ enum ReportAggregator {
         let weights = DataStore.recentWeights(limit: 200, in: context)
             .filter { $0.date >= start && $0.date <= end }
             .sorted { $0.date < $1.date }
-        return ReportSnapshot(start: start, end: end, logs: logs, weights: weights, settings: settings)
+        let bodyCompositions = DataStore.bodyCompositions(from: start, to: end, in: context)
+        let measurements = DataStore.bodyMeasurements(from: start, to: end, in: context)
+        return ReportSnapshot(
+            start: start,
+            end: end,
+            logs: logs,
+            weights: weights,
+            bodyCompositions: bodyCompositions,
+            measurements: measurements,
+            settings: settings
+        )
     }
 }

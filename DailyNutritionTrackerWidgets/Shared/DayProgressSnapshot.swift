@@ -221,7 +221,7 @@ enum DaySnapshotReader {
                 fatCount: 0,
                 fruitCount: log?.checkedFruits.count ?? 0,
                 miscCount: log?.checkedMiscItems.count ?? 0,
-                fatsAndVeggiesCount: log?.checkedFatsAndVeggies.count ?? 0,
+                fatsAndVeggiesCount: (log?.checkedFatsAndVeggies.count ?? 0) + (log?.checkedFats.count ?? 0),
                 supplementsEnabled: settings.showSupplementsSection,
                 supplementDosesCompleted: done,
                 supplementDosesTotal: total,

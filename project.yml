@@ -1,92 +1,205 @@
-name: DailyNutritionTracker
+name: DailyOnPlan
 options:
   bundleIdPrefix: com.dailyonplan
   deploymentTarget:
+    macOS: "14.0"
     iOS: "17.0"
     watchOS: "10.0"
-  xcodeVersion: "16.0"
   createIntermediateGroups: true
+  xcodeVersion: "16.0"
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: 6998422DKP
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "4"
-
-# Keep companion under Watch/ so the iPhone Watch app can discover it.
-# Install to Watch by running the Watch scheme (not Available Apps alone).
-schemes:
-  DailyNutritionTracker:
-    build:
-      targets:
-        DailyNutritionTracker: all
-        DailyNutritionTrackerWidgets: all
-        DailyNutritionTrackerWatch: all
-        DailyNutritionTrackerWatchWidgets: all
-    run:
-      config: Debug
-      executable: DailyNutritionTracker
-  DailyNutritionTrackerWatch:
-    build:
-      targets:
-        DailyNutritionTrackerWatch: all
-        DailyNutritionTracker: all
-        DailyNutritionTrackerWatchWidgets: all
-    run:
-      config: Debug
-      executable: DailyNutritionTrackerWatch
-    profile:
-      config: Release
-      executable: DailyNutritionTrackerWatch
-
+    MARKETING_VERSION: "2.0"
+    CURRENT_PROJECT_VERSION: "5"
+    DEVELOPMENT_TEAM: "6998422DKP"
+    CODE_SIGN_STYLE: Automatic
+    INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 James Jewhurst"
 targets:
-  DailyNutritionTracker:
+  OnPlanCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Packages/OnPlanCore/Sources/OnPlanCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.macos.core
+        PRODUCT_MODULE_NAME: OnPlanCore
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        ENABLE_DEBUG_DYLIB: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+  OnPlanCoreiOS:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Packages/OnPlanCore/Sources/OnPlanCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.core
+        PRODUCT_NAME: OnPlanCore
+        PRODUCT_MODULE_NAME: OnPlanCore
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        ENABLE_DEBUG_DYLIB: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SUPPORTS_MACCATALYST: "NO"
+  OnPlanCoreWatch:
+    type: framework
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: Packages/OnPlanCore/Sources/OnPlanCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.watchkitapp.core
+        PRODUCT_NAME: OnPlanCore
+        PRODUCT_MODULE_NAME: OnPlanCore
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        ENABLE_DEBUG_DYLIB: NO
+        TARGETED_DEVICE_FAMILY: "4"
+        SDKROOT: watchos
+        IPHONEOS_DEPLOYMENT_TARGET: ""
+        WATCHOS_DEPLOYMENT_TARGET: "10.0"
+  DailyOnPlan:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/macOS/DailyOnPlan
+      - path: Apps/Shared
+      - path: DailyNutritionTracker/Models
+      - path: DailyNutritionTracker/Data
+        includes:
+          - FoodCatalog.swift
+      - path: DailyNutritionTracker/Utilities
+        includes:
+          - AppLimits.swift
+          - AppIdentity.swift
+          - OnPlanColors.swift
+          - UsageSuggestions.swift
+      - path: DailyNutritionTracker/Services
+        includes:
+          - DataStore.swift
+      - path: DailyNutritionTrackerWidgets/Shared
+        includes:
+          - AppGroupStore.swift
+          - SharedModelContainer.swift
+          - QuickAddService.swift
+          - WidgetReloader.swift
+          - DayProgressSnapshot.swift
+          - ChromeSnapshotBuilder.swift
+      - path: SharedWatch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.macos
+        PRODUCT_DISPLAY_NAME: Daily On Plan
+        INFOPLIST_KEY_CFBundleDisplayName: Daily On Plan
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
+        INFOPLIST_KEY_CFBundleIconName: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: Apps/macOS/DailyOnPlan/DailyOnPlan.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+        ENABLE_DEBUG_DYLIB: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) ONPLAN_MAC"
+    dependencies:
+      - target: OnPlanCore
+        embed: true
+        codeSign: true
+      - target: DailyOnPlanWidgets
+        embed: true
+      - sdk: WidgetKit.framework
+      - sdk: SwiftData.framework
+  DailyOnPlanWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widgets/macOS
+      - path: Apps/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.macos.widgets
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Widgets/macOS/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Daily On Plan
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        CODE_SIGN_ENTITLEMENTS: Widgets/macOS/DailyOnPlanWidgets.entitlements
+        SKIP_INSTALL: YES
+        ENABLE_DEBUG_DYLIB: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
+          - "@executable_path/../../../../Frameworks"
+    dependencies:
+      - target: OnPlanCore
+        embed: false
+  DailyOnPlaniOS:
     type: application
     platform: iOS
     sources:
+      - path: Apps/iOS/DailyOnPlan
       - path: DailyNutritionTracker
         excludes:
+          - DailyNutritionTrackerApp.swift
           - "**/*.entitlements"
+          - Info.plist
+          - Assets.xcassets
       - path: DailyNutritionTrackerWidgets/Shared
       - path: SharedWatch
+      - path: Apps/Shared
+        excludes:
+          - Assets.xcassets/AppIcon.appiconset
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker
+        PRODUCT_DISPLAY_NAME: Daily On Plan
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: "NO"
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: DailyNutritionTracker/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_ENTITLEMENTS: Apps/iOS/DailyOnPlan/DailyOnPlaniOS.entitlements
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+        CODE_SIGN_STYLE: Automatic
     dependencies:
-      - target: DailyNutritionTrackerWidgets
-      - target: DailyNutritionTrackerWatch
+      - target: OnPlanCoreiOS
+        embed: true
+        codeSign: true
+      - target: DailyOnPlaniOSWidgets
+        embed: true
+      - target: DailyOnPlanWatch
         embed: true
       - sdk: HealthKit.framework
       - sdk: Charts.framework
       - sdk: WidgetKit.framework
       - sdk: AppIntents.framework
       - sdk: WatchConnectivity.framework
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker
-        PRODUCT_DISPLAY_NAME: Daily On Plan
-        INFOPLIST_FILE: DailyNutritionTracker/Info.plist
-        CODE_SIGN_ENTITLEMENTS: DailyNutritionTracker/DailyNutritionTracker.entitlements
-        CODE_SIGN_STYLE: Automatic
-        GENERATE_INFOPLIST_FILE: false
-        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
-        TARGETED_DEVICE_FAMILY: "1,2"
-        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "4"
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      - sdk: SwiftData.framework
     entitlements:
-      path: DailyNutritionTracker/DailyNutritionTracker.entitlements
+      path: Apps/iOS/DailyOnPlan/DailyOnPlaniOS.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.security.application-groups:
           - group.com.dailyonplan.tracker
-
-  DailyNutritionTrackerWidgets:
+  DailyOnPlaniOSWidgets:
     type: app-extension
     platform: iOS
     sources:
       - path: DailyNutritionTrackerWidgets
         excludes:
-          - "Info.plist"
+          - Info.plist
           - "**/*.entitlements"
       - path: DailyNutritionTracker/Models/Models.swift
       - path: DailyNutritionTracker/Models/Enums.swift
@@ -95,67 +208,54 @@ targets:
       - path: DailyNutritionTracker/Utilities/AppLimits.swift
       - path: DailyNutritionTracker/Services/DataStore.swift
       - path: SharedWatch
-    dependencies:
-      - sdk: WidgetKit.framework
-      - sdk: SwiftUI.framework
-      - sdk: SwiftData.framework
-      - sdk: AppIntents.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.widgets
         PRODUCT_DISPLAY_NAME: Daily On Plan Widgets
         INFOPLIST_FILE: DailyNutritionTrackerWidgets/Info.plist
         CODE_SIGN_ENTITLEMENTS: DailyNutritionTrackerWidgets/DailyNutritionTrackerWidgets.entitlements
-        CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: false
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
+        SWIFT_ENABLE_EXPLICIT_MODULES: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "4"
+        SKIP_INSTALL: true
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
           - "@executable_path/../../Frameworks"
-        SKIP_INSTALL: true
-    entitlements:
-      path: DailyNutritionTrackerWidgets/DailyNutritionTrackerWidgets.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.dailyonplan.tracker
-
-  DailyNutritionTrackerWatch:
+    dependencies:
+      - target: OnPlanCoreiOS
+        embed: false
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: SwiftData.framework
+      - sdk: AppIntents.framework
+  DailyOnPlanWatch:
     type: application
     platform: watchOS
     deploymentTarget: "10.0"
     sources:
       - path: DailyNutritionTrackerWatch
         excludes:
-          - "Info.plist"
+          - Info.plist
           - "**/*.entitlements"
       - path: SharedWatch
-    dependencies:
-      - target: DailyNutritionTrackerWatchWidgets
-        embed: true
-      - sdk: WatchConnectivity.framework
-      - sdk: WidgetKit.framework
+      - path: Apps/Shared
+        excludes:
+          - Assets.xcassets/AppIcon.appiconset
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.watchkitapp
         PRODUCT_DISPLAY_NAME: Daily On Plan
         INFOPLIST_FILE: DailyNutritionTrackerWatch/Info.plist
         CODE_SIGN_ENTITLEMENTS: DailyNutritionTrackerWatch/DailyNutritionTrackerWatch.entitlements
-        CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: false
         SKIP_INSTALL: true
         TARGETED_DEVICE_FAMILY: "4"
         SDKROOT: watchos
-        # Prevent inheriting the iOS 17 deployment target from project-level settings
-        # (Xcode can mis-report that as a watchOS mismatch).
         IPHONEOS_DEPLOYMENT_TARGET: ""
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "4"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
@@ -165,42 +265,68 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.dailyonplan.tracker
-        WKRunsIndependentlyOfCompanionApp: false
+        WKRunsIndependentlyOfCompanionApp: true
         CFBundleDisplayName: Daily On Plan
-    entitlements:
-      path: DailyNutritionTrackerWatch/DailyNutritionTrackerWatch.entitlements
-
-  DailyNutritionTrackerWatchWidgets:
+    dependencies:
+      - target: OnPlanCoreWatch
+        embed: true
+        codeSign: true
+      - target: DailyOnPlanWatchWidgets
+        embed: true
+      - sdk: WatchConnectivity.framework
+      - sdk: WidgetKit.framework
+  DailyOnPlanWatchWidgets:
     type: app-extension
     platform: watchOS
     deploymentTarget: "10.0"
     sources:
       - path: DailyNutritionTrackerWatchWidgets
         excludes:
-          - "Info.plist"
+          - Info.plist
           - "**/*.entitlements"
       - path: SharedWatch
-    dependencies:
-      - sdk: WidgetKit.framework
-      - sdk: SwiftUI.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dailyonplan.tracker.watchkitapp.widgets
         PRODUCT_DISPLAY_NAME: Daily On Plan
         INFOPLIST_FILE: DailyNutritionTrackerWatchWidgets/Info.plist
         CODE_SIGN_ENTITLEMENTS: DailyNutritionTrackerWatchWidgets/DailyNutritionTrackerWatchWidgets.entitlements
-        CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: false
         SKIP_INSTALL: true
         TARGETED_DEVICE_FAMILY: "4"
         SDKROOT: watchos
         IPHONEOS_DEPLOYMENT_TARGET: ""
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "4"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
           - "@executable_path/../../Frameworks"
-    entitlements:
-      path: DailyNutritionTrackerWatchWidgets/DailyNutritionTrackerWatchWidgets.entitlements
+    dependencies:
+      - target: OnPlanCoreWatch
+        embed: false
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+schemes:
+  DailyOnPlan:
+    build:
+      targets:
+        DailyOnPlan: all
+        DailyOnPlanWidgets: all
+    run:
+      config: Release
+      executable: DailyOnPlan
+    archive:
+      config: Release
+  DailyOnPlaniOS:
+    build:
+      targets:
+        DailyOnPlaniOS: all
+        DailyOnPlaniOSWidgets: all
+        DailyOnPlanWatch: all
+        DailyOnPlanWatchWidgets: all
+    run:
+      config: Debug
+      executable: DailyOnPlaniOS
+    archive:
+      config: Release
+      revealArchiveInOrganizer: true

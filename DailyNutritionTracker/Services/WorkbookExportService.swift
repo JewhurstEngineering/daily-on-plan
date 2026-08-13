@@ -170,14 +170,8 @@ enum WorkbookExportService {
 
         rows.append(["Fats, Fruits & Vegetables"])
         rows.append(["Category", "Item", "Amount"])
-        let veg = log.checkedFatsAndVeggies.filter { raw in
-            let name = ChecklistStorage.name(of: raw)
-            return FoodCatalog.vegetables.contains(where: { $0.name == name })
-        }
-        let fats = log.checkedFatsAndVeggies.filter { raw in
-            let name = ChecklistStorage.name(of: raw)
-            return FoodCatalog.fats.contains(where: { $0.name == name })
-        }
+        let veg = ChecklistStorage.vegetables(in: log)
+        let fats = ChecklistStorage.fats(in: log)
         if veg.isEmpty && fats.isEmpty && log.checkedFruits.isEmpty {
             rows.append(["—", "", ""])
         } else {
