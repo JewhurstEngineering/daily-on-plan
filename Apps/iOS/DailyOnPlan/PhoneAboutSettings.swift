@@ -8,7 +8,8 @@ struct PhoneAboutSettings: View {
     var body: some View {
         List {
             Section {
-                VStack(spacing: 6) {
+                VStack(spacing: 10) {
+                    AppLogo(size: 64)
                     Text(AppIdentity.displayName)
                         .font(.title2.weight(.semibold))
                     Text(AppIdentity.tagline)

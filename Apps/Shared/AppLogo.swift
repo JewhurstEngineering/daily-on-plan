@@ -5,48 +5,59 @@ import AppKit
 import UIKit
 #endif
 
-/// Color logo (light/dark variants) or the menu-bar template silhouette.
+/// Branded On Plan icon. Uses the `AppLogo` asset, then the compiled app icon.
 struct AppLogo: View {
     var size: CGFloat = 34
     var template: Bool = false
-    /// Square logo that matches the height of neighboring content.
-    var fillHeight: Bool = false
 
-    private var assetName: String { template ? "AppLogoTemplate" : "AppLogo" }
+    var body: some View {
+        artwork
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+            .accessibilityHidden(true)
+    }
 
-    private var assetExists: Bool {
+    @ViewBuilder
+    private var artwork: some View {
+        if template, hasImage("AppLogoTemplate") {
+            Image("AppLogoTemplate")
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        } else if hasImage("AppLogo") {
+            Image("AppLogo")
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        } else if let icon = platformAppIcon {
+            icon
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        } else {
+            Image(systemName: "checkmark.seal.fill")
+                .resizable()
+                .scaledToFit()
+                .symbolRenderingMode(.hierarchical)
+        }
+    }
+
+    private func hasImage(_ name: String) -> Bool {
         #if os(macOS)
-        NSImage(named: assetName) != nil
+        NSImage(named: name) != nil
         #elseif canImport(UIKit)
-        UIImage(named: assetName) != nil
+        UIImage(named: name) != nil
         #else
         false
         #endif
     }
 
-    var body: some View {
-        let image = Group {
-            if assetExists {
-                Image(assetName)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-            } else {
-                Image(systemName: "checkmark.seal.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .symbolRenderingMode(.hierarchical)
-            }
+    private var platformAppIcon: Image? {
+        #if os(macOS)
+        if let icon = NSApp.applicationIconImage {
+            return Image(nsImage: icon)
         }
-        .accessibilityHidden(true)
-
-        if fillHeight {
-            image
-                .frame(maxHeight: .infinity)
-                .aspectRatio(1, contentMode: .fit)
-        } else {
-            image
-                .frame(width: size, height: size)
-        }
+        #endif
+        return nil
     }
 }

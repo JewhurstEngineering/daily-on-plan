@@ -10,6 +10,7 @@ struct AboutSettingsView: View {
 
     @State private var installMessage: String?
     @State private var installSucceeded = false
+    @State private var aboutSplitHeight: CGFloat = 0
 
     private var isRunningFromApplications: Bool {
         Bundle.main.bundleURL.path.hasPrefix("/Applications/")
@@ -25,22 +26,26 @@ struct AboutSettingsView: View {
                         title: "What it tracks",
                         systemImage: "checkmark.seal.fill",
                         subtitle: "Today’s plan, from the menu bar.",
-                        compact: true
+                        compact: true,
+                        fillsHeight: true
                     ) {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             aboutBullet("checkmark.seal", "Followed plan and ketosis")
                             aboutBullet("fork.knife", "Protein calories vs goal")
                             aboutBullet("drop.fill", "Water vs target")
                             aboutBullet("plus.circle", "Quick-add water, cigs, drinks, bathroom")
                         }
                     }
+                    .reportMatchedHeight()
                     .frame(maxWidth: .infinity, alignment: .top)
+                    .fillMatchedHeight(aboutSplitHeight)
 
                     SettingsPanel(
                         title: "Desktop widget",
                         systemImage: "rectangle.on.rectangle",
                         subtitle: "Small and medium Daily Status.",
-                        compact: true
+                        compact: true,
+                        fillsHeight: true
                     ) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Xcode Run copies live in DerivedData, so Edit Widgets search stays empty until the app is installed.")
@@ -52,6 +57,7 @@ struct AboutSettingsView: View {
                                 Label("Installed in Applications — search “Daily On Plan”.", systemImage: "checkmark.circle.fill")
                                     .font(.caption)
                                     .foregroundStyle(.green)
+                                    .fixedSize(horizontal: false, vertical: true)
                             } else {
                                 Button {
                                     do {
@@ -97,8 +103,11 @@ struct AboutSettingsView: View {
                             }
                         }
                     }
+                    .reportMatchedHeight()
                     .frame(maxWidth: .infinity, alignment: .top)
+                    .fillMatchedHeight(aboutSplitHeight)
                 }
+                .onPreferenceChange(MatchedHeightKey.self) { aboutSplitHeight = $0 }
             }
             .padding(12)
         }
@@ -107,13 +116,14 @@ struct AboutSettingsView: View {
 
     private var hero: some View {
         HStack(alignment: .center, spacing: 14) {
-            AppLogo(fillHeight: true)
+            AppLogo(size: 56)
             VStack(alignment: .leading, spacing: 4) {
                 Text(AppIdentity.displayName)
                     .font(.title2.weight(.bold))
                 Text(AppIdentity.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
                     Text("v\(version)")
                         .font(.caption.monospacedDigit().weight(.semibold))
@@ -135,8 +145,7 @@ struct AboutSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .layoutPriority(1)
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -151,8 +160,17 @@ struct AboutSettingsView: View {
     }
 
     private func aboutBullet(_ systemImage: String, _ text: String) -> some View {
-        Label(text, systemImage: systemImage)
-            .font(.caption)
-            .labelStyle(.titleAndIcon)
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .foregroundStyle(theme.tint)
+                .frame(width: 16, alignment: .center)
+                .padding(.top, 1)
+            Text(text)
+                .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
+
