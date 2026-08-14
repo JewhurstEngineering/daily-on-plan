@@ -208,6 +208,7 @@ targets:
           - Info.plist
           - "**/*.entitlements"
       - path: DailyNutritionTracker/Models/Models.swift
+      - path: DailyNutritionTracker/Models/JournalMigration.swift
       - path: DailyNutritionTracker/Models/Enums.swift
       - path: DailyNutritionTracker/Models/AccentTheme.swift
       - path: DailyNutritionTracker/Utilities/OnPlanColors.swift

@@ -88,6 +88,7 @@
 		5B37EF50B0BDE33146B61BC5 /* AccentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7BC21E38542FD83BA9C871B /* AccentTheme.swift */; };
 		5CBE83B61EC6C0B7B7EEA948 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D5C7A23ED40CF2EC914BD65 /* HealthKit.framework */; };
 		5E62A900853F0982BC59A027 /* OnPlanCoreiOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F92D7D53335213BEC2B8631 /* OnPlanCoreiOS.framework */; };
+		5FB60592121416E3CBA5FA5F /* JournalMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */; };
 		6176E00093019AC6A3626863 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		623514206FDA6B19C363E9C4 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B9FD41E28D9EC3BA63D21B /* Enums.swift */; };
 		62A071C587E77B61FA4B2123 /* OnPlanColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1800CB41C9649C992E3CED82 /* OnPlanColors.swift */; };
@@ -160,9 +161,11 @@
 		ABD28463EF865908991801BC /* WidgetReloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75EEB25E65574D62110DA181 /* WidgetReloader.swift */; };
 		AED561585A2357071026864A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		AFA93E964DA918036C9A6328 /* AccessibilitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F472AEFCF4A79F65F8EC5C7 /* AccessibilitySettingsView.swift */; };
+		B1AB1B5C01FBA8742739E2E3 /* JournalMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */; };
 		B427CB6BF4BA48AE5AEA1DBD /* SharedUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7684781E24BAD2509F58870 /* SharedUI.swift */; };
 		B4D146765575188F5B751708 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490CBE2D84B90B5FB70D1246 /* PhoneWatchBridge.swift */; };
 		BA56CD02BFA6A8ACFDF8FE06 /* MacDaySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 472BBA7684732A076E2C3317 /* MacDaySync.swift */; };
+		BABB252583019A3EAB99DEEC /* JournalMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */; };
 		BCA14B57574D7651083E611C /* SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527AA45E536E33298BC669DA /* SettingsRootView.swift */; };
 		BD233BE04E2CF1E277FA8821 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE8053E4B3A34E25E0E18C1 /* RootTabView.swift */; };
 		BD80606D435587A06D6EB849 /* OnPlanStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045CDB3CB681A1B23679C4DF /* OnPlanStore.swift */; };
@@ -449,6 +452,7 @@
 		C702194B3343F8C0D430300B /* DailyOnPlan.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DailyOnPlan.entitlements; sourceTree = "<group>"; };
 		CC9325844BE1F8FA8C129463 /* WatchConnectivityClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityClient.swift; sourceTree = "<group>"; };
 		CD171A37E4229772C00DAD44 /* LayoutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutSettingsView.swift; sourceTree = "<group>"; };
+		CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalMigration.swift; sourceTree = "<group>"; };
 		CE7FC07070A6A8465563A85D /* OnPlanCoreWatch.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = OnPlanCoreWatch.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D071033C33A5F9AA6B35492B /* FoodCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCatalog.swift; sourceTree = "<group>"; };
 		D1FBC4F01CD3AED9FCAB1430 /* AppAbout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAbout.swift; sourceTree = "<group>"; };
@@ -780,6 +784,7 @@
 			children = (
 				E7BC21E38542FD83BA9C871B /* AccentTheme.swift */,
 				13B9FD41E28D9EC3BA63D21B /* Enums.swift */,
+				CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */,
 				554CF6C37F7242947A5425DF /* Models.swift */,
 			);
 			path = Models;
@@ -1309,6 +1314,7 @@
 				7FAE01D5E7A736D572E9984B /* Enums.swift in Sources */,
 				25ADCBAC766BF8C7B8B17FDE /* FoodCatalog.swift in Sources */,
 				09948E2EB6C46E1F817F52F9 /* GeneralSettingsView.swift in Sources */,
+				5FB60592121416E3CBA5FA5F /* JournalMigration.swift in Sources */,
 				09ED9155B4A26F6D7080F558 /* LayoutSettingsView.swift in Sources */,
 				BA56CD02BFA6A8ACFDF8FE06 /* MacDaySync.swift in Sources */,
 				F8B3B2D196CAC1D3232CC220 /* MenuBarLabelView.swift in Sources */,
@@ -1376,6 +1382,7 @@
 				C860277683C0A04604854194 /* HealthKitService.swift in Sources */,
 				0293D18391E6187C30F3A037 /* HydrationDrinkConfirmSheet.swift in Sources */,
 				72F16BD7A41B7A69CCAC2AEB /* HydrationSection.swift in Sources */,
+				B1AB1B5C01FBA8742739E2E3 /* JournalMigration.swift in Sources */,
 				0A92E689983A3B292C20533D /* Keyboard.swift in Sources */,
 				A413794D29A93610E0C41F4C /* MealSuggestor.swift in Sources */,
 				0D6391069EF3FA448BB10025 /* Models.swift in Sources */,
@@ -1445,6 +1452,7 @@
 				6D6A70856C60ABB578D01CA5 /* DataStore.swift in Sources */,
 				122A98B57655B5BDCA52DDA7 /* DayProgressSnapshot.swift in Sources */,
 				623514206FDA6B19C363E9C4 /* Enums.swift in Sources */,
+				BABB252583019A3EAB99DEEC /* JournalMigration.swift in Sources */,
 				01B1ED23033FAAFA8E4E0755 /* Models.swift in Sources */,
 				A561D6999587EFADED7CC5C6 /* OnPlanColors.swift in Sources */,
 				2918489B649C546E77CE0137 /* QuickAddService.swift in Sources */,

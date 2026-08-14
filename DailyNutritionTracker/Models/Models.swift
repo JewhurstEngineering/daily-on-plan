@@ -1,15 +1,33 @@
 import Foundation
 import SwiftData
 
+enum JSONStringList {
+    static func decode(_ json: String?) -> [String] {
+        guard let data = json?.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return decoded
+    }
+
+    static func encode(_ list: [String]) -> String {
+        guard let data = try? JSONEncoder().encode(list),
+              let string = String(data: data, encoding: .utf8) else {
+            return "[]"
+        }
+        return string
+    }
+}
+
 @Model
 final class DailyLog {
-    var id: UUID
-    var date: Date
-    var proteinGoal: Int
-    var ketosis: Bool
-    var followedPlan: Bool
-    var notes: String
-    var waterOz: Int
+    var id: UUID = UUID()
+    var date: Date = Date()
+    var proteinGoal: Int = 500
+    var ketosis: Bool = true
+    var followedPlan: Bool = true
+    var notes: String = ""
+    var waterOz: Int = 0
     /// JSON array of slot values; `null`/omitted means empty. Example: `[16.9, 24.0, null]`.
     var waterDrinksJSON: String?
     @Relationship(deleteRule: .cascade, inverse: \ProteinEntry.log)
@@ -32,12 +50,33 @@ final class DailyLog {
         set { feelingEntries = newValue }
     }
     /// Vegetables (and any leftover uncategorized items). Fats used to live here too.
-    var checkedFatsAndVeggies: [String]
+    var checkedFatsAndVeggiesJSON: String? = "[]"
     /// Dedicated fats list. Empty on v1 stores until `ChecklistStorage.migrateFatsSplit` runs.
-    var checkedFats: [String] = []
-    var checkedMiscItems: [String]
-    var checkedFruits: [String]
-    var completedSupplements: [String]
+    var checkedFatsJSON: String? = "[]"
+    var checkedMiscItemsJSON: String? = "[]"
+    var checkedFruitsJSON: String? = "[]"
+    var completedSupplementsJSON: String? = "[]"
+
+    var checkedFatsAndVeggies: [String] {
+        get { JSONStringList.decode(checkedFatsAndVeggiesJSON) }
+        set { checkedFatsAndVeggiesJSON = JSONStringList.encode(newValue) }
+    }
+    var checkedFats: [String] {
+        get { JSONStringList.decode(checkedFatsJSON) }
+        set { checkedFatsJSON = JSONStringList.encode(newValue) }
+    }
+    var checkedMiscItems: [String] {
+        get { JSONStringList.decode(checkedMiscItemsJSON) }
+        set { checkedMiscItemsJSON = JSONStringList.encode(newValue) }
+    }
+    var checkedFruits: [String] {
+        get { JSONStringList.decode(checkedFruitsJSON) }
+        set { checkedFruitsJSON = JSONStringList.encode(newValue) }
+    }
+    var completedSupplements: [String] {
+        get { JSONStringList.decode(completedSupplementsJSON) }
+        set { completedSupplementsJSON = JSONStringList.encode(newValue) }
+    }
     /// JSON array of off-plan reason tags (e.g. Pizza, Beer). Meaningful when followedPlan is false.
     var offPlanReasonsJSON: String?
     var cigarettesSmokedStored: Int?
@@ -595,10 +634,10 @@ final class DailyLog {
 
 @Model
 final class FeelingEntry {
-    var id: UUID
-    var type: String
-    var timeLogged: Date
-    var note: String
+    var id: UUID = UUID()
+    var type: String = ""
+    var timeLogged: Date = Date()
+    var note: String = ""
     var log: DailyLog?
 
     init(type: String, note: String = "", timeLogged: Date = Date()) {
@@ -611,15 +650,15 @@ final class FeelingEntry {
 
 @Model
 final class ProteinEntry {
-    var id: UUID
-    var name: String
-    var time: Date
-    var servingSize: String
-    var calories: Int
-    var hungerBefore: Int
-    var hungerAfter: Int
-    var proteinCategory: String
-    var servings: Double
+    var id: UUID = UUID()
+    var name: String = ""
+    var time: Date = Date()
+    var servingSize: String = ""
+    var calories: Int = 0
+    var hungerBefore: Int = 4
+    var hungerAfter: Int = 6
+    var proteinCategory: String = "other"
+    var servings: Double = 1
     /// Fluid ounces counted toward hydration when the setting is on (shakes, RTDs, etc.).
     var hydrationOzStored: Double?
     var log: DailyLog?
@@ -655,10 +694,10 @@ final class ProteinEntry {
 
 @Model
 final class WorkoutEntry {
-    var id: UUID
-    var activityName: String
-    var durationMinutes: Int
-    var timeLogged: Date
+    var id: UUID = UUID()
+    var activityName: String = ""
+    var durationMinutes: Int = 0
+    var timeLogged: Date = Date()
     var log: DailyLog?
 
     init(activityName: String, durationMinutes: Int, timeLogged: Date = Date()) {
@@ -671,10 +710,10 @@ final class WorkoutEntry {
 
 @Model
 final class WeightEntry {
-    var id: UUID
-    var date: Date
-    var weightLbs: Double
-    var timeLogged: Date
+    var id: UUID = UUID()
+    var date: Date = Date()
+    var weightLbs: Double = 0
+    var timeLogged: Date = Date()
 
     init(date: Date = Date(), weightLbs: Double, timeLogged: Date = Date()) {
         self.id = UUID()
@@ -687,8 +726,8 @@ final class WeightEntry {
 /// Tape-measure session (neck, waist/stomach, arms, legs, etc.) tracked over time.
 @Model
 final class BodyMeasurementEntry {
-    var id: UUID
-    var date: Date
+    var id: UUID = UUID()
+    var date: Date = Date()
     var neckInchesStored: Double?
     var chestInchesStored: Double?
     var waistInchesStored: Double?
@@ -697,8 +736,8 @@ final class BodyMeasurementEntry {
     var rightArmInchesStored: Double?
     var leftThighInchesStored: Double?
     var rightThighInchesStored: Double?
-    var notes: String
-    var createdAt: Date
+    var notes: String = ""
+    var createdAt: Date = Date()
 
     init(
         date: Date = Date(),
@@ -814,28 +853,28 @@ enum BodyCompReminderCadence: String, CaseIterable, Identifiable {
 
 @Model
 final class BodyCompositionReading {
-    var id: UUID
-    var date: Date
-    var proteinGoalText: String
-    var waterTargetText: String
-    var bodyTypeRaw: String
-    var genderRaw: String
-    var age: Int
-    var heightInches: Double
-    var weightLbs: Double
-    var bmi: Double
-    var bmrKcal: Int
-    var impedance: Double
-    var fatPercent: Double
-    var fatMassLbs: Double
-    var ffmLbs: Double
-    var tbwLbs: Double
-    var desirableFatPercentLow: Double
-    var desirableFatPercentHigh: Double
-    var desirableFatMassLow: Double
-    var desirableFatMassHigh: Double
-    var notes: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var date: Date = Date()
+    var proteinGoalText: String = ""
+    var waterTargetText: String = ""
+    var bodyTypeRaw: String = ""
+    var genderRaw: String = ""
+    var age: Int = 30
+    var heightInches: Double = 0
+    var weightLbs: Double = 0
+    var bmi: Double = 0
+    var bmrKcal: Int = 0
+    var impedance: Double = 0
+    var fatPercent: Double = 0
+    var fatMassLbs: Double = 0
+    var ffmLbs: Double = 0
+    var tbwLbs: Double = 0
+    var desirableFatPercentLow: Double = 0
+    var desirableFatPercentHigh: Double = 0
+    var desirableFatMassLow: Double = 0
+    var desirableFatMassHigh: Double = 0
+    var notes: String = ""
+    var createdAt: Date = Date()
 
     init(
         date: Date = Date(),
@@ -1155,13 +1194,13 @@ struct BathroomEventRecord: Codable, Identifiable, Hashable {
 
 @Model
 final class CustomFoodPreset {
-    var id: UUID
-    var name: String
-    var servingLabel: String
-    var calories: Int
-    var category: String
-    var proteinCategory: String
-    var servingsPerUnit: Double
+    var id: UUID = UUID()
+    var name: String = ""
+    var servingLabel: String = ""
+    var calories: Int = 0
+    var category: String = "protein"
+    var proteinCategory: String = "other"
+    var servingsPerUnit: Double = 1
 
     init(
         name: String,
@@ -1183,10 +1222,10 @@ final class CustomFoodPreset {
 
 @Model
 final class SavedMeal {
-    var id: UUID
-    var name: String
-    var createdAt: Date
-    var componentsJSON: String
+    var id: UUID = UUID()
+    var name: String = ""
+    var createdAt: Date = Date()
+    var componentsJSON: String = "[]"
 
     init(name: String, components: [MealComponent] = [], createdAt: Date = Date()) {
         self.id = UUID()
@@ -1234,17 +1273,17 @@ final class SavedMeal {
 
 @Model
 final class AppSettings {
-    var id: UUID
-    var programPhase: String
-    var heightInches: Double
-    var usesMetricWeight: Bool
-    var defaultProteinGoal: Int
-    var waterReminderEnabled: Bool
-    var waterReminderIntervalHours: Int
-    var eveningCheckInEnabled: Bool
-    var eveningCheckInHour: Int
-    var eveningCheckInMinute: Int
-    var supplementDefinitionsJSON: String
+    var id: UUID = UUID()
+    var programPhase: String = "week1"
+    var heightInches: Double = 0
+    var usesMetricWeight: Bool = false
+    var defaultProteinGoal: Int = 500
+    var waterReminderEnabled: Bool = false
+    var waterReminderIntervalHours: Int = 3
+    var eveningCheckInEnabled: Bool = true
+    var eveningCheckInHour: Int = 20
+    var eveningCheckInMinute: Int = 0
+    var supplementDefinitionsJSON: String = "[]"
     var defaultBottleOzStored: Double?
     var hydrationTargetOzStored: Int?
     var showSupplementsSectionStored: Bool?
