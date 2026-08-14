@@ -6,6 +6,8 @@ struct MenuBarPopoverView: View {
     @EnvironmentObject private var store: OnPlanStore
     @Environment(\.appTheme) private var theme
     @State private var statusMessage: String?
+    @State private var isRefreshing = false
+    @State private var statusTick = 0
 
     private var snapshot: ChromeSnapshot { store.snapshot }
     private var toggles: DisplayPreferences.SurfaceToggles { store.preferences.popover }
@@ -82,8 +84,21 @@ struct MenuBarPopoverView: View {
                 Text(iCloudStatusLine)
                     .appFont(.caption2)
                     .foregroundStyle(SharedModelContainer.usesCloudKit ? Color.secondary : Color.orange)
+                    .id(statusTick)
             }
             Spacer(minLength: 0)
+            Button(action: refreshFromiCloud) {
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                }
+            }
+            .buttonStyle(.borderless)
+            .help("Check iCloud")
+            .disabled(isRefreshing)
+            .keyboardShortcut("r", modifiers: .command)
         }
     }
 
@@ -95,6 +110,23 @@ struct MenuBarPopoverView: View {
             return "iCloud off: \(error)"
         }
         return "iCloud off"
+    }
+
+    private func refreshFromiCloud() {
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            _ = try SharedModelContainer.reopen()
+        } catch {
+            statusMessage = SharedModelContainer.describe(error)
+        }
+        MacDaySync.refresh(store: store)
+        statusTick += 1
+        if SharedModelContainer.usesCloudKit {
+            statusMessage = "Checked iCloud."
+        } else if statusMessage == nil, let error = SharedModelContainer.cloudKitError {
+            statusMessage = error
+        }
     }
 
     @ViewBuilder
