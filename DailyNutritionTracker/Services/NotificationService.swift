@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import SwiftData
+import OnPlanCore
 
 enum NotificationKind: String {
     case water
@@ -44,6 +45,8 @@ enum NotificationActionID {
 
 extension Notification.Name {
     static let openDaySection = Notification.Name("openDaySection")
+    static let onPlanNotificationHandled = Notification.Name("onPlanNotificationHandled")
+    static let onPlanJournalDidChange = Notification.Name("onPlanJournalDidChange")
 }
 
 @MainActor
@@ -72,14 +75,24 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
-    func reschedule(using settings: AppSettings) async {
+    func reschedule(using settings: AppSettings, requestIfNeeded: Bool = true) async {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
         registerCategories()
 
+        #if os(macOS)
+        guard DisplayPreferenceStore.load().notifyOnThisMac else { return }
+        #endif
+
         guard !settings.notificationsPaused else { return }
 
-        let granted = await requestPermission()
+        let granted: Bool
+        if requestIfNeeded {
+            granted = await requestPermission()
+        } else {
+            let status = await authorizationStatus()
+            granted = status == .authorized || status == .provisional
+        }
         guard granted else { return }
 
         if settings.waterReminderEnabled {
@@ -452,6 +465,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         default:
             break
         }
+
+        NotificationCenter.default.post(name: .onPlanNotificationHandled, object: nil)
     }
 
     private func setFollowedPlan(_ followed: Bool) {
@@ -462,6 +477,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
         log.followedPlan = followed
         try? context.save()
+        WidgetReloader.reloadAll()
     }
 
     private func setKetosis(_ inKetosis: Bool) {
@@ -471,6 +487,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let log = DataStore.log(for: Date(), in: context, defaultGoal: settings.defaultProteinGoal)
         log.ketosis = inKetosis
         try? context.save()
+        WidgetReloader.reloadAll()
     }
 
     private func logWaterDrink() {
@@ -482,6 +499,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let minimumSlots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
         log.fillNextWaterSlot(oz: bottle, ensuringMinimumSlots: minimumSlots)
         try? context.save()
+        WidgetReloader.reloadAll()
     }
 
     private func markSupplementTaken(supplementId: String?, doseIndex: Int?) {
@@ -495,6 +513,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         if !log.completedSupplements.contains(key) {
             log.completedSupplements.append(key)
             try? context.save()
+            WidgetReloader.reloadAll()
         }
     }
 }

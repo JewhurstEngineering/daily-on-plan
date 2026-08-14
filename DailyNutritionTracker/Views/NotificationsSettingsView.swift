@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import OnPlanCore
 
 struct NotificationsSettingsView: View {
     @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var store: OnPlanStore
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
@@ -17,6 +19,14 @@ struct NotificationsSettingsView: View {
 
             if authStatus == .denied {
                 Section {
+                    #if os(macOS)
+                    Text("Notifications are turned off in System Settings. Enable them to receive reminders on this Mac.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Open System Settings") {
+                        MacNotifications.openSystemSettings()
+                    }
+                    #else
                     Text("Notifications are turned off in iOS Settings. Enable them to receive reminders.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -25,8 +35,25 @@ struct NotificationsSettingsView: View {
                             UIApplication.shared.open(url)
                         }
                     }
+                    #endif
                 }
             }
+
+            #if os(macOS)
+            Section {
+                Toggle("Reminders on this Mac", isOn: Binding(
+                    get: { store.preferences.notifyOnThisMac },
+                    set: { value in
+                        var prefs = store.preferences
+                        prefs.notifyOnThisMac = value
+                        store.applyPreferences(prefs)
+                        MacNotifications.sync(requestIfNeeded: value)
+                    }
+                ))
+            } footer: {
+                Text("Turns banners off on this computer only. iPhone is unchanged. Reminder times below still sync both ways.")
+            }
+            #endif
 
             Section {
                 Toggle("Pause all reminders", isOn: Binding(
@@ -341,7 +368,7 @@ struct NotificationsSettingsView: View {
             }
         }
         .navigationTitle("Notifications")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .task {
             authStatus = await NotificationService.shared.authorizationStatus()
             _ = await NotificationService.shared.requestPermission()
@@ -385,7 +412,7 @@ struct NotificationsSettingsView: View {
     }
 
     private func persist() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         Task { await NotificationService.shared.reschedule(using: settings) }
     }
 }
@@ -442,7 +469,7 @@ struct DayOfMonthPicker: View {
                                 .font(.caption.weight(.semibold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
-                                .background(selectedDay == day ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemFill))
+                                .background(selectedDay == day ? Color.accentColor.opacity(0.2) : Color.onPlanTertiaryFill)
                                 .foregroundStyle(selectedDay == day ? Color.accentColor : .primary)
                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                         }

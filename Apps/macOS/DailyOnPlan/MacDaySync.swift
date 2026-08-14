@@ -21,6 +21,7 @@ enum MacDaySync {
     static func startObserving(store: OnPlanStore) {
         CloudKitJournal.observeRemoteChanges {
             refresh(store: store)
+            MacNotifications.sync(requestIfNeeded: false)
         }
         Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
             Task { @MainActor in
