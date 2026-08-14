@@ -71,7 +71,9 @@ struct SettingsView: View {
     @ViewBuilder
     private func settingsForm(_ settings: AppSettings) -> some View {
         Form {
+            #if os(iOS)
             appearanceSection(settings)
+            #endif
             programSection(settings)
             bodyMetricsSection(settings)
             trackingLinksSection(settings)
@@ -79,11 +81,12 @@ struct SettingsView: View {
             hungerScaleSection
             #if os(iOS)
             healthSection
-            #endif
             backupSection
+            #endif
         }
     }
 
+    #if os(iOS)
     @ViewBuilder
     private func appearanceSection(_ settings: AppSettings) -> some View {
         Section("Appearance") {
@@ -189,6 +192,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
     }
+    #endif
 
     @ViewBuilder
     private func programSection(_ settings: AppSettings) -> some View {
@@ -432,6 +436,7 @@ struct SettingsView: View {
         }
     }
 
+    #if os(iOS)
     @ViewBuilder
     private var backupSection: some View {
         Section {
@@ -446,6 +451,7 @@ struct SettingsView: View {
             Text("Full data backup for reinstalls. Separate from day Export reports.")
         }
     }
+    #endif
 
     private static var screenTitle: String {
         #if os(macOS)
@@ -516,6 +522,7 @@ struct SettingsView: View {
         modelContext.saveAndNotifyJournal()
     }
 
+    #if os(iOS)
     private func appearanceFooter(for mode: AppearanceMode) -> String {
         switch mode {
         case .system:
@@ -528,6 +535,7 @@ struct SettingsView: View {
             return "Light from approximate local sunrise to sunset, Dark at night. Uses your time zone (no location permission)."
         }
     }
+    #endif
 
     #if os(iOS)
     private var healthButtonTitle: String {

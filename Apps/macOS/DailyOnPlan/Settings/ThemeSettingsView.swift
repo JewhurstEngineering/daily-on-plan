@@ -1,12 +1,13 @@
 import SwiftUI
+import SwiftData
 import OnPlanCore
 
 struct ThemeSettingsView: View {
     @EnvironmentObject private var store: OnPlanStore
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        MacSettingsScroll {
                 SettingsPanel(
                     title: "Appearance",
                     systemImage: "circle.lefthalf.filled",
@@ -40,9 +41,7 @@ struct ThemeSettingsView: View {
                                     custom: store.preferences.customThemeColors
                                 )
                             ) {
-                                var prefs = store.preferences
-                                prefs.colorTheme = option
-                                store.applyPreferences(prefs)
+                                applyColorTheme(option)
                             }
                         }
                     }
@@ -74,9 +73,44 @@ struct ThemeSettingsView: View {
                     )
                 }
             }
-            .padding(16)
+    }
+
+    private func applyAppearance(_ mode: DisplayPreferences.AppearanceMode) {
+        store.updatePreferences { $0.appearanceMode = mode }
+        let settings = DataStore.settings(in: modelContext)
+        switch mode {
+        case .system: settings.appearanceMode = .system
+        case .light: settings.appearanceMode = .light
+        case .dark: settings.appearanceMode = .dark
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        modelContext.saveAndNotifyJournal()
+    }
+
+    private func applyColorTheme(_ option: DisplayPreferences.ColorTheme) {
+        store.updatePreferences { $0.colorTheme = option }
+        syncJournalAccent()
+    }
+
+    private func syncJournalAccent() {
+        let settings = DataStore.settings(in: modelContext)
+        let prefs = store.preferences
+        switch prefs.colorTheme {
+        case .onPlan:
+            settings.accentTheme = .onPlan
+            settings.customAccentHex = nil
+        case .custom:
+            settings.accentTheme = .custom
+            settings.customAccentHex = prefs.customThemeColors.protein.hexString
+        default:
+            settings.accentTheme = .custom
+            let palette = ThemePalette.resolved(
+                prefs.colorTheme,
+                scheme: previewScheme,
+                custom: prefs.customThemeColors
+            )
+            settings.customAccentHex = DisplayPreferences.ThemeSwatch(palette.tint).hexString
+        }
+        modelContext.saveAndNotifyJournal()
     }
 
     private var previewScheme: ColorScheme {
@@ -86,11 +120,7 @@ struct ThemeSettingsView: View {
     private var appearanceBinding: Binding<DisplayPreferences.AppearanceMode> {
         Binding(
             get: { store.preferences.appearanceMode },
-            set: { value in
-                var prefs = store.preferences
-                prefs.appearanceMode = value
-                store.applyPreferences(prefs)
-            }
+            set: applyAppearance
         )
     }
 
@@ -104,9 +134,10 @@ struct ThemeSettingsView: View {
                 selection: Binding(
                     get: { store.preferences.customThemeColors[keyPath: keyPath].color },
                     set: { newColor in
-                        var prefs = store.preferences
-                        prefs.customThemeColors[keyPath: keyPath] = DisplayPreferences.ThemeSwatch(newColor)
-                        store.applyPreferences(prefs)
+                        store.updatePreferences {
+                            $0.customThemeColors[keyPath: keyPath] = DisplayPreferences.ThemeSwatch(newColor)
+                        }
+                        syncJournalAccent()
                     }
                 ),
                 supportsOpacity: false

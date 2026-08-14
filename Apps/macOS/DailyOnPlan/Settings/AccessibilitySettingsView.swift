@@ -6,8 +6,7 @@ struct AccessibilitySettingsView: View {
     @Environment(\.appTheme) private var theme
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        MacSettingsScroll {
                 SettingsPanel(
                     title: "Interface size",
                     systemImage: "textformat.size",
@@ -87,10 +86,7 @@ struct AccessibilitySettingsView: View {
                     }
                     .padding(.top, 4)
                 }
-            }
-            .padding(16)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func previewBar(_ title: String, _ percent: Double) -> some View {

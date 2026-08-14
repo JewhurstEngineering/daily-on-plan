@@ -11,14 +11,14 @@ struct AboutSettingsView: View {
     @State private var installMessage: String?
     @State private var installSucceeded = false
     @State private var aboutSplitHeight: CGFloat = 0
+    @State private var titleHeight: CGFloat = 22
 
     private var isRunningFromApplications: Bool {
         Bundle.main.bundleURL.path.hasPrefix("/Applications/")
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+        MacSettingsScroll {
                 hero
 
                 HStack(alignment: .top, spacing: 10) {
@@ -108,18 +108,22 @@ struct AboutSettingsView: View {
                     .fillMatchedHeight(aboutSplitHeight)
                 }
                 .onPreferenceChange(MatchedHeightKey.self) { aboutSplitHeight = $0 }
-            }
-            .padding(12)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var hero: some View {
-        HStack(alignment: .center, spacing: 14) {
-            AppLogo(size: 56)
+        HStack(alignment: .top, spacing: 10) {
+            AppLogo(size: titleHeight > 0 ? titleHeight : 22)
+                .padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
                 Text(AppIdentity.displayName)
                     .font(.title2.weight(.bold))
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(key: TitleHeightKey.self, value: geo.size.height)
+                        }
+                    )
+                    .onPreferenceChange(TitleHeightKey.self) { titleHeight = $0 }
                 Text(AppIdentity.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -171,6 +175,13 @@ struct AboutSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct TitleHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

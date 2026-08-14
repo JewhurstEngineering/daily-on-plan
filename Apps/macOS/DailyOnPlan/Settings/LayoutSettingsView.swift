@@ -6,9 +6,8 @@ struct LayoutSettingsView: View {
     @State private var appearanceEpoch = 0
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
+        MacSettingsScroll {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12)], spacing: 12) {
                     SettingsPanel(
                         title: "Menu bar",
                         systemImage: "menubar.rectangle",
@@ -92,10 +91,7 @@ struct LayoutSettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .top)
                     }
                 }
-            }
-            .padding(16)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                 appearanceEpoch += 1

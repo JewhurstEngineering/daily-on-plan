@@ -14,7 +14,7 @@ struct SettingsRootView: View {
                 .tabItem { Label("Theme", systemImage: "paintpalette") }
             AccessibilitySettingsView()
                 .tabItem { Label("Accessibility", systemImage: "accessibility") }
-            SettingsView()
+            MacProgramSettingsView()
                 .tabItem { Label("Program", systemImage: "slider.horizontal.3") }
             MacNotificationsSettingsView()
                 .tabItem { Label("Notifications", systemImage: "bell") }
@@ -23,8 +23,8 @@ struct SettingsRootView: View {
             AboutSettingsView()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
         .appLayoutScale(store.preferences.interfaceSize.scale)
         .frame(
             minWidth: 800,
@@ -57,66 +57,73 @@ struct DataSettingsView: View {
     @State private var statusTick = 0
     @State private var isChecking = false
 
+    @State private var showBackup = false
+
     var body: some View {
-        NavigationStack {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                SettingsPanel(
-                    title: "iCloud journal",
-                    systemImage: "icloud",
-                    subtitle: "Same day log as iPhone."
-                ) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Circle()
-                            .fill(SharedModelContainer.usesCloudKit ? Color.green : Color.orange)
-                            .frame(width: 8, height: 8)
-                        Text(iCloudLine)
-                            .appFont(.subheadline, weight: .semibold)
-                            .id(statusTick)
-                        Spacer(minLength: 8)
-                        Button {
-                            isChecking = true
-                            defer { isChecking = false }
-                            _ = try? SharedModelContainer.reopen()
-                            MacDaySync.refresh(store: store)
-                            statusTick += 1
-                        } label: {
-                            if isChecking {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Text("Check now")
-                            }
-                        }
-                        .controlSize(.small)
-                        .disabled(isChecking)
-                    }
-
-                    Text("Protein, water, plan flags, body metrics, and the rest of the journal sync with iPhone over iCloud when this Mac is signed into the same Apple ID. Theme and menu bar layout stay on this Mac.")
-                        .appFont(.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                SettingsPanel(
-                    title: "Backup & restore",
-                    systemImage: "externaldrive.badge.timemachine",
-                    subtitle: "Full journal snapshot. Same format as iPhone."
-                ) {
-                    NavigationLink {
-                        BackupRestoreView()
+        MacSettingsScroll {
+            SettingsPanel(
+                title: "iCloud journal",
+                systemImage: "icloud",
+                subtitle: "Same day log as iPhone."
+            ) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Circle()
+                        .fill(SharedModelContainer.usesCloudKit ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8)
+                    Text(iCloudLine)
+                        .appFont(.subheadline, weight: .semibold)
+                        .id(statusTick)
+                    Spacer(minLength: 8)
+                    Button {
+                        isChecking = true
+                        defer { isChecking = false }
+                        _ = try? SharedModelContainer.reopen()
+                        MacDaySync.refresh(store: store)
+                        statusTick += 1
                     } label: {
-                        Label("Open backup & restore", systemImage: "arrow.up.arrow.down")
+                        if isChecking {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Check now")
+                        }
                     }
-                    Text("Backups include days, weights, body composition, measurements, meals, and settings. Restore replaces everything currently in the journal.")
-                        .appFont(.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .controlSize(.small)
+                    .disabled(isChecking)
                 }
+
+                Text("Protein, water, plan flags, body metrics, and the rest of the journal sync with iPhone over iCloud when this Mac is signed into the same Apple ID. Theme and menu bar layout stay on this Mac.")
+                    .appFont(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(16)
+
+            SettingsPanel(
+                title: "Backup & restore",
+                systemImage: "externaldrive.badge.timemachine",
+                subtitle: "Full journal snapshot. Same format as iPhone."
+            ) {
+                Button {
+                    showBackup = true
+                } label: {
+                    Label("Open backup & restore", systemImage: "arrow.up.arrow.down")
+                }
+                Text("Backups include days, weights, body composition, measurements, meals, and settings. Restore replaces everything currently in the journal.")
+                    .appFont(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showBackup) {
+            NavigationStack {
+                BackupRestoreView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showBackup = false }
+                        }
+                    }
+            }
+            .frame(minWidth: 540, minHeight: 440)
         }
     }
 

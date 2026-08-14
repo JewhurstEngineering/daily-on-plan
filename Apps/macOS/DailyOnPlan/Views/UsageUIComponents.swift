@@ -52,6 +52,25 @@ struct SettingsPanel<Content: View>: View {
     }
 }
 
+struct MacSettingsScroll<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 16) {
+                    content
+                }
+                .padding(16)
+                .frame(width: max(geo.size.width, 1), alignment: .topLeading)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipped()
+    }
+}
+
 struct MatchedHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
