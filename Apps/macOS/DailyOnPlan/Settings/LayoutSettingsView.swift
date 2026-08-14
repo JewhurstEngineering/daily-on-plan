@@ -74,32 +74,23 @@ struct LayoutSettingsView: View {
                 .id(appearanceEpoch)
 
                 SettingsPanel(
-                    title: "Live example",
+                    title: "Live examples",
                     systemImage: "eye",
-                    subtitle: "Menu bar text from the toggles above."
+                    subtitle: "Toggles above update these immediately. Theme colors come from the Theme tab."
                 ) {
-                    let title = MenuBarFormatter.title(
-                        snapshot: store.snapshot,
-                        preferences: store.preferences
-                    )
-                    HStack(spacing: 8) {
-                        AppLogo(size: 16, template: true)
-                        if store.preferences.showInMenuBar {
-                            Text(title)
-                                .font(.caption.weight(.medium).monospacedDigit())
-                        } else {
-                            Text("(icon only)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 0)
+                    HStack(alignment: .top, spacing: 14) {
+                        MenuBarPreviewStrip(
+                            snapshot: store.snapshot.forSettingsPreview,
+                            preferences: store.preferences
+                        )
+                        .frame(maxWidth: .infinity, alignment: .top)
+
+                        PopoverPreviewCard(
+                            snapshot: store.snapshot.forSettingsPreview,
+                            preferences: store.preferences
+                        )
+                        .frame(maxWidth: .infinity, alignment: .top)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.06))
-                    )
                 }
             }
             .padding(16)
@@ -130,7 +121,7 @@ struct LayoutSettingsView: View {
     private var labelStyleHelp: String {
         switch store.preferences.menuBarLabelStyle {
         case .icons:
-            return "Icons: ✓ / P 240 / W 32 stand in for each metric."
+            return "Icons: fork, drop, and seal sit next to the numbers."
         case .shortWords:
             return "Words: “Plan · Protein 240 · Water 32 oz”."
         }

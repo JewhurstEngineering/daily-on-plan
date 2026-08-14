@@ -62,6 +62,17 @@ struct ThemeSettingsView: View {
                         }
                     }
                 }
+
+                SettingsPanel(
+                    title: "Live example",
+                    systemImage: "eye",
+                    subtitle: "Protein, water, and plan use this palette in Settings and the popover."
+                ) {
+                    PopoverPreviewCard(
+                        snapshot: store.snapshot.forSettingsPreview,
+                        preferences: store.preferences
+                    )
+                }
             }
             .padding(16)
         }

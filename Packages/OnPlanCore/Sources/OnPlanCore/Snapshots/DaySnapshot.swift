@@ -36,6 +36,25 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
         bathroomEnabled: true
     )
 
+    /// Fills Settings previews when today’s journal hasn’t landed yet.
+    public static let previewSample = ChromeSnapshot(
+        generatedAt: Date(),
+        followedPlan: true,
+        ketosis: true,
+        proteinCalories: 240,
+        proteinGoal: 500,
+        waterOz: 32,
+        waterTargetOz: 64,
+        bottleOz: 16.9,
+        cigarettes: 2,
+        drinks: 1,
+        urineCount: 3,
+        stoolCount: 1,
+        smokingEnabled: true,
+        drinkingEnabled: true,
+        bathroomEnabled: true
+    )
+
     public init(
         generatedAt: Date,
         followedPlan: Bool,
@@ -85,5 +104,9 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
 
     public var isStale: Bool {
         Date().timeIntervalSince(generatedAt) > 60 * 60 * 6
+    }
+
+    public var forSettingsPreview: ChromeSnapshot {
+        generatedAt == .distantPast ? .previewSample : self
     }
 }
