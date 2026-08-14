@@ -62,6 +62,7 @@
 		3213D4A47B4305C67EC42F39 /* MealSuggestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0F664F90148438403826CD /* MealSuggestor.swift */; };
 		32B3D8A1C8F6C8C6745D483D /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 45AF3802EC589920D6B51134 /* SwiftUI.framework */; };
 		33005771C91E5F22E74B7AA9 /* DailyOnPlanWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F1DAF22F173CAD87FBF42944 /* DailyOnPlanWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		332623295581155DBD049546 /* ReportChartGuides.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE3D00BBC402D8170F904E8 /* ReportChartGuides.swift */; };
 		35C407D8FB00F1A64B9D7DB2 /* AppGroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515A74B09DF70A23196C941F /* AppGroupStore.swift */; };
 		365506A484E18923631C9EA4 /* UsageUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3203666CC9ABBD17C27C48 /* UsageUIComponents.swift */; };
 		36CC398D7664A4DDF09D9AED /* PhoneAccessibilitySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15EBC23318E5CAB4DE6A4580 /* PhoneAccessibilitySettings.swift */; };
@@ -149,6 +150,7 @@
 		86A95960DB4231D85247948F /* AppAbout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FBC4F01CD3AED9FCAB1430 /* AppAbout.swift */; };
 		89952002EACAEB8596AE1234 /* DailyOnPlanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B7615AFD792AD8D1F986CD7 /* DailyOnPlanApp.swift */; };
 		8A4DE1472476D7A92F6E99BA /* WidgetReloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75EEB25E65574D62110DA181 /* WidgetReloader.swift */; };
+		8AF905BD7DE3D67D00CAB9CB /* MacProgramSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9ECD877913D3008046ABC5D /* MacProgramSettingsView.swift */; };
 		8D77F258049264E44DDCEBCF /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 82F7A6ED00C40C74DC0E4C0D /* WatchConnectivity.framework */; };
 		8F117593DC032FC091349DC6 /* AppDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A300A57C1C0EE5226CB2599 /* AppDeepLink.swift */; };
 		90EBDF97640D802CC039AE6B /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CEEBDA2C178D418F0968DD1 /* StatusItemController.swift */; };
@@ -448,6 +450,7 @@
 		89EB340174D9EAE3762C47DA /* HydrationDrinkConfirmSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationDrinkConfirmSheet.swift; sourceTree = "<group>"; };
 		8D523AB9E9DC4335668390FB /* WidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetIntents.swift; sourceTree = "<group>"; };
 		8E824FFC49D6DE834C010806 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8EE3D00BBC402D8170F904E8 /* ReportChartGuides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportChartGuides.swift; sourceTree = "<group>"; };
 		93BC2DC98155846BB96D647A /* DailyOnPlanShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyOnPlanShortcuts.swift; sourceTree = "<group>"; };
 		940FED30A32AC88B09BB220E /* SectionWidgetSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionWidgetSupport.swift; sourceTree = "<group>"; };
 		959024CD23A68EB25AE9C4BA /* PhoneThemeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneThemeSettings.swift; sourceTree = "<group>"; };
@@ -505,6 +508,7 @@
 		E7BC21E38542FD83BA9C871B /* AccentTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentTheme.swift; sourceTree = "<group>"; };
 		E9786A563BD3802DFD9E7C01 /* AppIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIdentity.swift; sourceTree = "<group>"; };
 		E9DF4203804C3ADF4A672D38 /* DayLayoutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayLayoutSettingsView.swift; sourceTree = "<group>"; };
+		E9ECD877913D3008046ABC5D /* MacProgramSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacProgramSettingsView.swift; sourceTree = "<group>"; };
 		EB0F664F90148438403826CD /* MealSuggestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSuggestor.swift; sourceTree = "<group>"; };
 		EBAE39C138B9FBB92752AD0A /* PhoneSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSettingsView.swift; sourceTree = "<group>"; };
 		EDC9CB8B19E74DB4D31EA27E /* ShareCardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardViews.swift; sourceTree = "<group>"; };
@@ -854,6 +858,7 @@
 				A2828367F03A3D9C9E635C47 /* GeneralSettingsView.swift */,
 				CD171A37E4229772C00DAD44 /* LayoutSettingsView.swift */,
 				3AE71E5CE17E3E21A72BCDAF /* MacNotificationsSettingsView.swift */,
+				E9ECD877913D3008046ABC5D /* MacProgramSettingsView.swift */,
 				527AA45E536E33298BC669DA /* SettingsRootView.swift */,
 				500E1FB894BE4E7EAB1544AE /* ThemeSettingsView.swift */,
 			);
@@ -952,6 +957,7 @@
 			children = (
 				631763D8FED94F479BD9C2F5 /* CalendarHeatmapView.swift */,
 				DBCFC1FB5D76D6BC1392ED45 /* EatingReportView.swift */,
+				8EE3D00BBC402D8170F904E8 /* ReportChartGuides.swift */,
 				9E42190512930A810837A59C /* ReportsView.swift */,
 				EDC9CB8B19E74DB4D31EA27E /* ShareCardViews.swift */,
 				4E25CC6CD8FE488B5B4DE7FE /* SnapshotReportView.swift */,
@@ -1371,6 +1377,7 @@
 				BA56CD02BFA6A8ACFDF8FE06 /* MacDaySync.swift in Sources */,
 				DA96E392020BF334549D5E21 /* MacNotifications.swift in Sources */,
 				C2D55B11D789D055F595C6D4 /* MacNotificationsSettingsView.swift in Sources */,
+				8AF905BD7DE3D67D00CAB9CB /* MacProgramSettingsView.swift in Sources */,
 				3213D4A47B4305C67EC42F39 /* MealSuggestor.swift in Sources */,
 				F8B3B2D196CAC1D3232CC220 /* MenuBarLabelView.swift in Sources */,
 				D0EEEED88BE7A5B84C28E56F /* MenuBarPopoverView.swift in Sources */,
@@ -1468,6 +1475,7 @@
 				1ADE5D7FF972D83E7E4B8D5F /* RemoteFoodConfirmSheet.swift in Sources */,
 				2475E67688CCC1568E26015B /* RemoteFoodModels.swift in Sources */,
 				9EC871A5D6332F60FEFDBF3B /* ReportAggregator.swift in Sources */,
+				332623295581155DBD049546 /* ReportChartGuides.swift in Sources */,
 				0DDD2DECC3DEE81468B271C2 /* ReportsView.swift in Sources */,
 				BD233BE04E2CF1E277FA8821 /* RootTabView.swift in Sources */,
 				2C0CAB633DA15BAC1B80990D /* SavedMealsListView.swift in Sources */,
