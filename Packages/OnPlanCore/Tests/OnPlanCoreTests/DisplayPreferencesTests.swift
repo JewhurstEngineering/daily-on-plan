@@ -14,6 +14,7 @@ final class DisplayPreferencesTests: XCTestCase {
         XCTAssertEqual(decoded.colorTheme, .onPlan)
         XCTAssertTrue(decoded.menuBar.protein)
         XCTAssertTrue(decoded.popover.bathroom)
+        XCTAssertTrue(decoded.notifyOnThisMac)
         XCTAssertEqual(decoded.watchQuickAdd.resolvedSlots, [.water, .electrolyte, .smoking])
     }
 
@@ -27,6 +28,11 @@ final class DisplayPreferencesTests: XCTestCase {
         XCTAssertEqual(decoded.watchQuickAdd.hydrationSizesOz, [8, 16.9, 24])
     }
 
+    func testThemeSwatchHexRoundTrip() {
+        let swatch = DisplayPreferences.ThemeSwatch(hex: "#3B82F6")
+        XCTAssertEqual(swatch.hexString, "#3B82F6")
+    }
+
     func testMenuBarCompactProtein() {
         var prefs = DisplayPreferences.default
         prefs.menuBarFormat = .compact
@@ -34,5 +40,16 @@ final class DisplayPreferencesTests: XCTestCase {
         let snap = ChromeSnapshot.empty
         let title = MenuBarFormatter.title(snapshot: snap, preferences: prefs)
         XCTAssertTrue(title.contains("Protein"))
+    }
+
+    func testMenuBarIconsUseSymbols() {
+        var prefs = DisplayPreferences.default
+        prefs.menuBarFormat = .detailed
+        prefs.menuBarLabelStyle = .icons
+        let snap = ChromeSnapshot.empty
+        let segments = MenuBarFormatter.segments(snapshot: snap, preferences: prefs)
+        XCTAssertTrue(segments.contains(where: { $0.systemImage == "fork.knife" }))
+        XCTAssertTrue(segments.contains(where: { $0.systemImage == "drop.fill" }))
+        XCTAssertFalse(MenuBarFormatter.title(snapshot: snap, preferences: prefs).contains("P "))
     }
 }

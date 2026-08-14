@@ -1,44 +1,118 @@
 import Foundation
 
+public struct MenuBarSegment: Sendable, Equatable {
+    public var systemImage: String?
+    public var text: String
+    public var spoken: String
+
+    public init(systemImage: String? = nil, text: String, spoken: String? = nil) {
+        self.systemImage = systemImage
+        self.text = text
+        self.spoken = spoken ?? text
+    }
+}
+
 public enum MenuBarFormatter {
-    public static func title(
+    public static func segments(
         snapshot: ChromeSnapshot?,
         preferences: DisplayPreferences
-    ) -> String {
-        guard let snapshot else { return "On Plan" }
+    ) -> [MenuBarSegment] {
+        guard let snapshot else {
+            return [.init(text: "On Plan")]
+        }
         let toggles = preferences.menuBar
-        var parts: [String] = []
+        let useIcons = preferences.menuBarLabelStyle == .icons
+        var parts: [MenuBarSegment] = []
 
-        func metric(_ enabled: Bool, icons: String, words: String) {
-            guard enabled else { return }
-            parts.append(preferences.menuBarLabelStyle == .icons ? icons : words)
+        func add(icon: String, value: String, spoken: String) {
+            if useIcons {
+                parts.append(.init(systemImage: icon, text: value, spoken: spoken))
+            } else {
+                parts.append(.init(text: spoken, spoken: spoken))
+            }
         }
 
         if preferences.menuBarFormat == .compact {
             if toggles.protein {
-                return preferences.menuBarLabelStyle == .icons
-                    ? "P \(snapshot.proteinCalories)"
-                    : "Protein \(snapshot.proteinCalories)"
+                add(
+                    icon: "fork.knife",
+                    value: "\(snapshot.proteinCalories)",
+                    spoken: "Protein \(snapshot.proteinCalories)"
+                )
+                return parts
             }
             if toggles.water {
-                return preferences.menuBarLabelStyle == .icons
-                    ? "W \(snapshot.waterOz)"
-                    : "Water \(snapshot.waterOz) oz"
+                add(
+                    icon: "drop.fill",
+                    value: "\(snapshot.waterOz)",
+                    spoken: "Water \(snapshot.waterOz) oz"
+                )
+                return parts
             }
-            return snapshot.followedPlan ? "On plan" : "Off plan"
+            add(
+                icon: snapshot.followedPlan ? "checkmark.seal.fill" : "xmark.seal",
+                value: "",
+                spoken: snapshot.followedPlan ? "On plan" : "Off plan"
+            )
+            return parts
         }
 
-        metric(toggles.followedPlan, icons: snapshot.followedPlan ? "✓" : "✗", words: snapshot.followedPlan ? "Plan" : "Off")
-        metric(toggles.ketosis, icons: snapshot.ketosis ? "🔥" : "○", words: snapshot.ketosis ? "Keto" : "No keto")
-        metric(toggles.protein, icons: "P \(snapshot.proteinCalories)", words: "Protein \(snapshot.proteinCalories)")
-        metric(toggles.water, icons: "W \(snapshot.waterOz)", words: "Water \(snapshot.waterOz) oz")
+        if toggles.followedPlan {
+            add(
+                icon: snapshot.followedPlan ? "checkmark.seal.fill" : "xmark.seal",
+                value: "",
+                spoken: snapshot.followedPlan ? "Plan" : "Off"
+            )
+        }
+        if toggles.ketosis {
+            add(
+                icon: snapshot.ketosis ? "flame.fill" : "flame",
+                value: "",
+                spoken: snapshot.ketosis ? "Keto" : "No keto"
+            )
+        }
+        if toggles.protein {
+            add(
+                icon: "fork.knife",
+                value: "\(snapshot.proteinCalories)",
+                spoken: "Protein \(snapshot.proteinCalories)"
+            )
+        }
+        if toggles.water {
+            add(
+                icon: "drop.fill",
+                value: "\(snapshot.waterOz)",
+                spoken: "Water \(snapshot.waterOz) oz"
+            )
+        }
         if toggles.smoking, snapshot.smokingEnabled {
-            metric(true, icons: "S \(snapshot.cigarettes)", words: "Cigs \(snapshot.cigarettes)")
+            add(
+                icon: "smoke.fill",
+                value: "\(snapshot.cigarettes)",
+                spoken: "Cigs \(snapshot.cigarettes)"
+            )
         }
         if toggles.drinking, snapshot.drinkingEnabled {
-            metric(true, icons: "D \(snapshot.drinks)", words: "Drinks \(snapshot.drinks)")
+            add(
+                icon: "wineglass.fill",
+                value: "\(snapshot.drinks)",
+                spoken: "Drinks \(snapshot.drinks)"
+            )
         }
-        if parts.isEmpty { return "On Plan" }
-        return parts.joined(separator: " · ")
+        if parts.isEmpty {
+            return [.init(text: "On Plan")]
+        }
+        return parts
+    }
+
+    public static func title(
+        snapshot: ChromeSnapshot?,
+        preferences: DisplayPreferences
+    ) -> String {
+        let spoken = segments(snapshot: snapshot, preferences: preferences)
+            .map(\.spoken)
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+        return spoken.isEmpty ? "On Plan" : spoken
     }
 }

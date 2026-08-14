@@ -18,6 +18,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
     public var highContrast: Bool
     /// iPhone-configured Watch quick-add (pushed to Watch in the day snapshot).
     public var watchQuickAdd: WatchQuickAdd
+    /// Per-Mac mute. Reminder times still live in CloudKit `AppSettings`.
+    public var notifyOnThisMac: Bool
 
     public enum AppearanceMode: String, Codable, Sendable, CaseIterable {
         case system
@@ -59,6 +61,15 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         }
 
         private static func clamp(_ v: Double) -> Double { min(1, max(0, v)) }
+
+        public var hexString: String {
+            String(
+                format: "#%02X%02X%02X",
+                Int((red * 255).rounded()),
+                Int((green * 255).rounded()),
+                Int((blue * 255).rounded())
+            )
+        }
     }
 
     public struct CustomThemeColors: Codable, Sendable, Equatable {
@@ -132,7 +143,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         public var subtitle: String {
             switch self {
             case .onPlan: return "Brand blue, cyan water, green plan"
-            case .original: return "The blue / purple / teal we shipped with Cursor Usage"
+            case .original: return "The first shipped blue / purple / teal"
             case .system: return "Your accent color and system greens"
             case .ink: return "High-contrast print, almost no hue"
             case .harbor: return "Slate and copper"
@@ -302,7 +313,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision: ColorVision = .typical,
         distinguishWithoutColor: Bool = false,
         highContrast: Bool = false,
-        watchQuickAdd: WatchQuickAdd = .default
+        watchQuickAdd: WatchQuickAdd = .default,
+        notifyOnThisMac: Bool = true
     ) {
         self.launchAtLogin = launchAtLogin
         self.showInMenuBar = showInMenuBar
@@ -319,6 +331,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         self.distinguishWithoutColor = distinguishWithoutColor
         self.highContrast = highContrast
         self.watchQuickAdd = watchQuickAdd
+        self.notifyOnThisMac = notifyOnThisMac
     }
 
     public init(from decoder: Decoder) throws {
@@ -338,6 +351,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         distinguishWithoutColor = try c.decodeIfPresent(Bool.self, forKey: .distinguishWithoutColor) ?? false
         highContrast = try c.decodeIfPresent(Bool.self, forKey: .highContrast) ?? false
         watchQuickAdd = try c.decodeIfPresent(WatchQuickAdd.self, forKey: .watchQuickAdd) ?? .default
+        notifyOnThisMac = try c.decodeIfPresent(Bool.self, forKey: .notifyOnThisMac) ?? true
     }
 }
 
