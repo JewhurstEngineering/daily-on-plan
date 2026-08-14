@@ -38,6 +38,10 @@ struct BodyMeasurementsListView: View {
                     }
                     .frame(height: 140)
                     .chartYAxisLabel(usesMetric ? "cm" : "in")
+                    .chartPaddedYScale(
+                        values: chartRows.map(\.value),
+                        pad: ChartValueScale.lengthPad(usesMetric: usesMetric)
+                    )
                 }
             }
 

@@ -5,6 +5,9 @@ struct SnapshotReportView: View {
     let snapshot: ReportSnapshot
     @State private var shareURL: URL?
     @State private var isRendering = false
+    @AppStorage("reportChartShowGoal") private var showGoal = true
+    @AppStorage("reportChartShowStart") private var showStart = true
+    @AppStorage("reportChartShowTrend") private var showTrend = true
 
     var body: some View {
         ScrollView {
@@ -114,7 +117,12 @@ struct SnapshotReportView: View {
                         .lineStyle(StrokeStyle(dash: [4, 3]))
                     }
                 }
-                .frame(height: 160)
+                    .frame(height: 160)
+                    .chartPaddedYScale(
+                        values: snapshot.proteinSeries.map(\.value) + snapshot.proteinGoalSeries.map(\.value),
+                        pad: ChartValueScale.proteinPadKcal,
+                        floorAtZero: true
+                    )
             }
 
             if !snapshot.offPlanReasonCounts.isEmpty {
@@ -144,30 +152,44 @@ struct SnapshotReportView: View {
                         .lineStyle(StrokeStyle(dash: [4, 3]))
                 }
                 .frame(height: 140)
+                .chartPaddedYScale(
+                    values: snapshot.hydrationSeries.map(\.value),
+                    goal: snapshot.hydrationTarget,
+                    pad: ChartValueScale.waterPadOz,
+                    floorAtZero: true
+                )
             }
 
             if snapshot.weightSeries.count > 1 {
                 Text("Weight")
                     .font(.subheadline.weight(.semibold))
+                ReportChartGuideToggles(
+                    showGoal: $showGoal,
+                    showStart: $showStart,
+                    showTrend: $showTrend,
+                    hasGoal: snapshot.goalWeightDisplay != nil
+                )
                 Chart {
-                    ForEach(snapshot.weightSeries) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("Weight", point.value)
-                        )
-                        PointMark(
-                            x: .value("Day", point.date),
-                            y: .value("Weight", point.value)
-                        )
-                    }
-                    if let goal = snapshot.goalWeightDisplay {
-                        RuleMark(y: .value("Goal", goal))
-                            .foregroundStyle(.orange)
-                            .lineStyle(StrokeStyle(dash: [4, 3]))
-                    }
+                    ReportSeriesGuides.marks(
+                        series: snapshot.weightSeries,
+                        yLabel: "Weight",
+                        goal: snapshot.goalWeightDisplay,
+                        showGoal: showGoal,
+                        showStart: showStart,
+                        showTrend: showTrend
+                    )
                 }
                 .frame(height: 140)
                 .chartYAxisLabel(snapshot.settings.usesMetricWeight ? "kg" : "lb")
+                .chartLegend(.hidden)
+                .chartPaddedYScale(
+                    values: ReportSeriesGuides.domainValues(
+                        series: snapshot.weightSeries,
+                        showTrend: showTrend
+                    ),
+                    goal: snapshot.goalWeightDisplay,
+                    pad: ChartValueScale.weightPad(usesMetric: snapshot.settings.usesMetricWeight)
+                )
             }
 
             if snapshot.showsSmokingReport, !snapshot.cigaretteSeries.isEmpty {
@@ -188,6 +210,12 @@ struct SnapshotReportView: View {
                     }
                 }
                 .frame(height: 140)
+                .chartPaddedYScale(
+                    values: snapshot.cigaretteSeries.map(\.value),
+                    goal: snapshot.settings.effectiveDailyCigaretteLimit.map(Double.init),
+                    pad: ChartValueScale.countPad,
+                    floorAtZero: true
+                )
             }
 
             if snapshot.showsDrinkingReport, !snapshot.drinkSeries.isEmpty {
@@ -208,6 +236,12 @@ struct SnapshotReportView: View {
                     }
                 }
                 .frame(height: 140)
+                .chartPaddedYScale(
+                    values: snapshot.drinkSeries.map(\.value),
+                    goal: snapshot.settings.effectiveDailyDrinkLimit.map(Double.init),
+                    pad: ChartValueScale.countPad,
+                    floorAtZero: true
+                )
             }
         }
         .padding()

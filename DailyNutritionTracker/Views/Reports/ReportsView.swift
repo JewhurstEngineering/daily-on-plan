@@ -294,6 +294,11 @@ struct ProteinReportView: View {
                         }
                     }
                     .frame(height: 200)
+                    .chartPaddedYScale(
+                        values: snapshot.proteinSeries.map(\.value) + snapshot.proteinGoalSeries.map(\.value),
+                        pad: ChartValueScale.proteinPadKcal,
+                        floorAtZero: true
+                    )
                 }
 
                 if !snapshot.topProteins.isEmpty {
@@ -451,6 +456,12 @@ struct HydrationReportView: View {
                             }
                     }
                     .frame(height: 200)
+                    .chartPaddedYScale(
+                        values: snapshot.hydrationSeries.map(\.value),
+                        goal: snapshot.hydrationTarget,
+                        pad: ChartValueScale.waterPadOz,
+                        floorAtZero: true
+                    )
                 } else {
                     EmptyReportHint()
                 }
@@ -464,6 +475,9 @@ struct HydrationReportView: View {
 
 struct WeightReportView: View {
     let snapshot: ReportSnapshot
+    @AppStorage("reportChartShowGoal") private var showGoal = true
+    @AppStorage("reportChartShowStart") private var showStart = true
+    @AppStorage("reportChartShowTrend") private var showTrend = true
 
     var body: some View {
         ScrollView {
@@ -474,6 +488,9 @@ struct WeightReportView: View {
                         title: "Change over range",
                         value: String(format: "%@%.1f %@", delta >= 0 ? "+" : "", delta, unit)
                     )
+                }
+                if let start = snapshot.weightSeries.first {
+                    ReportMetricRow(title: "Start weight", value: String(format: "%.1f %@", start.value, unit))
                 }
                 if let goal = snapshot.goalWeightDisplay {
                     ReportMetricRow(title: "Goal weight", value: String(format: "%.1f %@", goal, unit))
@@ -492,34 +509,67 @@ struct WeightReportView: View {
                 }
                 ReportMetricRow(title: "Weigh-ins", value: "\(snapshot.weights.count)")
 
+                if !snapshot.weightSeries.isEmpty || snapshot.bmiSeries.count >= 2 {
+                    ReportChartGuideToggles(
+                        showGoal: $showGoal,
+                        showStart: $showStart,
+                        showTrend: $showTrend,
+                        hasGoal: snapshot.goalWeightDisplay != nil
+                    )
+                }
+
                 if !snapshot.weightSeries.isEmpty {
-                    Text("Trend")
+                    Text("Weight")
                         .font(.headline)
                     Chart {
-                        ForEach(snapshot.weightSeries) { point in
-                            LineMark(
-                                x: .value("Day", point.date),
-                                y: .value("Weight", point.value)
-                            )
-                            PointMark(
-                                x: .value("Day", point.date),
-                                y: .value("Weight", point.value)
-                            )
-                        }
-                        if let goal = snapshot.goalWeightDisplay {
-                            RuleMark(y: .value("Goal", goal))
-                                .foregroundStyle(.orange)
-                                .lineStyle(StrokeStyle(dash: [4, 3]))
-                                .annotation(position: .top, alignment: .trailing) {
-                                    Text("Goal")
-                                        .font(.caption2)
-                                        .foregroundStyle(.orange)
-                                }
-                        }
+                        ReportSeriesGuides.marks(
+                            series: snapshot.weightSeries,
+                            yLabel: "Weight",
+                            goal: snapshot.goalWeightDisplay,
+                            showGoal: showGoal,
+                            showStart: showStart,
+                            showTrend: showTrend
+                        )
                     }
                     .frame(height: 200)
                     .chartYAxisLabel(unit)
-                } else {
+                    .chartLegend(.hidden)
+                    .chartPaddedYScale(
+                        values: ReportSeriesGuides.domainValues(
+                            series: snapshot.weightSeries,
+                            showTrend: showTrend
+                        ),
+                        goal: snapshot.goalWeightDisplay,
+                        pad: ChartValueScale.weightPad(usesMetric: snapshot.settings.usesMetricWeight)
+                    )
+                }
+
+                if snapshot.bmiSeries.count >= 2 {
+                    Text("BMI")
+                        .font(.headline)
+                    Chart {
+                        ReportSeriesGuides.marks(
+                            series: snapshot.bmiSeries,
+                            yLabel: "BMI",
+                            goal: snapshot.goalBMI,
+                            showGoal: showGoal,
+                            showStart: showStart,
+                            showTrend: showTrend
+                        )
+                    }
+                    .frame(height: 200)
+                    .chartLegend(.hidden)
+                    .chartPaddedYScale(
+                        values: ReportSeriesGuides.domainValues(
+                            series: snapshot.bmiSeries,
+                            showTrend: showTrend
+                        ),
+                        goal: snapshot.goalBMI,
+                        pad: ChartValueScale.bmiPad(heightInches: snapshot.settings.heightInches)
+                    )
+                }
+
+                if snapshot.weightSeries.isEmpty {
                     EmptyReportHint()
                 }
             }
@@ -580,6 +630,12 @@ struct SmokingReportView: View {
                         }
                     }
                     .frame(height: 200)
+                    .chartPaddedYScale(
+                        values: snapshot.cigaretteSeries.map(\.value),
+                        goal: snapshot.settings.effectiveDailyCigaretteLimit.map(Double.init),
+                        pad: ChartValueScale.countPad,
+                        floorAtZero: true
+                    )
                 } else {
                     EmptyReportHint()
                 }
@@ -635,6 +691,12 @@ struct DrinkingReportView: View {
                         }
                     }
                     .frame(height: 200)
+                    .chartPaddedYScale(
+                        values: snapshot.drinkSeries.map(\.value),
+                        goal: snapshot.settings.effectiveDailyDrinkLimit.map(Double.init),
+                        pad: ChartValueScale.countPad,
+                        floorAtZero: true
+                    )
                 } else {
                     EmptyReportHint()
                 }
@@ -778,6 +840,10 @@ struct BodyCompositionReportView: View {
                     }
                     .frame(height: 200)
                     .chartYAxisLabel("%")
+                    .chartPaddedYScale(
+                        values: snapshot.fatPercentSeries.map(\.value),
+                        pad: ChartValueScale.fatPercentPad
+                    )
                 }
 
                 if !snapshot.bodyCompWeightSeries.isEmpty {
@@ -795,6 +861,11 @@ struct BodyCompositionReportView: View {
                     }
                     .frame(height: 200)
                     .chartYAxisLabel(unit)
+                    .chartPaddedYScale(
+                        values: snapshot.bodyCompWeightSeries.map(\.value),
+                        goal: snapshot.goalWeightDisplay,
+                        pad: ChartValueScale.weightPad(usesMetric: snapshot.settings.usesMetricWeight)
+                    )
                 }
 
                 if snapshot.bodyCompositions.isEmpty {
@@ -838,6 +909,10 @@ struct TapeMeasurementsReportView: View {
                     }
                     .frame(height: 200)
                     .chartYAxisLabel(unit)
+                    .chartPaddedYScale(
+                        values: snapshot.waistSeries.map(\.value),
+                        pad: ChartValueScale.lengthPad(usesMetric: snapshot.settings.usesMetricWeight)
+                    )
                 }
 
                 if snapshot.neckSeries.count >= 2 {
@@ -855,6 +930,10 @@ struct TapeMeasurementsReportView: View {
                     }
                     .frame(height: 200)
                     .chartYAxisLabel(unit)
+                    .chartPaddedYScale(
+                        values: snapshot.neckSeries.map(\.value),
+                        pad: ChartValueScale.lengthPad(usesMetric: snapshot.settings.usesMetricWeight)
+                    )
                 }
 
                 if snapshot.measurements.isEmpty {

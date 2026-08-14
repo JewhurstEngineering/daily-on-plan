@@ -721,6 +721,87 @@ enum BMICalculator {
     }
 }
 
+/// Y-axis domain so body-metric charts show movement instead of a 0–400 empty scale.
+/// Weight: first/current high-water + 25 lb (or kg equivalent) on top, goal − 25 on the bottom.
+/// The range only grows when a logged value or the goal crosses a pad edge.
+enum ChartValueScale {
+    static let weightPadPounds = 25.0
+    static let lengthPadInches = 2.0
+    static let fatPercentPad = 3.0
+    static let proteinPadKcal = 50.0
+    static let waterPadOz = 8.0
+    static let countPad = 2.0
+
+    static func weightPad(usesMetric: Bool) -> Double {
+        usesMetric ? weightPadPounds * 0.453592 : weightPadPounds
+    }
+
+    static func lengthPad(usesMetric: Bool) -> Double {
+        usesMetric ? lengthPadInches * 2.54 : lengthPadInches
+    }
+
+    /// Same visual pad as 25 lb, expressed in BMI points at this height.
+    static func bmiPad(heightInches: Double) -> Double {
+        guard heightInches > 0 else { return 2 }
+        return (weightPadPounds / (heightInches * heightInches)) * 703
+    }
+
+    static func domain(
+        values: [Double],
+        goal: Double? = nil,
+        pad: Double,
+        floorAtZero: Bool = false
+    ) -> ClosedRange<Double>? {
+        var anchors = values.filter { $0.isFinite }
+        if let goal, goal.isFinite { anchors.append(goal) }
+        guard let minValue = anchors.min(), let maxValue = anchors.max() else { return nil }
+        let padding = max(pad, 0)
+        var low = minValue - padding
+        var high = maxValue + padding
+        if high <= low {
+            high = low + max(padding * 2, 1)
+        }
+        if floorAtZero {
+            low = max(0, low)
+        }
+        if high <= low {
+            high = low + 1
+        }
+        return low...high
+    }
+}
+
+/// Least-squares line through dated samples, for a chart trend overlay.
+enum ChartTrendLine {
+    struct Segment: Equatable {
+        var startDate: Date
+        var startValue: Double
+        var endDate: Date
+        var endValue: Double
+    }
+
+    static func leastSquares(dates: [Date], values: [Double]) -> Segment? {
+        guard dates.count >= 2, dates.count == values.count else { return nil }
+        let xs = dates.map(\.timeIntervalSince1970)
+        let n = Double(xs.count)
+        let sumX = xs.reduce(0, +)
+        let sumY = values.reduce(0, +)
+        let sumXY = zip(xs, values).reduce(0.0) { $0 + $1.0 * $1.1 }
+        let sumXX = xs.reduce(0.0) { $0 + $1 * $1 }
+        let denominator = n * sumXX - sumX * sumX
+        guard denominator != 0 else { return nil }
+        let slope = (n * sumXY - sumX * sumY) / denominator
+        let intercept = (sumY - slope * sumX) / n
+        func y(_ x: Double) -> Double { intercept + slope * x }
+        return Segment(
+            startDate: dates[0],
+            startValue: y(xs[0]),
+            endDate: dates[dates.count - 1],
+            endValue: y(xs[xs.count - 1])
+        )
+    }
+}
+
 enum DateHelpers {
     static func startOfDay(_ date: Date) -> Date {
         Calendar.current.startOfDay(for: date)

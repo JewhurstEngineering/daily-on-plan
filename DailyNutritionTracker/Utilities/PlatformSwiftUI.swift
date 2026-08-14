@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 enum OnPlanKeyboard {
     case `default`
@@ -76,5 +77,44 @@ extension ModelContext {
     func saveAndNotifyJournal() {
         try? save()
         NotificationCenter.default.post(name: .onPlanJournalDidChange, object: nil)
+    }
+}
+
+extension View {
+    /// Pins the Y axis around logged values and an optional goal, instead of stretching to zero.
+    func chartPaddedYScale(
+        values: [Double],
+        goal: Double? = nil,
+        pad: Double,
+        floorAtZero: Bool = false
+    ) -> some View {
+        modifier(
+            ChartPaddedYScaleModifier(
+                values: values,
+                goal: goal,
+                pad: pad,
+                floorAtZero: floorAtZero
+            )
+        )
+    }
+}
+
+private struct ChartPaddedYScaleModifier: ViewModifier {
+    let values: [Double]
+    let goal: Double?
+    let pad: Double
+    let floorAtZero: Bool
+
+    func body(content: Content) -> some View {
+        if let domain = ChartValueScale.domain(
+            values: values,
+            goal: goal,
+            pad: pad,
+            floorAtZero: floorAtZero
+        ) {
+            content.chartYScale(domain: domain)
+        } else {
+            content
+        }
     }
 }

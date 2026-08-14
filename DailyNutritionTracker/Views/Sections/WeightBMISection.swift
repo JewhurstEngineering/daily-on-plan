@@ -20,6 +20,7 @@ struct WeightBMISection: View {
     @State private var editWeightTime = false
     @FocusState private var weightFocused: Bool
     @Query(sort: \BodyMeasurementEntry.date, order: .reverse) private var measurementEntries: [BodyMeasurementEntry]
+    @Query(sort: \WeightEntry.date) private var allWeights: [WeightEntry]
 
     private var latestMeasurement: BodyMeasurementEntry? { measurementEntries.first }
 
@@ -62,6 +63,35 @@ struct WeightBMISection: View {
     private var chartGoalValue: Double? {
         guard let goal = goalDisplayLbs else { return nil }
         return displayValue(lbs: goal)
+    }
+
+    private var weightChartValues: [Double] {
+        allWeights.map { displayValue(lbs: $0.weightLbs) }
+    }
+
+    private var bmiChartRows: [(date: Date, value: Double)] {
+        guard settings.hasHeight else { return [] }
+        return allWeights.compactMap { entry in
+            guard let bmi = BMICalculator.bmi(weightLbs: entry.weightLbs, heightInches: settings.heightInches) else {
+                return nil
+            }
+            return (entry.date, bmi)
+        }
+    }
+
+    private var recentBMIRows: [(date: Date, value: Double)] {
+        guard settings.hasHeight else { return [] }
+        return recentWeights.reversed().compactMap { entry in
+            guard let bmi = BMICalculator.bmi(weightLbs: entry.weightLbs, heightInches: settings.heightInches) else {
+                return nil
+            }
+            return (entry.date, bmi)
+        }
+    }
+
+    private var goalBMI: Double? {
+        guard let goal = goalDisplayLbs else { return nil }
+        return BMICalculator.bmi(weightLbs: goal, heightInches: settings.heightInches)
     }
 
     var body: some View {
@@ -225,6 +255,44 @@ struct WeightBMISection: View {
                 }
                 .frame(height: 140)
                 .chartYAxisLabel(unitLabel)
+                .chartPaddedYScale(
+                    values: weightChartValues,
+                    goal: chartGoalValue,
+                    pad: ChartValueScale.weightPad(usesMetric: settings.usesMetricWeight)
+                )
+
+                if recentBMIRows.count >= 2 {
+                    Text("BMI trend")
+                        .font(.subheadline.weight(.semibold))
+                    Chart {
+                        ForEach(recentBMIRows, id: \.date) { row in
+                            LineMark(
+                                x: .value("Date", row.date),
+                                y: .value("BMI", row.value)
+                            )
+                            PointMark(
+                                x: .value("Date", row.date),
+                                y: .value("BMI", row.value)
+                            )
+                        }
+                        if let goalBMI {
+                            RuleMark(y: .value("Goal BMI", goalBMI))
+                                .foregroundStyle(.orange)
+                                .lineStyle(StrokeStyle(dash: [4, 3]))
+                                .annotation(position: .top, alignment: .trailing) {
+                                    Text("Goal")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                }
+                        }
+                    }
+                    .frame(height: 140)
+                    .chartPaddedYScale(
+                        values: bmiChartRows.map(\.value),
+                        goal: goalBMI,
+                        pad: ChartValueScale.bmiPad(heightInches: settings.heightInches)
+                    )
+                }
             }
         }
         .keyboardDoneToolbar(focus: $weightFocused)

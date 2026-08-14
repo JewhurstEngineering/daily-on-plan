@@ -250,6 +250,21 @@ struct ReportSnapshot {
         return BMICalculator.bmi(weightLbs: last.weightLbs, heightInches: settings.heightInches)
     }
 
+    var bmiSeries: [DailyMetricPoint] {
+        guard settings.hasHeight else { return [] }
+        return weights.compactMap { entry in
+            guard let bmi = BMICalculator.bmi(weightLbs: entry.weightLbs, heightInches: settings.heightInches) else {
+                return nil
+            }
+            return DailyMetricPoint(date: entry.date, value: bmi)
+        }
+    }
+
+    var goalBMI: Double? {
+        guard let goal = settings.goalWeightLbs else { return nil }
+        return BMICalculator.bmi(weightLbs: goal, heightInches: settings.heightInches)
+    }
+
     var goalWeightDisplay: Double? {
         guard let goal = settings.goalWeightLbs else { return nil }
         return settings.usesMetricWeight ? goal * 0.453592 : goal
