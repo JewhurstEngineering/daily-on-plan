@@ -78,7 +78,7 @@ struct DailyOnPlanApp: App {
                     AppActivation.scheduleSettingsFocus()
                 }
         }
-        .defaultSize(width: 960, height: 680)
+        .defaultSize(width: 1080, height: 700)
         .windowResizability(.contentMinSize)
 
         Window("Today", id: "onplan-today") {

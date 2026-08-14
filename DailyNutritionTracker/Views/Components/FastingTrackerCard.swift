@@ -113,6 +113,7 @@ struct FastingTrackerCard: View {
     private func headline(_ phase: FastingPhase) -> String {
         switch phase {
         case .off: return "Fasting"
+        case .idle: return "Ready to fast"
         case .fasting: return "You’re fasting"
         case .eating(_, _, _, let ended):
             return ended == nil ? "Eating window" : "Window closed"
@@ -123,6 +124,7 @@ struct FastingTrackerCard: View {
         let pct = Int((progress * 100).rounded())
         switch phase {
         case .off: return "Turn fasting on in Settings"
+        case .idle: return "Clock starts when you do"
         case .fasting: return "Elapsed time (\(pct)%)"
         case .eating(_, _, _, let ended):
             return ended == nil ? "Eating (\(pct)%)" : "Ate (\(pct)%)"
@@ -131,7 +133,7 @@ struct FastingTrackerCard: View {
 
     private func elapsedInterval(_ phase: FastingPhase) -> TimeInterval {
         switch phase {
-        case .off: return 0
+        case .off, .idle: return 0
         case .fasting(let elapsed, _): return elapsed
         case .eating(let elapsed, _, _, _): return elapsed
         }
@@ -139,7 +141,7 @@ struct FastingTrackerCard: View {
 
     private func targetInterval(_ phase: FastingPhase) -> TimeInterval {
         switch phase {
-        case .off: return settings.fastingTargetHours * 3600
+        case .off, .idle: return settings.fastingTargetHours * 3600
         case .fasting(_, let target): return target
         case .eating: return settings.fastingEatHours * 3600
         }
@@ -147,7 +149,7 @@ struct FastingTrackerCard: View {
 
     private func showsRemaining(_ phase: FastingPhase) -> Bool {
         switch phase {
-        case .fasting: return true
+        case .idle, .fasting: return true
         case .eating(_, _, _, let ended): return ended == nil
         default: return false
         }
@@ -156,6 +158,7 @@ struct FastingTrackerCard: View {
     private func hit(_ phase: FastingPhase) -> Bool {
         switch phase {
         case .fasting(let elapsed, let target): return elapsed + 60 >= target
+        case .idle, .off: return false
         default: return FastingMath.hitTarget(today: log, previous: previous, settings: settings)
         }
     }
@@ -178,14 +181,12 @@ struct FastingTrackerCard: View {
     private func leftStampValue(_ phase: FastingPhase, now: Date) -> String {
         switch phase {
         case .eating(_, _, let started, _):
-            return DateHelpers.formattedTime(started)
+            return DateHelpers.formattedTimeStamp(started, relativeTo: now)
         case .fasting:
-            let anchor = FastingMath.previousWindowEnd(previous: previous, settings: settings)
-                ?? FastingMath.typicalWindow(
-                    on: Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now,
-                    settings: settings
-                ).end
-            return DateHelpers.formattedTime(anchor)
+            if let anchor = FastingMath.fastAnchor(today: log, previous: previous, settings: settings, now: now) {
+                return DateHelpers.formattedTimeStamp(anchor, relativeTo: now)
+            }
+            return "—"
         default:
             return "—"
         }
@@ -194,11 +195,21 @@ struct FastingTrackerCard: View {
     private func rightStampValue(_ phase: FastingPhase, now: Date) -> String {
         switch phase {
         case .eating(_, _, let started, let ended):
-            if let ended { return DateHelpers.formattedTime(ended) }
-            return DateHelpers.formattedTime(started.addingTimeInterval(settings.fastingEatHours * 3600))
+            if let ended { return DateHelpers.formattedTimeStamp(ended, relativeTo: now) }
+            return DateHelpers.formattedTimeStamp(started.addingTimeInterval(settings.fastingEatHours * 3600), relativeTo: now)
+        case .fasting, .idle:
+            if let anchor = FastingMath.fastAnchor(today: log, previous: previous, settings: settings, now: now) {
+                return DateHelpers.formattedTimeStamp(
+                    anchor.addingTimeInterval(settings.fastingTargetHours * 3600),
+                    relativeTo: now
+                )
+            }
+            return DateHelpers.formattedTimeStamp(
+                now.addingTimeInterval(settings.fastingTargetHours * 3600),
+                relativeTo: now
+            )
         default:
-            let window = FastingMath.typicalWindow(on: log.date, settings: settings)
-            return DateHelpers.formattedTime(window.start)
+            return "—"
         }
     }
 
@@ -207,24 +218,37 @@ struct FastingTrackerCard: View {
         switch phase {
         case .off:
             EmptyView()
+        case .idle:
+            Button {
+                FastingMath.startFast(today: log)
+                onChange()
+            } label: {
+                Text("Start Fast")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(compact ? .regular : .large)
         case .fasting:
             VStack(spacing: 8) {
-                Button {
-                    log.eatingWindowStart = Date()
-                    log.eatingWindowEnd = nil
-                    onChange()
-                } label: {
-                    Text("End Fast")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(compact ? .regular : .large)
-                if !compact {
-                    Button("Use typical window") {
-                        FastingMath.applyTypicalWindow(to: log, settings: settings)
+                if log.eatingWindowStart != nil, log.eatingWindowEnd != nil {
+                    Button {
+                        log.eatingWindowEnd = nil
                         onChange()
+                    } label: {
+                        Text("Reopen window")
+                            .frame(maxWidth: .infinity)
                     }
-                    .font(.caption)
+                    .controlSize(compact ? .regular : .large)
+                } else {
+                    Button {
+                        FastingMath.beginEating(today: log, previous: previous)
+                        onChange()
+                    } label: {
+                        Text("End Fast")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(compact ? .regular : .large)
                 }
             }
         case .eating(_, _, _, let ended):

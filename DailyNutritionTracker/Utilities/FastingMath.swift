@@ -2,6 +2,8 @@ import Foundation
 
 enum FastingPhase: Equatable {
     case off
+    /// Fasting is on, but nothing has started yet — don’t invent yesterday’s typical close.
+    case idle
     case fasting(elapsed: TimeInterval, target: TimeInterval)
     case eating(elapsed: TimeInterval, remaining: TimeInterval?, started: Date, ended: Date?)
 
@@ -51,6 +53,7 @@ enum FastingMath {
         }
     }
 
+    /// Last meal end, if one was actually logged. Never fills in a typical time.
     static func previousWindowEnd(
         previous: DailyLog?,
         settings: AppSettings,
@@ -60,10 +63,40 @@ enum FastingMath {
         if let start = previous?.eatingWindowStart {
             return start.addingTimeInterval(settings.fastingEatHours * 3600)
         }
-        if let previous {
-            return typicalWindow(on: previous.date, settings: settings, calendar: calendar).end
-        }
         return nil
+    }
+
+    /// When you tap Start Fast with no prior close, we stamp `today.eatingWindowEnd`
+    /// (start stays nil) so the clock begins at now.
+    static func startFast(today: DailyLog, now: Date = Date()) {
+        guard today.eatingWindowStart == nil else { return }
+        today.eatingWindowEnd = now
+    }
+
+    static func beginEating(today: DailyLog, previous: DailyLog?, now: Date = Date()) {
+        if today.eatingWindowStart == nil, let stamp = today.eatingWindowEnd, let previous {
+            if previous.eatingWindowEnd == nil {
+                previous.eatingWindowEnd = stamp
+            }
+        }
+        today.eatingWindowStart = now
+        today.eatingWindowEnd = nil
+    }
+
+    static func fastAnchor(
+        today: DailyLog?,
+        previous: DailyLog?,
+        settings: AppSettings,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Date? {
+        if let today, today.eatingWindowStart == nil, let stamp = today.eatingWindowEnd {
+            return stamp
+        }
+        if let today, let end = today.eatingWindowEnd, today.eatingWindowStart != nil, now >= end {
+            return end
+        }
+        return previousWindowEnd(previous: previous, settings: settings, calendar: calendar)
     }
 
     static func phase(
@@ -75,25 +108,28 @@ enum FastingMath {
     ) -> FastingPhase {
         guard settings.fastingEnabled else { return .off }
         let target = settings.fastingTargetHours * 3600
-        if let start = today?.eatingWindowStart {
-            let elapsed = (today?.eatingWindowEnd ?? now).timeIntervalSince(start)
-            let remaining: TimeInterval?
-            if today?.eatingWindowEnd == nil {
-                remaining = max(0, settings.fastingEatHours * 3600 - now.timeIntervalSince(start))
-            } else {
-                remaining = nil
-            }
+        if let start = today?.eatingWindowStart, today?.eatingWindowEnd == nil {
+            let elapsed = now.timeIntervalSince(start)
+            let remaining = max(0, settings.fastingEatHours * 3600 - elapsed)
             return .eating(
                 elapsed: max(0, elapsed),
                 remaining: remaining,
                 started: start,
-                ended: today?.eatingWindowEnd
+                ended: nil
             )
         }
-        let anchor = previousWindowEnd(previous: previous, settings: settings, calendar: calendar)
-            ?? typicalWindow(on: calendar.date(byAdding: .day, value: -1, to: now) ?? now, settings: settings, calendar: calendar).end
-        let elapsed = now.timeIntervalSince(anchor)
-        return .fasting(elapsed: max(0, elapsed), target: target)
+        if let start = today?.eatingWindowStart, let end = today?.eatingWindowEnd, now < end {
+            return .eating(
+                elapsed: max(0, end.timeIntervalSince(start)),
+                remaining: nil,
+                started: start,
+                ended: end
+            )
+        }
+        if let anchor = fastAnchor(today: today, previous: previous, settings: settings, now: now, calendar: calendar) {
+            return .fasting(elapsed: max(0, now.timeIntervalSince(anchor)), target: target)
+        }
+        return .idle
     }
 
     static func overnightDuration(
@@ -103,11 +139,14 @@ enum FastingMath {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> TimeInterval? {
-        let start = today.eatingWindowStart
-        let endAnchor = previousWindowEnd(previous: previous, settings: settings, calendar: calendar)
-        guard let endAnchor else { return nil }
-        let close = start ?? now
-        return max(0, close.timeIntervalSince(endAnchor))
+        let close = today.eatingWindowStart ?? now
+        if let endAnchor = previousWindowEnd(previous: previous, settings: settings, calendar: calendar) {
+            return max(0, close.timeIntervalSince(endAnchor))
+        }
+        if today.eatingWindowStart == nil, let stamp = today.eatingWindowEnd {
+            return max(0, close.timeIntervalSince(stamp))
+        }
+        return nil
     }
 
     static func hitTarget(
@@ -138,7 +177,7 @@ enum FastingMath {
         var records: [FastingDayRecord] = []
         for (index, log) in sorted.enumerated() {
             let previous = index > 0 ? sorted[index - 1] : nil
-            guard log.eatingWindowStart != nil || calendar.isDate(log.date, inSameDayAs: now) else { continue }
+            guard log.eatingWindowStart != nil else { continue }
             guard let duration = overnightDuration(
                 today: log,
                 previous: previous,
@@ -230,6 +269,8 @@ enum FastingMath {
         switch phase(today: today, previous: previous, settings: settings, now: now) {
         case .off:
             return "Fasting off"
+        case .idle:
+            return "Ready — start when you stop eating"
         case .fasting(let elapsed, let target):
             let remaining = max(0, target - elapsed)
             if remaining > 0 {

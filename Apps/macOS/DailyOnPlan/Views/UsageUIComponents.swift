@@ -2,6 +2,31 @@ import SwiftUI
 import AppKit
 import OnPlanCore
 
+struct MacSettingsThreeColumn<First: View, Second: View, Third: View>: View {
+    @ViewBuilder var first: () -> First
+    @ViewBuilder var second: () -> Second
+    @ViewBuilder var third: () -> Third
+    @State private var height: CGFloat = 0
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            first()
+                .reportMatchedHeight()
+                .frame(maxWidth: .infinity, alignment: .top)
+                .fillMatchedHeight(height)
+            second()
+                .reportMatchedHeight()
+                .frame(maxWidth: .infinity, alignment: .top)
+                .fillMatchedHeight(height)
+            third()
+                .reportMatchedHeight()
+                .frame(maxWidth: .infinity, alignment: .top)
+                .fillMatchedHeight(height)
+        }
+        .onPreferenceChange(MatchedHeightKey.self) { height = $0 }
+    }
+}
+
 struct MacSettingsTwoColumn<Left: View, Right: View>: View {
     @ViewBuilder var left: () -> Left
     @ViewBuilder var right: () -> Right

@@ -45,44 +45,25 @@ enum MacSettingsPane: String, Hashable, Identifiable, CaseIterable {
 
 struct SettingsRootView: View {
     @EnvironmentObject private var store: OnPlanStore
-    @State private var pane: MacSettingsPane = .general
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $pane) {
-                Section("This Mac") {
-                    paneRow(.general)
-                    paneRow(.layout)
-                    paneRow(.theme)
-                    paneRow(.accessibility)
-                }
-                Section("Journal") {
-                    paneRow(.program)
-                    paneRow(.body)
-                    paneRow(.lifestyle)
-                    paneRow(.fasting)
-                    paneRow(.journal)
-                    paneRow(.notifications)
-                }
-                Section("App") {
-                    paneRow(.data)
-                    paneRow(.about)
-                }
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 176, ideal: 208, max: 260)
-        } detail: {
-            NavigationStack {
-                detail
-                    .navigationTitle(pane.title)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .appLayoutScale(store.preferences.interfaceSize.scale)
-            }
+        TabView {
+            tab(GeneralSettingsView(), .general)
+            tab(LayoutSettingsView(), .layout)
+            tab(ThemeSettingsView(), .theme)
+            tab(AccessibilitySettingsView(), .accessibility)
+            tab(MacProgramSettingsView(), .program)
+            tab(MacBodySettingsView(), .body)
+            tab(MacLifestyleSettingsView(), .lifestyle)
+            tab(MacFastingSettingsView(), .fasting)
+            tab(MacJournalSettingsView(), .journal)
+            tab(MacNotificationsSettingsView(), .notifications)
+            tab(DataSettingsView(), .data)
+            tab(AboutSettingsView(), .about)
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(
-            minWidth: 880,
-            idealWidth: 980 * store.preferences.interfaceSize.scale,
+            minWidth: 920,
+            idealWidth: 1040 * store.preferences.interfaceSize.scale,
             maxWidth: .infinity,
             minHeight: 560,
             idealHeight: 680 * store.preferences.interfaceSize.scale,
@@ -105,27 +86,12 @@ struct SettingsRootView: View {
         }
     }
 
-    private func paneRow(_ pane: MacSettingsPane) -> some View {
-        Label(pane.title, systemImage: pane.systemImage)
+    private func tab<Content: View>(_ content: Content, _ pane: MacSettingsPane) -> some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .appLayoutScale(store.preferences.interfaceSize.scale)
+            .tabItem { Label(pane.title, systemImage: pane.systemImage) }
             .tag(pane)
-    }
-
-    @ViewBuilder
-    private var detail: some View {
-        switch pane {
-        case .general: GeneralSettingsView()
-        case .layout: LayoutSettingsView()
-        case .theme: ThemeSettingsView()
-        case .accessibility: AccessibilitySettingsView()
-        case .program: MacProgramSettingsView()
-        case .body: MacBodySettingsView()
-        case .lifestyle: MacLifestyleSettingsView()
-        case .fasting: MacFastingSettingsView()
-        case .journal: MacJournalSettingsView()
-        case .notifications: MacNotificationsSettingsView()
-        case .data: DataSettingsView()
-        case .about: AboutSettingsView()
-        }
     }
 }
 

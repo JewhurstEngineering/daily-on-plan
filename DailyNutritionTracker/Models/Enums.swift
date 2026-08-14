@@ -874,4 +874,15 @@ enum DateHelpers {
     static func formattedTime(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute())
     }
+
+    static func formattedTimeStamp(_ date: Date, relativeTo now: Date = Date()) -> String {
+        let time = formattedTime(date)
+        if Calendar.current.isDate(date, inSameDayAs: now) {
+            return time
+        }
+        if Calendar.current.isDateInYesterday(date) {
+            return "Yesterday, \(time)"
+        }
+        return "\(date.formatted(.dateTime.month(.abbreviated).day())), \(time)"
+    }
 }

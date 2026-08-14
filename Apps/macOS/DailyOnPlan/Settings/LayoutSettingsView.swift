@@ -7,90 +7,90 @@ struct LayoutSettingsView: View {
 
     var body: some View {
         MacSettingsScroll {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12)], spacing: 12) {
-                    SettingsPanel(
-                        title: "Menu bar",
-                        systemImage: "menubar.rectangle",
-                        subtitle: "Metrics in the system menu bar."
-                    ) {
-                        metricToggles(menuToggle)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
-
-                    SettingsPanel(
-                        title: "Display",
-                        systemImage: "slider.horizontal.3",
-                        subtitle: "Shared menu bar presentation."
-                    ) {
-                        Toggle("Show title text in menu bar", isOn: showMenuBarBinding)
-                            .toggleStyle(.checkbox)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Density")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Picker("Density", selection: formatBinding) {
-                                Text("Compact").tag(DisplayPreferences.MenuBarFormat.compact)
-                                Text("Detailed").tag(DisplayPreferences.MenuBarFormat.detailed)
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                        }
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Labels")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Picker("Labels", selection: labelStyleBinding) {
-                                Text("Icons").tag(DisplayPreferences.MenuBarLabelStyle.icons)
-                                Text("Words").tag(DisplayPreferences.MenuBarLabelStyle.shortWords)
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                        }
-
-                        Text(labelStyleHelp)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text("Detailed shows every enabled metric. Compact shows protein, water, or plan status.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
-
-                    SettingsPanel(
-                        title: "Popover",
-                        systemImage: "rectangle.portrait.on.rectangle.portrait",
-                        subtitle: "Metrics in the click panel."
-                    ) {
-                        metricToggles(popoverToggle)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
-                }
-                .id(appearanceEpoch)
-
+            MacSettingsThreeColumn {
                 SettingsPanel(
-                    title: "Live examples",
-                    systemImage: "eye",
-                    subtitle: "Toggles above update these immediately. Theme colors come from the Theme tab."
+                    title: "Menu bar",
+                    systemImage: "menubar.rectangle",
+                    subtitle: "Metrics next to the icon.",
+                    fillsHeight: true
                 ) {
-                    HStack(alignment: .top, spacing: 14) {
-                        MenuBarPreviewStrip(
-                            snapshot: store.snapshot.forSettingsPreview,
-                            preferences: store.preferences
-                        )
-                        .frame(maxWidth: .infinity, alignment: .top)
-
-                        PopoverPreviewCard(
-                            snapshot: store.snapshot.forSettingsPreview,
-                            preferences: store.preferences
-                        )
-                        .frame(maxWidth: .infinity, alignment: .top)
-                    }
+                    metricToggles(menuToggle)
                 }
+            } second: {
+                SettingsPanel(
+                    title: "Popover",
+                    systemImage: "rectangle.portrait.on.rectangle.portrait",
+                    subtitle: "Metrics in the click panel.",
+                    fillsHeight: true
+                ) {
+                    metricToggles(popoverToggle)
+                }
+            } third: {
+                SettingsPanel(
+                    title: "Display",
+                    systemImage: "slider.horizontal.3",
+                    subtitle: "Shared menu bar presentation.",
+                    fillsHeight: true
+                ) {
+                    Toggle("Show title text in menu bar", isOn: showMenuBarBinding)
+                        .toggleStyle(.checkbox)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Density")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Picker("Density", selection: formatBinding) {
+                            Text("Compact").tag(DisplayPreferences.MenuBarFormat.compact)
+                            Text("Detailed").tag(DisplayPreferences.MenuBarFormat.detailed)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Labels")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Picker("Labels", selection: labelStyleBinding) {
+                            Text("Icons").tag(DisplayPreferences.MenuBarLabelStyle.icons)
+                            Text("Words").tag(DisplayPreferences.MenuBarLabelStyle.shortWords)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+
+                    Text(labelStyleHelp)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("Detailed shows every enabled metric. Compact shows protein, water, or plan status.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .id(appearanceEpoch)
+
+            SettingsPanel(
+                title: "Live examples",
+                systemImage: "eye",
+                subtitle: "Toggles above update these immediately. Theme colors come from the Theme tab."
+            ) {
+                HStack(alignment: .top, spacing: 14) {
+                    MenuBarPreviewStrip(
+                        snapshot: store.snapshot.forSettingsPreview,
+                        preferences: store.preferences
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
+
+                    PopoverPreviewCard(
+                        snapshot: store.snapshot.forSettingsPreview,
+                        preferences: store.preferences
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
+                }
+            }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
