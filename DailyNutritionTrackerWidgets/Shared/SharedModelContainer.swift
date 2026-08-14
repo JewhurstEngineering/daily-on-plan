@@ -11,27 +11,83 @@ enum SharedModelContainer {
     private(set) static var cloudKitError: String?
 
     @MainActor
+    static func reset() {
+        cached = nil
+        usesCloudKit = false
+        cloudKitError = nil
+    }
+
+    @MainActor
+    static func reopen() throws -> ModelContainer {
+        reset()
+        return try shared()
+    }
+
+    @MainActor
     static func shared() throws -> ModelContainer {
         if let cached { return cached }
 
         let container: ModelContainer
         #if WIDGET_EXTENSION
-        container = try AppGroupStore.makeContainer(cloudKitEnabled: false)
+        container = try AppGroupStore.makeContainer(cloudKit: .none)
         usesCloudKit = false
         #else
-        do {
-            container = try AppGroupStore.makeContainer(cloudKitEnabled: true)
-            usesCloudKit = true
-            cloudKitError = nil
-            log.info("Opened journal with CloudKit \(AppGroupIDs.cloudKitContainer, privacy: .public)")
-        } catch {
-            cloudKitError = error.localizedDescription
-            usesCloudKit = false
-            log.error("CloudKit journal failed: \(error.localizedDescription, privacy: .public)")
-            container = try AppGroupStore.makeContainer(cloudKitEnabled: false)
-        }
+        container = try openJournal()
         #endif
         cached = container
         return container
+    }
+
+    #if !WIDGET_EXTENSION
+    @MainActor
+    private static func openJournal() throws -> ModelContainer {
+        var lastError: Error?
+        for style in [AppGroupStore.CloudKitStyle.automatic, .appGroupPrivate] {
+            do {
+                let container = try AppGroupStore.makeContainer(cloudKit: style)
+                usesCloudKit = true
+                cloudKitError = nil
+                log.info("Opened journal with CloudKit (\(style.label, privacy: .public)) \(AppGroupIDs.cloudKitContainer, privacy: .public)")
+                return container
+            } catch {
+                lastError = error
+                log.error("CloudKit \(style.label, privacy: .public) failed: \(describe(error), privacy: .public)")
+            }
+        }
+        cloudKitError = lastError.map(describe) ?? "Couldn’t open the iCloud journal"
+        usesCloudKit = false
+        return try AppGroupStore.makeContainer(cloudKit: .none)
+    }
+    #endif
+
+    static func describe(_ error: Error) -> String {
+        func flatten(_ error: Error) -> [String] {
+            let ns = error as NSError
+            var parts: [String] = []
+            if let reason = ns.localizedFailureReason, !reason.isEmpty {
+                parts.append(reason)
+            }
+            if !ns.localizedDescription.isEmpty {
+                parts.append(ns.localizedDescription)
+            }
+            if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? Error {
+                parts.append(contentsOf: flatten(underlying))
+            }
+            return parts
+        }
+        let parts = flatten(error)
+        if let useful = parts.first(where: {
+            $0.localizedCaseInsensitiveContains("CloudKit")
+                || $0.localizedCaseInsensitiveContains("optional")
+                || $0.localizedCaseInsensitiveContains("default")
+                || $0.localizedCaseInsensitiveContains("iCloud")
+        }) {
+            return useful
+        }
+        let text = error.localizedDescription
+        if text.contains("SwiftDataError") {
+            return "Couldn’t open the iCloud journal"
+        }
+        return text
     }
 }

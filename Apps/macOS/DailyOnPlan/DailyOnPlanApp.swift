@@ -1,25 +1,16 @@
 import AppKit
 import SwiftUI
-import SwiftData
 import OnPlanCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = OnPlanStore()
-    private var container: ModelContainer?
-
-    var modelContainer: ModelContainer {
-        if let container { return container }
-        let made = DataStore.makeContainer()
-        self.container = made
-        return made
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.onSnapshotWritten = { WidgetReload.afterWritingSnapshot() }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            MacDaySync.refresh(store: self.store, context: ModelContext(self.modelContainer))
+            MacDaySync.refresh(store: self.store)
             MacDaySync.startObserving(store: self.store)
             // Hide Dock after SwiftUI has registered the MenuBarExtra. Putting
             // LSUIElement in Info.plist (or flipping accessory too early) lets

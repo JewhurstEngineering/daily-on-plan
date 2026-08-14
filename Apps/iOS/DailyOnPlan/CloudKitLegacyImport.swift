@@ -15,14 +15,7 @@ enum CloudKitLegacyImport {
         let legacyURL = AppGroupStore.storeURL
         guard FileManager.default.fileExists(atPath: legacyURL.path) else { return }
 
-        guard let local = try? ModelContainer(
-            for: AppGroupStore.schema,
-            configurations: [ModelConfiguration(
-                schema: AppGroupStore.schema,
-                url: legacyURL,
-                cloudKitDatabase: .none
-            )]
-        ) else { return }
+        guard let local = try? AppGroupStore.makeContainer(cloudKit: .none) else { return }
 
         let localContext = ModelContext(local)
         guard let snapshot = try? BackupService.snapshot(from: localContext) else { return }

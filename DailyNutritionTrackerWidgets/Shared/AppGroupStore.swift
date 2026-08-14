@@ -25,19 +25,22 @@ enum AppGroupStore {
         return container.appendingPathComponent(storeFileName)
     }
 
+    enum CloudKitStyle {
+        case none
+        case automatic
+        case appGroupPrivate
+
+        var label: String {
+            switch self {
+            case .none: return "local"
+            case .automatic: return "automatic"
+            case .appGroupPrivate: return "app-group"
+            }
+        }
+    }
+
     static var schema: Schema {
-        Schema([
-            DailyLog.self,
-            FeelingEntry.self,
-            ProteinEntry.self,
-            WorkoutEntry.self,
-            WeightEntry.self,
-            BodyMeasurementEntry.self,
-            BodyCompositionReading.self,
-            CustomFoodPreset.self,
-            SavedMeal.self,
-            AppSettings.self
-        ])
+        Schema(versionedSchema: JournalSchemaV2.self)
     }
 
     /// Copies the legacy app-sandbox SwiftData store into the App Group once.
@@ -67,24 +70,46 @@ enum AppGroupStore {
     }
 
     static func makeConfiguration(cloudKitEnabled: Bool) -> ModelConfiguration {
-        migrateLegacyStoreIfNeeded()
-        if cloudKitEnabled {
+        makeConfiguration(cloudKit: cloudKitEnabled ? .appGroupPrivate : .none)
+    }
+
+    static func makeConfiguration(cloudKit: CloudKitStyle) -> ModelConfiguration {
+        if cloudKit == .none {
+            migrateLegacyStoreIfNeeded()
+        }
+        switch cloudKit {
+        case .automatic:
+            return ModelConfiguration(
+                "OnPlanJournal",
+                schema: schema,
+                cloudKitDatabase: .automatic
+            )
+        case .appGroupPrivate:
             return ModelConfiguration(
                 "OnPlanJournal",
                 schema: schema,
                 groupContainer: .identifier(identifier),
                 cloudKitDatabase: .private(AppGroupIDs.cloudKitContainer)
             )
+        case .none:
+            return ModelConfiguration(
+                schema: schema,
+                url: storeURL,
+                cloudKitDatabase: .none
+            )
         }
-        return ModelConfiguration(
-            schema: schema,
-            url: storeURL,
-            cloudKitDatabase: .none
-        )
     }
 
     static func makeContainer(cloudKitEnabled: Bool = false) throws -> ModelContainer {
-        let config = makeConfiguration(cloudKitEnabled: cloudKitEnabled)
-        return try ModelContainer(for: schema, configurations: [config])
+        try makeContainer(cloudKit: cloudKitEnabled ? .appGroupPrivate : .none)
+    }
+
+    static func makeContainer(cloudKit: CloudKitStyle) throws -> ModelContainer {
+        let config = makeConfiguration(cloudKit: cloudKit)
+        return try ModelContainer(
+            for: schema,
+            migrationPlan: JournalMigrationPlan.self,
+            configurations: config
+        )
     }
 }
