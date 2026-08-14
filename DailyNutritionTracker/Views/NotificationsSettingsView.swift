@@ -273,6 +273,79 @@ struct NotificationsSettingsView: View {
                 showTime: settings.motivationReminderEnabled
             )
 
+            if settings.fastingEnabled {
+                Section {
+                    Toggle("Eating window opening", isOn: Binding(
+                        get: { settings.fastingNotifyOpenEnabled },
+                        set: {
+                            settings.fastingNotifyOpenEnabled = $0
+                            persist()
+                        }
+                    ))
+                    Text("Nudge before your typical eat-start time.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if settings.fastingNotifyOpenEnabled {
+                        Stepper(
+                            settings.fastingNotifyOpenMinutes == 0
+                                ? "At window start"
+                                : "\(settings.fastingNotifyOpenMinutes) min before",
+                            value: Binding(
+                                get: { settings.fastingNotifyOpenMinutes },
+                                set: {
+                                    settings.fastingNotifyOpenMinutes = $0
+                                    persist()
+                                }
+                            ),
+                            in: 0...60,
+                            step: 5
+                        )
+                    }
+
+                    Toggle("Eating window closing", isOn: Binding(
+                        get: { settings.fastingNotifyCloseEnabled },
+                        set: {
+                            settings.fastingNotifyCloseEnabled = $0
+                            persist()
+                        }
+                    ))
+                    Text("Nudge before your typical eat-end time.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if settings.fastingNotifyCloseEnabled {
+                        Stepper(
+                            settings.fastingNotifyCloseMinutes == 0
+                                ? "At window end"
+                                : "\(settings.fastingNotifyCloseMinutes) min before",
+                            value: Binding(
+                                get: { settings.fastingNotifyCloseMinutes },
+                                set: {
+                                    settings.fastingNotifyCloseMinutes = $0
+                                    persist()
+                                }
+                            ),
+                            in: 0...60,
+                            step: 5
+                        )
+                    }
+
+                    Toggle("Still eating after close", isOn: Binding(
+                        get: { settings.fastingNotifyOvertimeEnabled },
+                        set: {
+                            settings.fastingNotifyOvertimeEnabled = $0
+                            persist()
+                        }
+                    ))
+                    Text("Fires at the typical close time if you haven’t ended the window.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Fasting")
+                } footer: {
+                    Text("Times follow the typical window in Settings → Fasting. Off until you turn fasting on.")
+                }
+            }
+
             Section {
                 Toggle("Body composition", isOn: Binding(
                     get: { settings.bodyCompReminderEnabled },
@@ -281,7 +354,7 @@ struct NotificationsSettingsView: View {
                         persist()
                     }
                 ))
-                Text("Reminder to log a clinic receipt. Off by default. Opens Body composition when tapped.")
+                Text("Reminder to log a body composition reading. Off by default. Opens Body composition when tapped.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 if settings.bodyCompReminderEnabled {

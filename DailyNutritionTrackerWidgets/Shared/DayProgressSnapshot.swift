@@ -60,6 +60,12 @@ struct DaySnapshot: Codable, Hashable {
     var followedPlan: Bool
     var ketosis: Bool
     var hasLog: Bool
+    var fastingEnabled: Bool = false
+    var eatingWindowStart: Date? = nil
+    var eatingWindowEnd: Date? = nil
+    var fastingTargetHours: Double = 16
+    var fastingStreak: Int = 0
+    var fastingStatusLine: String = ""
 
     static let empty = DaySnapshot(
         proteinCalories: 0,
@@ -98,9 +104,15 @@ struct DaySnapshot: Codable, Hashable {
         supplementDosesCompleted: 0,
         supplementDosesTotal: 0,
         supplements: [],
-        followedPlan: true,
-        ketosis: true,
-        hasLog: false
+        followedPlan: false,
+        ketosis: false,
+        hasLog: false,
+        fastingEnabled: false,
+        eatingWindowStart: nil,
+        eatingWindowEnd: nil,
+        fastingTargetHours: 16,
+        fastingStreak: 0,
+        fastingStatusLine: ""
     )
 
     var proteinFraction: Double {
@@ -188,6 +200,13 @@ enum DaySnapshotReader {
 
             let workouts = log?.sortedWorkouts ?? []
             let feelings = log?.sortedFeelings ?? []
+            let rangeStart = Calendar.current.date(byAdding: .day, value: -60, to: Date()) ?? Date()
+            let logs = DataStore.logs(from: rangeStart, to: Date(), in: context)
+            let previous = DataStore.existingLog(
+                for: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
+                in: context
+            )
+            let bits = FastingMath.snapshotBits(today: log, previous: previous, logs: logs, settings: settings)
 
             return DaySnapshot(
                 proteinCalories: log?.totalProteinCalories ?? 0,
@@ -226,9 +245,15 @@ enum DaySnapshotReader {
                 supplementDosesCompleted: done,
                 supplementDosesTotal: total,
                 supplements: supplementSnapshots,
-                followedPlan: log?.followedPlan ?? true,
-                ketosis: log?.ketosis ?? true,
-                hasLog: log != nil
+                followedPlan: log?.followedPlan ?? false,
+                ketosis: log?.ketosis ?? false,
+                hasLog: log != nil,
+                fastingEnabled: bits.enabled,
+                eatingWindowStart: bits.start,
+                eatingWindowEnd: bits.end,
+                fastingTargetHours: bits.hours,
+                fastingStreak: bits.streak,
+                fastingStatusLine: bits.line
             )
         } catch {
             return .empty

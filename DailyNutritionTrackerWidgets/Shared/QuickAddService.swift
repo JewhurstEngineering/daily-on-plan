@@ -139,6 +139,97 @@ enum QuickAddService {
         }
     }
 
+    static func addProteinCalories(_ calories: Int, name: String = "Protein") -> Result {
+        do {
+            let (context, _, log) = try context()
+            let kcal = max(1, min(calories, 2000))
+            let entry = ProteinEntry(
+                name: name,
+                servingSize: "quick add",
+                calories: kcal,
+                proteinCategory: "other",
+                servings: 1
+            )
+            entry.log = log
+            context.insert(entry)
+            try context.save()
+            notifySideEffects()
+            return .success(message: "Logged \(kcal) kcal protein.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    static func setFollowedPlan(_ onPlan: Bool) -> Result {
+        do {
+            let (context, _, log) = try context()
+            log.followedPlan = onPlan
+            if onPlan { log.offPlanReasons = [] }
+            try context.save()
+            notifySideEffects()
+            return .success(message: onPlan ? "Marked on plan." : "Marked off plan.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    static func setKetosis(_ inKetosis: Bool) -> Result {
+        do {
+            let (context, _, log) = try context()
+            log.ketosis = inKetosis
+            try context.save()
+            notifySideEffects()
+            return .success(message: inKetosis ? "Marked in ketosis." : "Marked not in ketosis.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    static func startEatingWindow(useTypical: Bool = false) -> Result {
+        do {
+            let (context, settings, log) = try context()
+            if useTypical {
+                FastingMath.applyTypicalWindow(to: log, settings: settings)
+            } else {
+                log.eatingWindowStart = Date()
+                log.eatingWindowEnd = nil
+            }
+            try context.save()
+            notifySideEffects()
+            return .success(message: "Eating window started.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    static func endEatingWindow() -> Result {
+        do {
+            let (context, _, log) = try context()
+            guard log.eatingWindowStart != nil else {
+                return .failure(message: "Start the eating window first.")
+            }
+            log.eatingWindowEnd = Date()
+            try context.save()
+            notifySideEffects()
+            return .success(message: "Eating window closed.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    static func clearEatingWindow() -> Result {
+        do {
+            let (context, _, log) = try context()
+            log.eatingWindowStart = nil
+            log.eatingWindowEnd = nil
+            try context.save()
+            notifySideEffects()
+            return .success(message: "Cleared today’s eating window.")
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
     static func toggleFollowedPlan() -> Result {
         do {
             let (context, _, log) = try context()
@@ -184,7 +275,12 @@ enum QuickAddService {
             ketosis: day.ketosis,
             updatedAt: Date(),
             quickAddSlots: quick.resolvedSlots.map(\.rawValue),
-            hydrationSizesOz: quick.hydrationSizesOz
+            hydrationSizesOz: quick.hydrationSizesOz,
+            fastingEnabled: day.fastingEnabled,
+            eatingWindowStart: day.eatingWindowStart,
+            eatingWindowEnd: day.eatingWindowEnd,
+            fastingTargetHours: day.fastingTargetHours,
+            fastingStatusLine: day.fastingStatusLine
         )
     }
     #endif

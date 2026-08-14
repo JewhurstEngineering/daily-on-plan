@@ -71,6 +71,10 @@ final class PhoneWatchBridge: NSObject, ObservableObject {
             result = QuickAddService.addBathroom(kind: .urine)
         case .addBathroomStool:
             result = QuickAddService.addBathroom(kind: .stool)
+        case .startEating:
+            result = QuickAddService.startEatingWindow()
+        case .endEating:
+            result = QuickAddService.endEatingWindow()
         case .requestSnapshot, .none:
             let snapshot = QuickAddService.makeWatchSnapshot()
             var reply = WatchSnapshotCache.dictionary(from: snapshot)

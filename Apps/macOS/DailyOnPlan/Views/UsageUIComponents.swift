@@ -2,6 +2,39 @@ import SwiftUI
 import AppKit
 import OnPlanCore
 
+struct MacSettingsTwoColumn<Left: View, Right: View>: View {
+    @ViewBuilder var left: () -> Left
+    @ViewBuilder var right: () -> Right
+    @State private var height: CGFloat = 0
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            left()
+                .reportMatchedHeight()
+                .frame(maxWidth: .infinity, alignment: .top)
+                .fillMatchedHeight(height)
+            right()
+                .reportMatchedHeight()
+                .frame(maxWidth: .infinity, alignment: .top)
+                .fillMatchedHeight(height)
+        }
+        .onPreferenceChange(MatchedHeightKey.self) { height = $0 }
+    }
+}
+
+struct MacSettingsFillStack<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
 struct SettingsPanel<Content: View>: View {
     let title: String
     var systemImage: String
@@ -56,18 +89,16 @@ struct MacSettingsScroll<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        GeometryReader { geo in
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 16) {
-                    content
-                }
-                .padding(16)
-                .frame(width: max(geo.size.width, 1), alignment: .topLeading)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 16) {
+                content
             }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
-        .clipped()
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
 

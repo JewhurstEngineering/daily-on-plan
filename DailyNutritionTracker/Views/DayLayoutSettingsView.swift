@@ -51,6 +51,7 @@ struct DayLayoutSettingsView: View {
 
     private func isVisible(_ section: DaySectionID) -> Bool {
         switch section {
+        case .fasting: return settings.fastingEnabled
         case .smoking: return settings.smokingMode.showsSection
         case .drinking: return settings.drinkingMode.showsSection
         case .supplements: return settings.showSupplementsSection

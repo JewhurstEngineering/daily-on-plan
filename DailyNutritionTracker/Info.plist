@@ -23,7 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>$(PRODUCT_DISPLAY_NAME) reads water, alcoholic drinks, and body weight from Apple Health to keep your daily log in sync.</string>
+	<string>$(PRODUCT_DISPLAY_NAME) reads water, alcoholic drinks, body weight, steps, and sleep from Apple Health to keep your daily log in sync.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>$(PRODUCT_DISPLAY_NAME) writes water, alcoholic drinks, workouts, and body weight to Apple Health when you log them. Cigarette counts stay in the app only — HealthKit has no public nicotine type.</string>
 	<key>NSCameraUsageDescription</key>
@@ -37,11 +37,16 @@
 	<array/>
 	<key>UILaunchScreen</key>
 	<dict/>
-	<key>UIRequiresFullScreen</key>
-	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

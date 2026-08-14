@@ -58,6 +58,14 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
         send(action: .addBathroomStool)
     }
 
+    func startEating() {
+        send(action: .startEating)
+    }
+
+    func endEating() {
+        send(action: .endEating)
+    }
+
     private func send(action: WatchConnectivityKeys.Action, extras: [String: Any] = [:]) {
         guard let session else {
             lastError = "WatchConnectivity unavailable."
@@ -68,7 +76,10 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
             return
         }
         guard session.isReachable else {
-            lastError = "Open Daily On Plan on iPhone to sync."
+            WatchActionQueue.enqueue(action: action, extras: extras)
+            lastError = WatchActionQueue.pendingCount == 1
+                ? "Queued — will send when iPhone is nearby."
+                : "Queued \(WatchActionQueue.pendingCount) actions for iPhone."
             return
         }
 
@@ -95,6 +106,22 @@ final class WatchConnectivityClient: NSObject, ObservableObject {
         })
     }
 
+    private func flushQueueIfNeeded() {
+        guard session?.isReachable == true else { return }
+        let pending = WatchActionQueue.drain()
+        for item in pending {
+            guard let action = WatchConnectivityKeys.Action(rawValue: item.action) else { continue }
+            var extras: [String: Any] = [:]
+            if let ounces = item.ounces {
+                extras[WatchConnectivityKeys.ounces] = ounces
+            }
+            if let electrolyte = item.electrolyte {
+                extras[WatchConnectivityKeys.electrolyte] = electrolyte
+            }
+            send(action: action, extras: extras)
+        }
+    }
+
     private func apply(_ snapshot: WatchDaySnapshot) {
         self.snapshot = snapshot
         WatchSnapshotCache.save(snapshot)
@@ -115,6 +142,7 @@ extension WatchConnectivityClient: WCSessionDelegate {
             }
             if activationState == .activated, session.isReachable {
                 self.requestSnapshot()
+                self.flushQueueIfNeeded()
             }
         }
     }
@@ -131,6 +159,7 @@ extension WatchConnectivityClient: WCSessionDelegate {
             self.isReachable = session.isReachable
             if session.isReachable {
                 self.requestSnapshot()
+                self.flushQueueIfNeeded()
             }
         }
     }

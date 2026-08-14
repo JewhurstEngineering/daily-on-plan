@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import SwiftData
 import Combine
 import OnPlanCore
 
@@ -63,12 +64,18 @@ final class StatusItemController: NSObject {
             button.sendAction(on: [.leftMouseUp])
         }
 
-        let hosting = NSHostingController(
-            rootView: AnyView(
+        var popoverRoot: AnyView = AnyView(
+            MenuBarPopoverView()
+                .environmentObject(store)
+        )
+        if let container = try? SharedModelContainer.shared() {
+            popoverRoot = AnyView(
                 MenuBarPopoverView()
                     .environmentObject(store)
+                    .modelContainer(container)
             )
-        )
+        }
+        let hosting = NSHostingController(rootView: popoverRoot)
         hosting.sizingOptions = [.intrinsicContentSize]
         hosting.view.wantsLayer = true
 

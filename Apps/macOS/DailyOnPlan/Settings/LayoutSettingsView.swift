@@ -111,6 +111,7 @@ struct LayoutSettingsView: View {
             MetricToggleRow(title: "Smoking", systemImage: "smoke", isOn: binding(\.smoking))
             MetricToggleRow(title: "Drinking", systemImage: "wineglass", isOn: binding(\.drinking))
             MetricToggleRow(title: "Bathroom", systemImage: "toilet", isOn: binding(\.bathroom))
+            MetricToggleRow(title: "Fasting", systemImage: "clock", isOn: binding(\.fasting))
         }
     }
 

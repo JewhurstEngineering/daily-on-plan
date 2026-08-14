@@ -85,7 +85,10 @@ struct TodayTabView: View {
                 .task {
                     snapToTodayIfNeeded()
                     _ = DataStore.settings(in: modelContext)
-                    await healthKit.requestAuthorization()
+                    let alreadyOffered = UserDefaults.standard.bool(forKey: FirstLaunchImportView.didOfferKey)
+                    if alreadyOffered || DataStore.hasAnyJournalData(in: modelContext) {
+                        await healthKit.requestAuthorization()
+                    }
                     let settings = DataStore.settings(in: modelContext)
                     await NotificationService.shared.reschedule(using: settings)
                     store.setSnapshot(ChromeSnapshotBuilder.fromToday())

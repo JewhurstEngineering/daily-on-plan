@@ -13,10 +13,22 @@ enum DaySnapshotBuilder {
         } else {
             waterOz = log?.slotWaterOz ?? 0
         }
+        let rangeStart = Calendar.current.date(byAdding: .day, value: -60, to: date) ?? date
+        let logs = DataStore.logs(from: rangeStart, to: date, in: context)
+        let previous = DataStore.existingLog(
+            for: Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date,
+            in: context
+        )
+        let bits: (enabled: Bool, start: Date?, end: Date?, hours: Double, streak: Int, line: String)
+        if let settings {
+            bits = FastingMath.snapshotBits(today: log, previous: previous, logs: logs, settings: settings)
+        } else {
+            bits = (false, log?.eatingWindowStart, log?.eatingWindowEnd, 16, 0, "")
+        }
         return ChromeSnapshot(
             generatedAt: Date(),
-            followedPlan: log?.followedPlan ?? true,
-            ketosis: log?.ketosis ?? true,
+            followedPlan: log?.followedPlan ?? false,
+            ketosis: log?.ketosis ?? false,
             proteinCalories: log?.totalProteinCalories ?? 0,
             proteinGoal: log?.proteinGoal ?? settings?.defaultProteinGoal ?? 500,
             waterOz: waterOz,
@@ -28,7 +40,13 @@ enum DaySnapshotBuilder {
             stoolCount: log?.stoolCount ?? 0,
             smokingEnabled: settings?.smokingMode.showsSection ?? false,
             drinkingEnabled: settings?.drinkingMode.showsSection ?? false,
-            bathroomEnabled: settings?.showBathroomSection ?? true
+            bathroomEnabled: settings?.showBathroomSection ?? true,
+            fastingEnabled: bits.enabled,
+            eatingWindowStart: bits.start,
+            eatingWindowEnd: bits.end,
+            fastingTargetHours: bits.hours,
+            fastingStreak: bits.streak,
+            fastingStatusLine: bits.line
         )
     }
 }

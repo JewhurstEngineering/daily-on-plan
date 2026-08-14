@@ -1,13 +1,17 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#endif
 
 extension WaterSlotRecord {
     /// SF Symbol that is guaranteed to exist on the running OS (avoids blank icons).
     var resolvedSystemImage: String {
+        #if canImport(UIKit)
         if UIImage(systemName: systemImage) != nil {
             return systemImage
         }
+        #endif
         switch kind {
         case .water, .electrolyte:
             return "waterbottle.fill"
@@ -255,7 +259,7 @@ struct GoalRingView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color(.systemGray5), lineWidth: 12)
+                .stroke(Color.onPlanHairline, lineWidth: 12)
 
             // Progress up to the goal (0 → 100%).
             Circle()
@@ -374,7 +378,7 @@ struct HydrationProgressBar: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color(.systemGray5))
+                        .fill(Color.onPlanHairline)
                     Capsule()
                         .fill(isMet ? theme.success : progressColor)
                         .frame(width: max(8, geo.size.width * fraction))

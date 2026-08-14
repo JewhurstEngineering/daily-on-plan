@@ -13,7 +13,7 @@ struct BodyCompositionListView: View {
     var body: some View {
         List {
             Section {
-                Text("Log clinic receipts (visit date, goals, body composition). Accessible from Settings and Weight.")
+                Text("Log body composition readings (visit date, goals, composition numbers). Accessible from Settings and Weight.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -23,7 +23,7 @@ struct BodyCompositionListView: View {
                     ContentUnavailableView(
                         "No readings yet",
                         systemImage: "list.clipboard",
-                        description: Text("Add a body composition receipt after your clinic visit.")
+                        description: Text("Add a body composition reading after a weigh-in or scan.")
                     )
                 }
             } else {
@@ -180,7 +180,7 @@ struct BodyCompositionEditView: View {
             } header: {
                 Text("Subject")
             } footer: {
-                Text("Age and height come from Settings → Body metrics. Change them there so every receipt starts prefilled.")
+                Text("Age and height come from Settings → Body metrics. Change them there so every reading starts prefilled.")
             }
 
             Section {
@@ -314,7 +314,7 @@ struct BodyCompositionEditView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Clinic protein and water goals can update your default protein goal and hydration target.")
+            Text("Protein and water goals on a reading can update your default protein goal and hydration target.")
         }
         .onAppear(perform: load)
         .onChange(of: weightText) { _, _ in

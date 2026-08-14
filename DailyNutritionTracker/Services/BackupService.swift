@@ -262,6 +262,12 @@ struct DailyLogDTO: Codable {
     var drinkEventsJSON: String?
     var drinkUrgesJSON: String?
     var bathroomEventsJSON: String?
+    var ketoneMmolStored: Double?
+    var eatingWindowStartStored: Date?
+    var eatingWindowEndStored: Date?
+    var offPlanExtraCarbGramsStored: Double?
+    var offPlanExtraFatGramsStored: Double?
+    var offPlanExtraKcalStored: Int?
     var proteinEntries: [ProteinEntryDTO]
     var workoutEntries: [WorkoutEntryDTO]
     var feelingEntries: [FeelingEntryDTO]
@@ -287,6 +293,12 @@ struct DailyLogDTO: Codable {
         drinkEventsJSON = log.drinkEventsJSON
         drinkUrgesJSON = log.drinkUrgesJSON
         bathroomEventsJSON = log.bathroomEventsJSON
+        ketoneMmolStored = log.ketoneMmolStored
+        eatingWindowStartStored = log.eatingWindowStartStored
+        eatingWindowEndStored = log.eatingWindowEndStored
+        offPlanExtraCarbGramsStored = log.offPlanExtraCarbGramsStored
+        offPlanExtraFatGramsStored = log.offPlanExtraFatGramsStored
+        offPlanExtraKcalStored = log.offPlanExtraKcalStored
         proteinEntries = log.proteins.map(ProteinEntryDTO.init(from:))
         workoutEntries = log.workouts.map(WorkoutEntryDTO.init(from:))
         feelingEntries = log.feelings.map(FeelingEntryDTO.init(from:))
@@ -315,6 +327,12 @@ struct DailyLogDTO: Codable {
         log.drinkEventsJSON = drinkEventsJSON
         log.drinkUrgesJSON = drinkUrgesJSON
         log.bathroomEventsJSON = bathroomEventsJSON
+        log.ketoneMmolStored = ketoneMmolStored
+        log.eatingWindowStartStored = eatingWindowStartStored
+        log.eatingWindowEndStored = eatingWindowEndStored
+        log.offPlanExtraCarbGramsStored = offPlanExtraCarbGramsStored
+        log.offPlanExtraFatGramsStored = offPlanExtraFatGramsStored
+        log.offPlanExtraKcalStored = offPlanExtraKcalStored
         log.proteinEntries = []
         log.workoutEntries = []
         log.feelingEntries = []
@@ -670,7 +688,6 @@ struct AppSettingsDTO: Codable {
     var sectionOrderJSON: String?
     var proteinDrinksCountTowardHydrationStored: Bool?
     var defaultShakeHydrationOzStored: Double?
-    var usdaAPIKeyStored: String?
     var bodyCompReminderEnabledStored: Bool?
     var bodyCompReminderCadenceRaw: String?
     var bodyCompReminderWeekdayStored: Int?
@@ -678,6 +695,16 @@ struct AppSettingsDTO: Codable {
     var bodyCompReminderHourStored: Int?
     var bodyCompReminderMinuteStored: Int?
     var ageYearsStored: Int?
+    var fastingEnabledStored: Bool?
+    var fastingPresetRaw: String?
+    var fastingCustomFastHoursStored: Double?
+    var fastingEatStartHourStored: Int?
+    var fastingEatStartMinuteStored: Int?
+    var fastingNotifyOpenEnabledStored: Bool?
+    var fastingNotifyOpenMinutesStored: Int?
+    var fastingNotifyCloseEnabledStored: Bool?
+    var fastingNotifyCloseMinutesStored: Int?
+    var fastingNotifyOvertimeEnabledStored: Bool?
 
     init(from settings: AppSettings) {
         id = settings.id
@@ -739,7 +766,6 @@ struct AppSettingsDTO: Codable {
         sectionOrderJSON = settings.sectionOrderJSON
         proteinDrinksCountTowardHydrationStored = settings.proteinDrinksCountTowardHydrationStored
         defaultShakeHydrationOzStored = settings.defaultShakeHydrationOzStored
-        usdaAPIKeyStored = settings.usdaAPIKeyStored
         bodyCompReminderEnabledStored = settings.bodyCompReminderEnabledStored
         bodyCompReminderCadenceRaw = settings.bodyCompReminderCadenceRaw
         bodyCompReminderWeekdayStored = settings.bodyCompReminderWeekdayStored
@@ -747,6 +773,16 @@ struct AppSettingsDTO: Codable {
         bodyCompReminderHourStored = settings.bodyCompReminderHourStored
         bodyCompReminderMinuteStored = settings.bodyCompReminderMinuteStored
         ageYearsStored = settings.ageYearsStored
+        fastingEnabledStored = settings.fastingEnabledStored
+        fastingPresetRaw = settings.fastingPresetRaw
+        fastingCustomFastHoursStored = settings.fastingCustomFastHoursStored
+        fastingEatStartHourStored = settings.fastingEatStartHourStored
+        fastingEatStartMinuteStored = settings.fastingEatStartMinuteStored
+        fastingNotifyOpenEnabledStored = settings.fastingNotifyOpenEnabledStored
+        fastingNotifyOpenMinutesStored = settings.fastingNotifyOpenMinutesStored
+        fastingNotifyCloseEnabledStored = settings.fastingNotifyCloseEnabledStored
+        fastingNotifyCloseMinutesStored = settings.fastingNotifyCloseMinutesStored
+        fastingNotifyOvertimeEnabledStored = settings.fastingNotifyOvertimeEnabledStored
     }
 
     func makeModel() -> AppSettings {
@@ -810,7 +846,6 @@ struct AppSettingsDTO: Codable {
         settings.sectionOrderJSON = sectionOrderJSON
         settings.proteinDrinksCountTowardHydrationStored = proteinDrinksCountTowardHydrationStored
         settings.defaultShakeHydrationOzStored = defaultShakeHydrationOzStored
-        settings.usdaAPIKeyStored = usdaAPIKeyStored
         settings.bodyCompReminderEnabledStored = bodyCompReminderEnabledStored
         settings.bodyCompReminderCadenceRaw = bodyCompReminderCadenceRaw
         settings.bodyCompReminderWeekdayStored = bodyCompReminderWeekdayStored
@@ -818,6 +853,16 @@ struct AppSettingsDTO: Codable {
         settings.bodyCompReminderHourStored = bodyCompReminderHourStored
         settings.bodyCompReminderMinuteStored = bodyCompReminderMinuteStored
         settings.ageYearsStored = ageYearsStored
+        settings.fastingEnabledStored = fastingEnabledStored
+        settings.fastingPresetRaw = fastingPresetRaw
+        settings.fastingCustomFastHoursStored = fastingCustomFastHoursStored
+        settings.fastingEatStartHourStored = fastingEatStartHourStored
+        settings.fastingEatStartMinuteStored = fastingEatStartMinuteStored
+        settings.fastingNotifyOpenEnabledStored = fastingNotifyOpenEnabledStored
+        settings.fastingNotifyOpenMinutesStored = fastingNotifyOpenMinutesStored
+        settings.fastingNotifyCloseEnabledStored = fastingNotifyCloseEnabledStored
+        settings.fastingNotifyCloseMinutesStored = fastingNotifyCloseMinutesStored
+        settings.fastingNotifyOvertimeEnabledStored = fastingNotifyOvertimeEnabledStored
         return settings
     }
 }

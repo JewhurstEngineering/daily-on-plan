@@ -75,10 +75,10 @@ enum FoodCatalog {
     ]
 
     static let shakes: [CatalogFood] = [
-        .init(name: "Premium Protein Shake", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
-        .init(name: "Chocolate Premium Protein", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
-        .init(name: "Ready to Drink Shake", category: .protein, servingLabel: "1", calories: 120, proteinCategory: .shake),
-        .init(name: "Shake to Go", category: .protein, servingLabel: "1", calories: 120, proteinCategory: .shake)
+        .init(name: "Protein shake", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
+        .init(name: "Chocolate protein shake", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
+        .init(name: "Ready-to-drink shake", category: .protein, servingLabel: "1", calories: 120, proteinCategory: .shake),
+        .init(name: "On-the-go shake", category: .protein, servingLabel: "1", calories: 120, proteinCategory: .shake)
     ]
 
     static let snacks: [CatalogFood] = [
@@ -129,7 +129,7 @@ enum FoodCatalog {
         .init(name: "Balsamic vinegar", category: .misc, servingLabel: "1 Tbsp", calories: 10),
         .init(name: "Barbecue sauce (low sugar)", category: .misc, servingLabel: "1 Tbsp", calories: 15),
         .init(name: "Broth/stock", category: .misc, servingLabel: "1 cup", calories: 10),
-        .init(name: "Chocolate Sensations (any flavor)", category: .misc, servingLabel: "1/2 piece", calories: 20),
+        .init(name: "Sugar-free chocolate (any flavor)", category: .misc, servingLabel: "1/2 piece", calories: 20),
         .init(name: "Coffee creamer (sugar free)", category: .misc, servingLabel: "1 Tbsp", calories: 10),
         .init(name: "Cooking spray", category: .misc, servingLabel: "as needed", calories: 0),
         .init(name: "Cream cheese (fat free)", category: .misc, servingLabel: "1 Tbsp", calories: 15),
@@ -145,7 +145,7 @@ enum FoodCatalog {
         .init(name: "Pickles (dill)", category: .misc, servingLabel: "3 slices / 1 medium", calories: 5),
         .init(name: "Salsa", category: .misc, servingLabel: "2 Tbsp", calories: 10),
         .init(name: "Shirataki noodles", category: .misc, servingLabel: "1/2 cup", calories: 10),
-        .init(name: "Signature PB", category: .misc, servingLabel: "2 tsp", calories: 20),
+        .init(name: "Peanut butter powder", category: .misc, servingLabel: "2 tsp", calories: 20),
         .init(name: "Sour cream (light)", category: .misc, servingLabel: "1 Tbsp", calories: 20),
         .init(name: "Soy sauce", category: .misc, servingLabel: "2 Tbsp", calories: 10),
         .init(name: "Syrup (sugar free)", category: .misc, servingLabel: "2 Tbsp", calories: 10),
@@ -225,7 +225,24 @@ enum FoodCatalog {
         .init(name: "Egg whites", category: .protein, servingLabel: "2", calories: 35, proteinCategory: .veryLean),
         .init(name: "Very lean turkey burger", category: .protein, servingLabel: "4 oz", calories: 140, proteinCategory: .veryLean, servingsPerUnit: 4),
         .init(name: "Turkey bacon (uncured)", category: .protein, servingLabel: "1 oz strip", calories: 35, proteinCategory: .veryLean),
-        .init(name: "Chocolate Premium Protein", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
+        .init(name: "Chocolate protein shake", category: .protein, servingLabel: "1 scoop", calories: 110, proteinCategory: .shake),
         .init(name: "Broiled salmon", category: .protein, servingLabel: "3 oz", calories: 165, proteinCategory: .lean, servingsPerUnit: 3)
     ]
+
+    /// Kcal implied by checked catalog servings (not a second calorie ring).
+    static func checklistCalories(for log: DailyLog, phase: ProgramPhase) -> (vegetable: Int, fat: Int, fruit: Int, misc: Int) {
+        func sum(_ names: [String], category: FoodCategory) -> Int {
+            names.reduce(0) { total, name in
+                let match = foods(category: category, phase: phase)
+                    .first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+                return total + (match?.calories ?? 0)
+            }
+        }
+        return (
+            sum(log.checkedFatsAndVeggies, category: .vegetable),
+            sum(log.checkedFats, category: .fat),
+            sum(log.checkedFruits, category: .fruit),
+            sum(log.checkedMiscItems, category: .misc)
+        )
+    }
 }

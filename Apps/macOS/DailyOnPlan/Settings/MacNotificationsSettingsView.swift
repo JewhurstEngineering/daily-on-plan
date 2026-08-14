@@ -10,8 +10,6 @@ struct MacNotificationsSettingsView: View {
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
     @State private var showSupplements = false
 
-    private let columns = [GridItem(.adaptive(minimum: 280), spacing: 12)]
-
     var body: some View {
         Group {
             if let settings = allSettings.first {
@@ -41,74 +39,101 @@ struct MacNotificationsSettingsView: View {
 
     private func content(_ settings: AppSettings) -> some View {
         MacSettingsScroll {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
+            MacSettingsTwoColumn {
                 thisMacPanel
+            } right: {
                 pausePanel(settings)
             }
-            LazyVGrid(columns: columns, spacing: 12) {
-                reminderCard(
+
+            SettingsPanel(
+                title: "Daily reminders",
+                systemImage: "bell.badge",
+                subtitle: "Same height for every row. Time is ignored while Off."
+            ) {
+                reminderRow(
                     title: "Evening plan",
                     systemImage: "checkmark.seal",
                     subtitle: "Yes / No on the banner.",
                     enabled: boolBinding(settings, \.eveningCheckInEnabled),
                     time: timeBinding(settings, hour: \.eveningCheckInHour, minute: \.eveningCheckInMinute, fallback: (20, 0))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Ketosis",
                     systemImage: "flame",
                     subtitle: "Yes / No. Strips, meter, or a guess.",
                     enabled: boolBinding(settings, \.ketosisCheckInEnabled),
                     time: timeBinding(settings, hour: \.ketosisCheckInHour, minute: \.ketosisCheckInMinute, fallback: (20, 5))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Daily check-in",
                     systemImage: "list.clipboard",
                     subtitle: "Finish the rest of today’s sheet.",
                     enabled: boolBinding(settings, \.genericCheckInEnabled),
                     time: timeBinding(settings, hour: \.genericCheckInHour, minute: \.genericCheckInMinute, fallback: (19, 30))
                 )
-                waterCard(settings)
-                reminderCard(
+                waterRow(settings)
+                reminderRow(
                     title: "Meal",
                     systemImage: "fork.knife",
                     subtitle: "Eat or log a meal.",
                     enabled: boolBinding(settings, \.mealReminderEnabled),
                     time: timeBinding(settings, hour: \.mealReminderHour, minute: \.mealReminderMinute, fallback: (12, 0))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Weigh-in",
                     systemImage: "scalemass",
                     subtitle: "Log weight when you’re ready.",
                     enabled: boolBinding(settings, \.weighReminderEnabled),
                     time: timeBinding(settings, hour: \.weighReminderHour, minute: \.weighReminderMinute, fallback: (7, 0))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Smoking",
                     systemImage: "smoke",
                     subtitle: settings.smokingMode.showsSection
                         ? "Only fires while smoking is on."
-                        : "Turn smoking on in Program first.",
+                        : "Turn smoking on in Lifestyle first.",
                     enabled: boolBinding(settings, \.smokingCheckInEnabled),
                     time: timeBinding(settings, hour: \.smokingCheckInHour, minute: \.smokingCheckInMinute, fallback: (16, 0))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Drinking",
                     systemImage: "wineglass",
                     subtitle: settings.drinkingMode.showsSection
                         ? "Only fires while drinking is on."
-                        : "Turn drinking on in Program first.",
+                        : "Turn drinking on in Lifestyle first.",
                     enabled: boolBinding(settings, \.drinkingCheckInEnabled),
                     time: timeBinding(settings, hour: \.drinkingCheckInHour, minute: \.drinkingCheckInMinute, fallback: (17, 0))
                 )
-                reminderCard(
+                reminderRow(
                     title: "Stay on plan",
                     systemImage: "quote.closing",
-                    subtitle: "Daily quote. Edit the list in Program.",
+                    subtitle: "Daily quote. Edit the list in Journal.",
                     enabled: boolBinding(settings, \.motivationReminderEnabled),
                     time: timeBinding(settings, hour: \.motivationReminderHour, minute: \.motivationReminderMinute, fallback: (8, 0))
                 )
-                bodyCompCard(settings)
+                if settings.fastingEnabled {
+                    fastingLeadRow(
+                        title: "Window opening",
+                        subtitle: "Before the typical eat-start.",
+                        enabled: boolBinding(settings, \.fastingNotifyOpenEnabled),
+                        minutes: intBinding(settings, \.fastingNotifyOpenMinutes)
+                    )
+                    fastingLeadRow(
+                        title: "Window closing",
+                        subtitle: "Before the typical eat-end.",
+                        enabled: boolBinding(settings, \.fastingNotifyCloseEnabled),
+                        minutes: intBinding(settings, \.fastingNotifyCloseMinutes)
+                    )
+                    reminderToggleRow(
+                        title: "Still eating",
+                        systemImage: "clock.badge.exclamationmark",
+                        subtitle: "Fires at typical close.",
+                        enabled: boolBinding(settings, \.fastingNotifyOvertimeEnabled)
+                    )
+                }
             }
+
+            bodyCompCard(settings)
             supplementsPanel(settings)
         }
     }
@@ -117,7 +142,8 @@ struct MacNotificationsSettingsView: View {
         SettingsPanel(
             title: "This Mac",
             systemImage: "laptopcomputer",
-            subtitle: "Banners here are independent of iPhone."
+            subtitle: "Banners here are independent of iPhone.",
+            fillsHeight: true
         ) {
             Toggle("Reminders on this Mac", isOn: Binding(
                 get: { store.preferences.notifyOnThisMac },
@@ -165,7 +191,8 @@ struct MacNotificationsSettingsView: View {
         SettingsPanel(
             title: "All devices",
             systemImage: "pause.circle",
-            subtitle: "This toggle lives in the journal, so iPhone pauses too."
+            subtitle: "This toggle lives in the journal, so iPhone pauses too.",
+            fillsHeight: true
         ) {
             Toggle("Pause every reminder", isOn: Binding(
                 get: { settings.notificationsPaused },
@@ -183,35 +210,122 @@ struct MacNotificationsSettingsView: View {
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
-    private func reminderCard(
+    private func reminderRow(
         title: String,
         systemImage: String,
         subtitle: String,
         enabled: Binding<Bool>,
         time: Binding<Date>
     ) -> some View {
-        SettingsPanel(title: title, systemImage: systemImage, subtitle: subtitle, compact: true) {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.tint)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .appFont(.subheadline, weight: .semibold)
+                Text(subtitle)
+                    .appFont(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Toggle("On", isOn: enabled)
                 .toggleStyle(.checkbox)
-            if enabled.wrappedValue {
-                DatePicker("Time", selection: time, displayedComponents: .hourAndMinute)
-                    .controlSize(.small)
-            }
+                .labelsHidden()
+            DatePicker("", selection: time, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .controlSize(.small)
+                .disabled(!enabled.wrappedValue)
+                .opacity(enabled.wrappedValue ? 1 : 0.35)
+                .frame(width: 96)
         }
+        .padding(.vertical, 6)
     }
 
-    private func waterCard(_ settings: AppSettings) -> some View {
-        SettingsPanel(
-            title: "Water",
-            systemImage: "drop.fill",
-            subtitle: "Daytime nudges, 9 AM–6 PM.",
-            compact: true
-        ) {
+    private func reminderToggleRow(
+        title: String,
+        systemImage: String,
+        subtitle: String,
+        enabled: Binding<Bool>
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.tint)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .appFont(.subheadline, weight: .semibold)
+                Text(subtitle)
+                    .appFont(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Toggle("On", isOn: enabled)
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+            Color.clear.frame(width: 96, height: 22)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func fastingLeadRow(
+        title: String,
+        subtitle: String,
+        enabled: Binding<Bool>,
+        minutes: Binding<Int>
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "clock")
+                .foregroundStyle(.tint)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .appFont(.subheadline, weight: .semibold)
+                Text(subtitle)
+                    .appFont(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Toggle("On", isOn: enabled)
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+            Stepper(
+                minutes.wrappedValue == 0 ? "At time" : "\(minutes.wrappedValue) min",
+                value: minutes,
+                in: 0...60,
+                step: 5
+            )
+            .controlSize(.small)
+            .disabled(!enabled.wrappedValue)
+            .opacity(enabled.wrappedValue ? 1 : 0.35)
+            .frame(width: 120)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func waterRow(_ settings: AppSettings) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "drop.fill")
+                .foregroundStyle(.tint)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Water")
+                    .appFont(.subheadline, weight: .semibold)
+                Text("Daytime nudges, 9 AM–6 PM.")
+                    .appFont(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Toggle("On", isOn: boolBinding(settings, \.waterReminderEnabled))
                 .toggleStyle(.checkbox)
+                .labelsHidden()
             if settings.waterReminderEnabled {
                 Stepper(
-                    "Every \(max(settings.waterReminderIntervalHours, 2)) hours",
+                    "Every \(max(settings.waterReminderIntervalHours, 2))h",
                     value: Binding(
                         get: { settings.waterReminderIntervalHours },
                         set: {
@@ -221,16 +335,20 @@ struct MacNotificationsSettingsView: View {
                     ),
                     in: 2...6
                 )
+                .controlSize(.small)
+                .frame(width: 120)
+            } else {
+                Color.clear.frame(width: 120, height: 22)
             }
         }
+        .padding(.vertical, 6)
     }
 
     private func bodyCompCard(_ settings: AppSettings) -> some View {
         SettingsPanel(
             title: "Body composition",
             systemImage: "list.clipboard",
-            subtitle: "Clinic receipt reminder.",
-            compact: true
+            subtitle: "Weekly or monthly — not a daily row."
         ) {
             Toggle("On", isOn: boolBinding(settings, \.bodyCompReminderEnabled))
                 .toggleStyle(.checkbox)
@@ -334,6 +452,16 @@ struct MacNotificationsSettingsView: View {
     }
 
     private func boolBinding(_ settings: AppSettings, _ keyPath: ReferenceWritableKeyPath<AppSettings, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { settings[keyPath: keyPath] },
+            set: {
+                settings[keyPath: keyPath] = $0
+                persist(settings)
+            }
+        )
+    }
+
+    private func intBinding(_ settings: AppSettings, _ keyPath: ReferenceWritableKeyPath<AppSettings, Int>) -> Binding<Int> {
         Binding(
             get: { settings[keyPath: keyPath] },
             set: {

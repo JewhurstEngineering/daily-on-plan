@@ -8,9 +8,14 @@ struct DayHeaderSection: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accentTheme) private var theme
     @Environment(\.accentPrimary) private var accentPrimary
+    @EnvironmentObject private var healthKit: HealthKitService
     @State private var showNotes = false
     @State private var customReason = ""
     @State private var showCustomReason = false
+    @State private var ketoneText = ""
+    @State private var extraCarbText = ""
+    @State private var extraFatText = ""
+    @State private var extraKcalText = ""
 
     private var notesPreview: String {
         let trimmed = log.notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -92,12 +97,27 @@ struct DayHeaderSection: View {
 
             remainingStatsStrip
 
+            healthGlances
+
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: $log.ketosis) {
                     Text("Ketosis")
                         .font(.subheadline.weight(.medium))
                 }
                 .tint(accentPrimary)
+
+                HStack {
+                    Text("Reading")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("mmol/L", text: $ketoneText)
+                        .textFieldStyle(.roundedBorder)
+                        .onPlanKeyboard(.decimalPad)
+                        .frame(maxWidth: 100)
+                    Text("mmol/L")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Toggle(isOn: $log.followedPlan) {
                     Text("Followed Plan")
@@ -106,12 +126,17 @@ struct DayHeaderSection: View {
                 .tint(theme.success)
             }
 
+            if !settings.fastingEnabled {
+                eatingWindowBlock
+            }
+
             Text("Ketosis is usually checked with urine strips, a blood ketone meter, or breath — or logged as your best guess if you don’t test. This app doesn’t measure it for you.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
             if !log.followedPlan {
                 offPlanReasonsBlock
+                offPlanExtrasBlock
             }
 
             HStack(alignment: .center, spacing: 12) {
@@ -151,6 +176,15 @@ struct DayHeaderSection: View {
         .onChange(of: log.notes) { _, _ in try? modelContext.save() }
         .onAppear {
             syncProteinGoalFromSettings()
+            ketoneText = log.ketoneMmol.map { String(format: $0 == $0.rounded() ? "%.0f" : "%.1f", $0) } ?? ""
+            extraCarbText = log.offPlanExtraCarbGrams > 0 ? String(format: "%.0f", log.offPlanExtraCarbGrams) : ""
+            extraFatText = log.offPlanExtraFatGrams > 0 ? String(format: "%.0f", log.offPlanExtraFatGrams) : ""
+            extraKcalText = log.offPlanExtraKcal > 0 ? "\(log.offPlanExtraKcal)" : ""
+        }
+        .onChange(of: ketoneText) { _, value in
+            let parsed = Double(value.replacingOccurrences(of: ",", with: "."))
+            log.ketoneMmol = parsed
+            try? modelContext.save()
         }
         .onChange(of: selectedDate) { _, _ in
             syncProteinGoalFromSettings()
@@ -188,7 +222,7 @@ struct DayHeaderSection: View {
             }
         }
         .padding(.vertical, 10)
-        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
     }
 
@@ -206,6 +240,99 @@ struct DayHeaderSection: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var healthGlances: some View {
+        let steps = healthKit.todayStepCount
+        let sleep = healthKit.lastNightSleepHours
+        if steps != nil || sleep != nil {
+            HStack(spacing: 16) {
+                if let steps {
+                    Label("\(steps) steps", systemImage: "figure.walk")
+                }
+                if let sleep {
+                    Label(String(format: "%.1f h sleep", sleep), systemImage: "moon.zzz")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var eatingWindowBlock: some View {
+        HStack {
+            if let start = log.eatingWindowStart {
+                Label("Eating since \(DateHelpers.formattedTime(start))", systemImage: "clock")
+                    .font(.caption)
+                Spacer()
+                if log.eatingWindowEnd == nil {
+                    Button("End window") {
+                        log.eatingWindowEnd = Date()
+                        modelContext.saveAndNotifyJournal()
+                    }
+                    .font(.caption.weight(.semibold))
+                } else if let end = log.eatingWindowEnd {
+                    Text("to \(DateHelpers.formattedTime(end))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Clear") {
+                        log.eatingWindowStart = nil
+                        log.eatingWindowEnd = nil
+                        modelContext.saveAndNotifyJournal()
+                    }
+                    .font(.caption)
+                }
+            } else {
+                Button("Start eating") {
+                    log.eatingWindowStart = Date()
+                    log.eatingWindowEnd = nil
+                    modelContext.saveAndNotifyJournal()
+                }
+                .font(.caption.weight(.semibold))
+            }
+        }
+    }
+
+    private var offPlanExtrasBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Extras (optional)")
+                .font(.subheadline.weight(.semibold))
+            Text("Carb/fat grams and extra kcal for off-plan food. Not a second calorie ring.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            HStack {
+                extraField("Carb g", text: $extraCarbText) {
+                    log.offPlanExtraCarbGrams = Double(extraCarbText.replacingOccurrences(of: ",", with: ".")) ?? 0
+                    try? modelContext.save()
+                }
+                extraField("Fat g", text: $extraFatText) {
+                    log.offPlanExtraFatGrams = Double(extraFatText.replacingOccurrences(of: ",", with: ".")) ?? 0
+                    try? modelContext.save()
+                }
+                extraField("Kcal", text: $extraKcalText) {
+                    log.offPlanExtraKcal = Int(extraKcalText) ?? 0
+                    try? modelContext.save()
+                }
+            }
+            let rolled = FoodCatalog.checklistCalories(for: log, phase: settings.phase)
+            Text("Checked servings ≈ veg \(rolled.vegetable) · fat \(rolled.fat) · fruit \(rolled.fruit) · misc \(rolled.misc) kcal")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 4)
+    }
+
+    private func extraField(_ title: String, text: Binding<String>, save: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            TextField("0", text: text)
+                .textFieldStyle(.roundedBorder)
+                .onPlanKeyboard(.decimalPad)
+                .onChange(of: text.wrappedValue) { _, _ in save() }
+        }
     }
 
     private func syncProteinGoalFromSettings() {
@@ -295,7 +422,7 @@ private struct FlexibleChipWrap: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(isOn ? Color.accentColor : Color(.tertiarySystemFill))
+                        .background(isOn ? Color.accentColor : Color.onPlanTertiaryFill)
                         .foregroundStyle(isOn ? Color.white : Color.primary)
                         .clipShape(Capsule())
                         .buttonStyle(.plain)

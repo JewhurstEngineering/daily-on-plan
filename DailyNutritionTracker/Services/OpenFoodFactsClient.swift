@@ -113,6 +113,59 @@ enum OpenFoodFactsClient {
         }
         return product
     }
+
+    static func search(query: String, limit: Int = 8) async throws -> [RemoteFoodCandidate] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return [] }
+
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("cgi/search.pl"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "search_terms", value: trimmed),
+            URLQueryItem(name: "search_simple", value: "1"),
+            URLQueryItem(name: "action", value: "process"),
+            URLQueryItem(name: "json", value: "1"),
+            URLQueryItem(name: "page_size", value: "\(limit)"),
+            URLQueryItem(
+                name: "fields",
+                value: "code,product_name,brands,serving_size,serving_quantity,quantity,product_quantity,nutriments"
+            )
+        ]
+        guard let url = components.url else { throw RemoteFoodError.invalidResponse }
+
+        var request = URLRequest(url: url)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 20
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw RemoteFoodError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw RemoteFoodError.httpStatus(http.statusCode) }
+
+        let decoded = try JSONDecoder().decode(OFFSearchResponse.self, from: data)
+        return (decoded.products ?? []).compactMap { product in
+            let name = product.productName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let name, !name.isEmpty else { return nil }
+            let calories = product.caloriesPerServing ?? 0
+            let serving = product.servingSize?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let servingLabel = (serving?.isEmpty == false) ? serving! : "1 serving"
+            let brand = product.brands?.split(separator: ",").first.map {
+                String($0).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let code = product.code ?? UUID().uuidString
+            return RemoteFoodCandidate(
+                id: "off-search-\(code)",
+                name: name,
+                brand: brand,
+                servingLabel: servingLabel,
+                caloriesPerServing: max(0, calories),
+                source: .openFoodFacts,
+                barcode: product.code,
+                fdcId: nil
+            )
+        }
+    }
 }
 
 enum DrinkKindHeuristic {
@@ -211,6 +264,10 @@ enum DrinkVolumeParser {
 private struct OFFProductResponse: Decodable {
     let status: Int
     let product: OFFProduct?
+}
+
+private struct OFFSearchResponse: Decodable {
+    let products: [OFFProduct]?
 }
 
 private struct OFFProduct: Decodable {

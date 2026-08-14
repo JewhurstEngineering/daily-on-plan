@@ -89,6 +89,12 @@ struct WatchSummaryView: View {
                 }
                 .font(.caption)
 
+                if snapshot.fastingEnabled {
+                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                        watchFasting(now: timeline.date)
+                    }
+                }
+
                 if snapshot.isStale || snapshot.updatedAt == .distantPast {
                     Text("Open iPhone to sync")
                         .font(.caption2)
@@ -139,6 +145,44 @@ struct WatchSummaryView: View {
         }
         .frame(maxWidth: .infinity)
     }
+
+    @ViewBuilder
+    private func watchFasting(now: Date) -> some View {
+        VStack(spacing: 6) {
+            if let start = snapshot.eatingWindowStart {
+                let elapsed = (snapshot.eatingWindowEnd ?? now).timeIntervalSince(start)
+                let eatHours = max(24 - snapshot.fastingTargetHours, 1)
+                let progress = min(max(elapsed / (eatHours * 3600), 0), 1)
+                watchRing(
+                    progress: progress,
+                    value: watchClock(elapsed),
+                    detail: snapshot.eatingWindowEnd == nil ? "eating" : "closed",
+                    label: "Window",
+                    tint: .orange
+                )
+            } else {
+                Text(snapshot.fastingStatusLine.isEmpty ? "Fasting" : snapshot.fastingStatusLine)
+                    .font(.caption2.weight(.semibold))
+                    .multilineTextAlignment(.center)
+            }
+            HStack(spacing: 6) {
+                if snapshot.eatingWindowStart != nil, snapshot.eatingWindowEnd == nil {
+                    Button("End") { connectivity.endEating() }
+                } else if snapshot.eatingWindowStart == nil {
+                    Button("Eat") { connectivity.startEating() }
+                }
+            }
+            .font(.caption2)
+            .disabled(connectivity.isSending)
+        }
+    }
+
+    private func watchClock(_ interval: TimeInterval) -> String {
+        let total = max(0, Int(interval))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        return String(format: "%d:%02d", hours, minutes)
+    }
 }
 
 struct WatchActionsView: View {
@@ -147,7 +191,7 @@ struct WatchActionsView: View {
     @State private var nestedAction: String?
 
     private var snapshot: WatchDaySnapshot { connectivity.snapshot }
-    private var busy: Bool { !connectivity.isReachable || connectivity.isSending }
+    private var busy: Bool { connectivity.isSending }
 
     var body: some View {
         ScrollView {
@@ -191,7 +235,7 @@ struct WatchActionsView: View {
                     .foregroundStyle(.orange)
                     .multilineTextAlignment(.center)
             } else if !connectivity.isReachable {
-                Text("iPhone unreachable — open the app on your phone.")
+                Text("Needs iPhone nearby to log.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -230,7 +274,7 @@ struct WatchActionsView: View {
         }
 
         if !connectivity.isReachable {
-            Text("iPhone unreachable — open the app on your phone.")
+            Text("Needs iPhone nearby to log.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

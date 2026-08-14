@@ -99,6 +99,9 @@ enum WorkbookExportService {
         rows.append(["Protein Goal (kcal)", "\(log.proteinGoal)"])
         rows.append(["Total Protein Calories", "\(log.totalProteinCalories)"])
         rows.append(["Ketosis", log.ketosis ? "Y" : "N"])
+        if let ketone = log.ketoneMmol {
+            rows.append(["Ketone mmol/L", String(format: "%.1f", ketone)])
+        }
         rows.append(["Followed Plan", log.followedPlan ? "Y" : "N"])
         // Always present so day sheets keep the same header shape on-plan vs off-plan.
         rows.append([

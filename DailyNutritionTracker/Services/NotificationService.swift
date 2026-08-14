@@ -15,6 +15,9 @@ enum NotificationKind: String {
     case motivation
     case bodyComposition
     case supplement
+    case fastingWindowOpen
+    case fastingWindowClose
+    case fastingOvertime
 
     var deepLinkSection: String {
         switch self {
@@ -26,6 +29,7 @@ enum NotificationKind: String {
         case .bodyComposition: return "bodyComposition"
         case .supplement: return "supplements"
         case .eveningPlan, .ketosis, .genericCheckIn, .motivation: return "header"
+        case .fastingWindowOpen, .fastingWindowClose, .fastingOvertime: return "fasting"
         }
     }
 }
@@ -214,6 +218,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             scheduleBodyComposition(settings: settings, center: center)
         }
 
+        if settings.fastingEnabled {
+            scheduleFasting(settings: settings, center: center)
+        }
+
         if settings.showSupplementsSection {
             scheduleSupplements(settings: settings, center: center)
         }
@@ -330,6 +338,52 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    private func scheduleFasting(settings: AppSettings, center: UNUserNotificationCenter) {
+        let window = FastingMath.typicalWindow(on: Date(), settings: settings)
+        if settings.fastingNotifyOpenEnabled {
+            let fire = window.start.addingTimeInterval(-Double(settings.fastingNotifyOpenMinutes) * 60)
+            let comps = Calendar.current.dateComponents([.hour, .minute], from: fire)
+            scheduleDaily(
+                id: "fasting-window-open",
+                title: "Eating window soon",
+                body: settings.fastingNotifyOpenMinutes == 0
+                    ? "Your eating window is open."
+                    : "Eating window opens in \(settings.fastingNotifyOpenMinutes) minutes.",
+                hour: comps.hour ?? settings.fastingEatStartHour,
+                minute: comps.minute ?? settings.fastingEatStartMinute,
+                kind: .fastingWindowOpen,
+                center: center
+            )
+        }
+        if settings.fastingNotifyCloseEnabled {
+            let fire = window.end.addingTimeInterval(-Double(settings.fastingNotifyCloseMinutes) * 60)
+            let comps = Calendar.current.dateComponents([.hour, .minute], from: fire)
+            scheduleDaily(
+                id: "fasting-window-close",
+                title: "Window closing",
+                body: settings.fastingNotifyCloseMinutes == 0
+                    ? "Time to close the eating window."
+                    : "Eating window closes in \(settings.fastingNotifyCloseMinutes) minutes.",
+                hour: comps.hour ?? 20,
+                minute: comps.minute ?? 0,
+                kind: .fastingWindowClose,
+                center: center
+            )
+        }
+        if settings.fastingNotifyOvertimeEnabled {
+            let comps = Calendar.current.dateComponents([.hour, .minute], from: window.end)
+            scheduleDaily(
+                id: "fasting-overtime",
+                title: "Still eating?",
+                body: "The eating window ended. Close it when you’re done.",
+                hour: comps.hour ?? 20,
+                minute: comps.minute ?? 0,
+                kind: .fastingOvertime,
+                center: center
+            )
+        }
+    }
+
     private func scheduleDaily(
         id: String,
         title: String,
@@ -382,7 +436,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     private func scheduleBodyComposition(settings: AppSettings, center: UNUserNotificationCenter) {
         let content = UNMutableNotificationContent()
         content.title = "Body composition"
-        content.body = "Log your clinic receipt in \(AppIdentity.displayName) when you’re ready."
+        content.body = "Log your body composition reading in \(AppIdentity.displayName) when you’re ready."
         content.sound = .default
         content.userInfo = ["kind": NotificationKind.bodyComposition.rawValue]
 

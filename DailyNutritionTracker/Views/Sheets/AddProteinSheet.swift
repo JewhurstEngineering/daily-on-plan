@@ -89,6 +89,9 @@ struct AddProteinSheet: View {
     @State private var isSearchingUSDA = false
     @State private var usdaError: String?
     @State private var usdaSearchTask: Task<Void, Never>?
+    @State private var offResults: [RemoteFoodCandidate] = []
+    @State private var isSearchingOFF = false
+    @State private var offError: String?
 
     @State private var mealSides: Set<MealSidePick> = []
     @State private var vegSideChips: [SuggestionItem] = []
@@ -274,7 +277,7 @@ struct AddProteinSheet: View {
                 }
             }
             .onChange(of: search) { _, newValue in
-                scheduleUSDASearch(for: newValue)
+                scheduleRemoteSearch(for: newValue)
             }
             .onAppear {
                 searchFocused = true
@@ -309,6 +312,8 @@ struct AddProteinSheet: View {
                         search = ""
                         usdaResults = []
                         usdaError = nil
+                        offResults = []
+                        offError = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -359,7 +364,8 @@ struct AddProteinSheet: View {
                 }
             }
 
-            if shouldShowUSDASection {
+            if shouldShowRemoteSection {
+                offSection
                 usdaSection
             }
 
@@ -371,20 +377,61 @@ struct AddProteinSheet: View {
         } header: {
             Text("Find food")
         } footer: {
-            Text("Search local foods first. Scan a package barcode (Open Food Facts) or search USDA when needed. Results save as presets.")
+            Text("Search local foods first. Open Food Facts needs no key. USDA is optional (Settings → Food lookup). Results save as presets.")
         }
     }
 
-    private var shouldShowUSDASection: Bool {
+    private var shouldShowRemoteSection: Bool {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.count >= 2 else { return false }
-        return searchResults.count < 3 || !usdaResults.isEmpty || isSearchingUSDA || usdaError != nil
+        return searchResults.count < 3
+            || !offResults.isEmpty || isSearchingOFF || offError != nil
+            || !usdaResults.isEmpty || isSearchingUSDA || usdaError != nil
+    }
+
+    @ViewBuilder
+    private var offSection: some View {
+        if isSearchingOFF {
+            HStack {
+                ProgressView()
+                Text("Searching Open Food Facts…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        if let offError {
+            Text(offError)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        if !offResults.isEmpty {
+            Text("Open Food Facts")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ForEach(offResults) { item in
+                Button {
+                    confirmCandidate = item
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        Text(item.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     @ViewBuilder
     private var usdaSection: some View {
         if settings.usdaAPIKey.isEmpty {
-            Text("Add a USDA API key in Settings → Food lookup to search the USDA database.")
+            Text("Optional USDA key in Settings → Food lookup if you want FoodData Central too.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         } else {
@@ -835,26 +882,64 @@ struct AddProteinSheet: View {
         }
     }
 
-    private func scheduleUSDASearch(for query: String) {
+    private func scheduleRemoteSearch(for query: String) {
         usdaSearchTask?.cancel()
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2, !settings.usdaAPIKey.isEmpty else {
+        guard trimmed.count >= 2 else {
             usdaResults = []
+            offResults = []
             usdaError = nil
+            offError = nil
             isSearchingUSDA = false
+            isSearchingOFF = false
             return
         }
-        // Only auto-search when local hits are thin.
         guard searchResults.count < 3 else {
             usdaResults = []
+            offResults = []
             usdaError = nil
+            offError = nil
             return
         }
         usdaSearchTask = Task {
             try? await Task.sleep(nanoseconds: 450_000_000)
             guard !Task.isCancelled else { return }
-            await runUSDASearch(force: false)
+            await runOFFSearch()
+            if !settings.usdaAPIKey.isEmpty {
+                await runUSDASearch(force: false)
+            }
         }
+    }
+
+    private func runOFFSearch() async {
+        let trimmed = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return }
+        await MainActor.run {
+            isSearchingOFF = true
+            offError = nil
+        }
+        do {
+            let results = try await OpenFoodFactsClient.search(query: trimmed)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                offResults = results
+                isSearchingOFF = false
+                if results.isEmpty {
+                    offError = "No Open Food Facts matches for “\(trimmed)”."
+                }
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                isSearchingOFF = false
+                offResults = []
+                offError = error.localizedDescription
+            }
+        }
+    }
+
+    private func scheduleUSDASearch(for query: String) {
+        scheduleRemoteSearch(for: query)
     }
 
     private func runUSDASearch(force: Bool) async {

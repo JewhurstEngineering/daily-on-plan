@@ -307,7 +307,7 @@ struct SettingsView: View {
         } header: {
             Text("Body metrics")
         } footer: {
-            Text("Height and age prefill body composition receipts. BMI uses height with today’s weight. Tape measurements live under Body measurements.")
+            Text("Height and age prefill body composition readings. BMI uses height with today’s weight. Tape measurements live under Body measurements.")
         }
         .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
         .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
@@ -334,6 +334,11 @@ struct SettingsView: View {
                 BodyMeasurementsListView(showsDismissButton: false)
             } label: {
                 Label("Body measurements", systemImage: "ruler")
+            }
+            NavigationLink {
+                FastingSettingsView(settings: settings)
+            } label: {
+                Label("Fasting", systemImage: "clock")
             }
             NavigationLink {
                 NotificationsSettingsView(settings: settings)
@@ -1154,7 +1159,7 @@ struct FoodLookupSettingsView: View {
             } header: {
                 Text("USDA FoodData Central")
             } footer: {
-                Text("Free key from api.data.gov — used only when you search USDA from Add Protein. ~1,000 requests/hour. Testing runs a tiny “egg” search.")
+                Text("Optional. Free key from api.data.gov. Stored in Keychain on this device — not iCloud or backups. Used when local catalog and Open Food Facts are thin. Testing runs a tiny “egg” search.")
             }
 
             Section {

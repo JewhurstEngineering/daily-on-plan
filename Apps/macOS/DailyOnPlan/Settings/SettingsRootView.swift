@@ -1,36 +1,90 @@
 import SwiftUI
 import OnPlanCore
 
+enum MacSettingsPane: String, Hashable, Identifiable, CaseIterable {
+    case general, layout, theme, accessibility
+    case program, body, lifestyle, fasting, journal, notifications
+    case data, about
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: return "General"
+        case .layout: return "Layout"
+        case .theme: return "Theme"
+        case .accessibility: return "Accessibility"
+        case .program: return "Program"
+        case .body: return "Body"
+        case .lifestyle: return "Lifestyle"
+        case .fasting: return "Fasting"
+        case .journal: return "Journal"
+        case .notifications: return "Notifications"
+        case .data: return "Data"
+        case .about: return "About"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: return "gearshape"
+        case .layout: return "rectangle.split.2x1"
+        case .theme: return "paintpalette"
+        case .accessibility: return "accessibility"
+        case .program: return "flag.checkered"
+        case .body: return "figure.stand"
+        case .lifestyle: return "drop.fill"
+        case .fasting: return "clock"
+        case .journal: return "square.grid.2x2"
+        case .notifications: return "bell"
+        case .data: return "externaldrive"
+        case .about: return "info.circle"
+        }
+    }
+}
+
 struct SettingsRootView: View {
     @EnvironmentObject private var store: OnPlanStore
+    @State private var pane: MacSettingsPane = .general
 
     var body: some View {
-        TabView {
-            GeneralSettingsView()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            LayoutSettingsView()
-                .tabItem { Label("Layout", systemImage: "rectangle.split.2x1") }
-            ThemeSettingsView()
-                .tabItem { Label("Theme", systemImage: "paintpalette") }
-            AccessibilitySettingsView()
-                .tabItem { Label("Accessibility", systemImage: "accessibility") }
-            MacProgramSettingsView()
-                .tabItem { Label("Program", systemImage: "slider.horizontal.3") }
-            MacNotificationsSettingsView()
-                .tabItem { Label("Notifications", systemImage: "bell") }
-            DataSettingsView()
-                .tabItem { Label("Data", systemImage: "externaldrive") }
-            AboutSettingsView()
-                .tabItem { Label("About", systemImage: "info.circle") }
+        NavigationSplitView {
+            List(selection: $pane) {
+                Section("This Mac") {
+                    paneRow(.general)
+                    paneRow(.layout)
+                    paneRow(.theme)
+                    paneRow(.accessibility)
+                }
+                Section("Journal") {
+                    paneRow(.program)
+                    paneRow(.body)
+                    paneRow(.lifestyle)
+                    paneRow(.fasting)
+                    paneRow(.journal)
+                    paneRow(.notifications)
+                }
+                Section("App") {
+                    paneRow(.data)
+                    paneRow(.about)
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 176, ideal: 208, max: 260)
+        } detail: {
+            NavigationStack {
+                detail
+                    .navigationTitle(pane.title)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .appLayoutScale(store.preferences.interfaceSize.scale)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .clipped()
-        .appLayoutScale(store.preferences.interfaceSize.scale)
+        .navigationSplitViewStyle(.balanced)
         .frame(
-            minWidth: 800,
-            idealWidth: 960 * store.preferences.interfaceSize.scale,
+            minWidth: 880,
+            idealWidth: 980 * store.preferences.interfaceSize.scale,
             maxWidth: .infinity,
-            minHeight: 520,
+            minHeight: 560,
             idealHeight: 680 * store.preferences.interfaceSize.scale,
             maxHeight: .infinity,
             alignment: .topLeading
@@ -50,13 +104,35 @@ struct SettingsRootView: View {
             WindowAppearanceApplier.configureChrome(scale: size.scale)
         }
     }
+
+    private func paneRow(_ pane: MacSettingsPane) -> some View {
+        Label(pane.title, systemImage: pane.systemImage)
+            .tag(pane)
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        switch pane {
+        case .general: GeneralSettingsView()
+        case .layout: LayoutSettingsView()
+        case .theme: ThemeSettingsView()
+        case .accessibility: AccessibilitySettingsView()
+        case .program: MacProgramSettingsView()
+        case .body: MacBodySettingsView()
+        case .lifestyle: MacLifestyleSettingsView()
+        case .fasting: MacFastingSettingsView()
+        case .journal: MacJournalSettingsView()
+        case .notifications: MacNotificationsSettingsView()
+        case .data: DataSettingsView()
+        case .about: AboutSettingsView()
+        }
+    }
 }
 
 struct DataSettingsView: View {
     @EnvironmentObject private var store: OnPlanStore
     @State private var statusTick = 0
     @State private var isChecking = false
-
     @State private var showBackup = false
 
     var body: some View {

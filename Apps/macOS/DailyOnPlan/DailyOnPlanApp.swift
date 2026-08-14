@@ -80,6 +80,17 @@ struct DailyOnPlanApp: App {
         }
         .defaultSize(width: 960, height: 680)
         .windowResizability(.contentMinSize)
+
+        Window("Today", id: "onplan-today") {
+            MacTodayView()
+                .environmentObject(appDelegate.store)
+                .modifier(MacJournalContainer())
+                .onAppear {
+                    AppActivation.bringToFront()
+                }
+        }
+        .defaultSize(width: 520, height: 740)
+        .windowResizability(.contentMinSize)
     }
 }
 

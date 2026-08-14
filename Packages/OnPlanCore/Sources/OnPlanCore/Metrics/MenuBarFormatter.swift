@@ -85,6 +85,13 @@ public enum MenuBarFormatter {
                 spoken: "Water \(snapshot.waterOz) oz"
             )
         }
+        if toggles.fasting, snapshot.fastingEnabled {
+            add(
+                icon: snapshot.isEatingWindowOpen ? "fork.knife.circle.fill" : "clock",
+                value: snapshot.fastingStreak > 0 ? "\(snapshot.fastingStreak)" : "",
+                spoken: snapshot.fastingStatusLine.isEmpty ? "Fasting" : snapshot.fastingStatusLine
+            )
+        }
         if toggles.smoking, snapshot.smokingEnabled {
             add(
                 icon: "smoke.fill",

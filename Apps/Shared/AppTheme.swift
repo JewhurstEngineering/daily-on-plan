@@ -724,26 +724,33 @@ private enum AppTypeMetrics {
     }
 }
 
-/// Settings: fill the window, lay out smaller, draw larger.
+/// Settings: fill the pane, lay out smaller, draw larger.
+/// `GeometryReader` as a `NavigationSplitView` detail root draws under the
+/// title bar on macOS — wrap it in a safe-area-respecting overlay instead.
 private struct FillLayoutScale: ViewModifier {
     let scale: CGFloat
 
     func body(content: Content) -> some View {
-        GeometryReader { geo in
-            let s = max(scale, 0.5)
-            content
-                .frame(
-                    width: geo.size.width / s,
-                    height: geo.size.height / s,
-                    alignment: .topLeading
-                )
-                .scaleEffect(s, anchor: .topLeading)
-                .frame(
-                    width: geo.size.width,
-                    height: geo.size.height,
-                    alignment: .topLeading
-                )
-        }
+        let s = max(scale, 0.5)
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topLeading) {
+                GeometryReader { geo in
+                    content
+                        .frame(
+                            width: geo.size.width / s,
+                            height: geo.size.height / s,
+                            alignment: .topLeading
+                        )
+                        .scaleEffect(s, anchor: .topLeading)
+                        .frame(
+                            width: geo.size.width,
+                            height: geo.size.height,
+                            alignment: .topLeading
+                        )
+                }
+            }
+            .clipped()
     }
 }
 

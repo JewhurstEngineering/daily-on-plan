@@ -89,12 +89,14 @@ targets:
           - PlatformSwiftUI.swift
           - MealSuggestor.swift
           - ExportFileStore.swift
+          - FastingMath.swift
       - path: DailyNutritionTracker/Services
         includes:
           - DataStore.swift
           - NotificationService.swift
           - BackupService.swift
           - USDAFoodDataClient.swift
+          - USDAKeychain.swift
           - RemoteFoodModels.swift
       - path: DailyNutritionTracker/Views
         includes:
@@ -107,7 +109,9 @@ targets:
           - FoodPreferencesView.swift
           - SavedMealsListView.swift
           - BackupRestoreView.swift
+          - FastingSettingsView.swift
           - Components/FoodPickers.swift
+          - Components/FastingTrackerCard.swift
       - path: DailyNutritionTrackerWidgets/Shared
         includes:
           - AppGroupStore.swift
@@ -175,6 +179,7 @@ targets:
       - path: DailyNutritionTracker
         excludes:
           - DailyNutritionTrackerApp.swift
+          - Views/ContentView.swift
           - "**/*.entitlements"
           - Info.plist
           - Assets.xcassets
@@ -231,11 +236,14 @@ targets:
           - "**/*.entitlements"
       - path: DailyNutritionTracker/Models/Models.swift
       - path: DailyNutritionTracker/Models/JournalMigration.swift
+      - path: DailyNutritionTracker/Models/JournalSchemaV3.swift
       - path: DailyNutritionTracker/Models/Enums.swift
+      - path: DailyNutritionTracker/Utilities/FastingMath.swift
       - path: DailyNutritionTracker/Models/AccentTheme.swift
       - path: DailyNutritionTracker/Utilities/OnPlanColors.swift
       - path: DailyNutritionTracker/Utilities/AppLimits.swift
       - path: DailyNutritionTracker/Services/DataStore.swift
+      - path: DailyNutritionTracker/Services/USDAKeychain.swift
       - path: SharedWatch
     settings:
       base:
@@ -291,7 +299,7 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.dailyonplan.tracker
-        WKRunsIndependentlyOfCompanionApp: true
+        WKRunsIndependentlyOfCompanionApp: false
         CFBundleDisplayName: Daily On Plan
     dependencies:
       - target: DailyOnPlanWatchWidgets

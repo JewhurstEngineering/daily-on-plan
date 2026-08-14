@@ -40,7 +40,7 @@ enum AppGroupStore {
     }
 
     static var schema: Schema {
-        Schema(versionedSchema: JournalSchemaV2.self)
+        Schema(versionedSchema: JournalSchemaV4.self)
     }
 
     /// Copies the legacy app-sandbox SwiftData store into the App Group once.

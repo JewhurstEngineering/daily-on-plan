@@ -26,6 +26,7 @@ struct RootTabView: View {
         .appThemed(store.preferences)
         .sheet(isPresented: $showFirstLaunchImport) {
             FirstLaunchImportView()
+                .environmentObject(HealthKitService.shared)
         }
         .task { evaluateFirstLaunchImport() }
     }

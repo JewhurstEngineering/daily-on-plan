@@ -126,6 +126,12 @@ struct PopoverPreviewCard: View {
                     )
                 }
 
+                if t.fasting, snapshot.fastingEnabled {
+                    Text(snapshot.fastingStatusLine.isEmpty ? "Fasting" : snapshot.fastingStatusLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
                 let smoking = t.smoking && snapshot.smokingEnabled
                 let drinking = t.drinking && snapshot.drinkingEnabled
                 let bathroom = t.bathroom && snapshot.bathroomEnabled
@@ -146,7 +152,7 @@ struct PopoverPreviewCard: View {
                 }
 
                 if !t.followedPlan && !t.ketosis && !t.protein && !t.water
-                    && !smoking && !drinking && !bathroom
+                    && !smoking && !drinking && !bathroom && !(t.fasting && snapshot.fastingEnabled)
                 {
                     Text("Enable a Popover metric above to preview it.")
                         .font(.caption)

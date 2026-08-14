@@ -17,11 +17,17 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
     public var smokingEnabled: Bool
     public var drinkingEnabled: Bool
     public var bathroomEnabled: Bool
+    public var fastingEnabled: Bool
+    public var eatingWindowStart: Date?
+    public var eatingWindowEnd: Date?
+    public var fastingTargetHours: Double
+    public var fastingStreak: Int
+    public var fastingStatusLine: String
 
     public static let empty = ChromeSnapshot(
         generatedAt: .distantPast,
-        followedPlan: true,
-        ketosis: true,
+        followedPlan: false,
+        ketosis: false,
         proteinCalories: 0,
         proteinGoal: 500,
         waterOz: 0,
@@ -52,7 +58,11 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
         stoolCount: 1,
         smokingEnabled: true,
         drinkingEnabled: true,
-        bathroomEnabled: true
+        bathroomEnabled: true,
+        fastingEnabled: true,
+        fastingTargetHours: 16,
+        fastingStreak: 4,
+        fastingStatusLine: "Fasting 14h 12m · 1h 48m to eat"
     )
 
     public init(
@@ -70,7 +80,13 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
         stoolCount: Int,
         smokingEnabled: Bool,
         drinkingEnabled: Bool,
-        bathroomEnabled: Bool
+        bathroomEnabled: Bool,
+        fastingEnabled: Bool = false,
+        eatingWindowStart: Date? = nil,
+        eatingWindowEnd: Date? = nil,
+        fastingTargetHours: Double = 16,
+        fastingStreak: Int = 0,
+        fastingStatusLine: String = ""
     ) {
         self.generatedAt = generatedAt
         self.followedPlan = followedPlan
@@ -87,6 +103,12 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
         self.smokingEnabled = smokingEnabled
         self.drinkingEnabled = drinkingEnabled
         self.bathroomEnabled = bathroomEnabled
+        self.fastingEnabled = fastingEnabled
+        self.eatingWindowStart = eatingWindowStart
+        self.eatingWindowEnd = eatingWindowEnd
+        self.fastingTargetHours = fastingTargetHours
+        self.fastingStreak = fastingStreak
+        self.fastingStatusLine = fastingStatusLine
     }
 
     public var proteinFraction: Double {
@@ -101,6 +123,10 @@ public struct ChromeSnapshot: Codable, Sendable, Equatable {
 
     public var proteinPercent: Double { proteinFraction * 100 }
     public var waterPercent: Double { waterFraction * 100 }
+
+    public var isEatingWindowOpen: Bool {
+        eatingWindowStart != nil && eatingWindowEnd == nil
+    }
 
     public var isStale: Bool {
         Date().timeIntervalSince(generatedAt) > 60 * 60 * 6

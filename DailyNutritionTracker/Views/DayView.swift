@@ -9,6 +9,7 @@ struct DayView: View {
     @Binding var pendingScrollSection: String?
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var healthKit: HealthKitService
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var recentWeights: [WeightEntry] = []
     @State private var didSyncHealth = false
@@ -45,24 +46,43 @@ struct DayView: View {
         )
 
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
-                        .id("header")
-
-                    ForEach(settings.sectionOrder, id: \.self) { section in
-                        sectionView(
-                            section,
-                            settings: settings,
-                            log: log,
-                            todayWeight: todayWeight,
-                            recentLogs: recentLogs
-                        )
+            let sections = ForEach(settings.sectionOrder, id: \.self) { section in
+                sectionView(
+                    section,
+                    settings: settings,
+                    log: log,
+                    todayWeight: todayWeight,
+                    recentLogs: recentLogs
+                )
+            }
+            Group {
+                if sizeClass == .regular {
+                    HStack(alignment: .top, spacing: 16) {
+                        ScrollView {
+                            DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
+                                .id("header")
+                                .padding()
+                        }
+                        .frame(minWidth: 320, maxWidth: 420)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                sections
+                            }
+                            .padding()
+                        }
+                    }
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
+                                .id("header")
+                            sections
+                        }
+                        .padding()
                     }
                 }
-                .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.onPlanGroupedBackground)
             .onChange(of: scrollToken) { _, _ in
                 guard let scrollTarget else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -151,6 +171,11 @@ struct DayView: View {
                 onWillPresentSheet: { requestScroll(to: $0) }
             )
             .id("protein")
+        case .fasting:
+            if settings.fastingEnabled {
+                FastingSection(log: log, settings: settings)
+                    .id("fasting")
+            }
         case .checklist:
             ChecklistSection(
                 log: log,
@@ -200,6 +225,7 @@ struct DayView: View {
             if todayWeight == nil, let hkWeight = await healthKit.readBodyMassPounds(on: selectedDate) {
                 saveWeight(hkWeight, existing: nil)
             }
+            await healthKit.refreshGlances(on: selectedDate)
             if log.drinksLogged == 0,
                let hkDrinks = await healthKit.readAlcoholicDrinks(on: selectedDate),
                hkDrinks > 0 {

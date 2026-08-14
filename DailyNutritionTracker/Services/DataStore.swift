@@ -17,6 +17,7 @@ enum DataStore {
         if let existing = try? context.fetch(descriptor).first {
             let before = existing.notificationsDefaultsVersionStored ?? 0
             existing.migrateNotificationDefaultsIfNeeded()
+            existing.migrateClinicSupplementNamesIfNeeded()
             migrateChecklistSplitIfNeeded(in: context)
             if before < 5 {
                 try? context.save()

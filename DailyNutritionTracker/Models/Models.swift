@@ -24,8 +24,8 @@ final class DailyLog {
     var id: UUID = UUID()
     var date: Date = Date()
     var proteinGoal: Int = 500
-    var ketosis: Bool = true
-    var followedPlan: Bool = true
+    var ketosis: Bool = false
+    var followedPlan: Bool = false
     var notes: String = ""
     var waterOz: Int = 0
     /// JSON array of slot values; `null`/omitted means empty. Example: `[16.9, 24.0, null]`.
@@ -90,13 +90,23 @@ final class DailyLog {
     var drinkUrgesJSON: String?
     /// JSON array of bathroom events `{id,kind,timeLogged,note}`.
     var bathroomEventsJSON: String?
+    /// Optional ketone reading in mmol/L. Nil means not logged; Y/N stays independent.
+    var ketoneMmolStored: Double?
+    /// Optional eating-window start (fasting). Nil means not tracking a window today.
+    var eatingWindowStartStored: Date?
+    /// Optional eating-window end.
+    var eatingWindowEndStored: Date?
+    /// Off-plan extras (only meaningful when followedPlan is false).
+    var offPlanExtraCarbGramsStored: Double?
+    var offPlanExtraFatGramsStored: Double?
+    var offPlanExtraKcalStored: Int?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
         self.date = Calendar.current.startOfDay(for: date)
         self.proteinGoal = proteinGoal
-        self.ketosis = true
-        self.followedPlan = true
+        self.ketosis = false
+        self.followedPlan = false
         self.notes = ""
         self.waterOz = 0
         self.proteinEntries = []
@@ -142,6 +152,36 @@ final class DailyLog {
             list.append(reason)
         }
         offPlanReasons = list
+    }
+
+    var ketoneMmol: Double? {
+        get { ketoneMmolStored }
+        set { ketoneMmolStored = newValue.flatMap { $0 > 0 ? $0 : nil } }
+    }
+
+    var eatingWindowStart: Date? {
+        get { eatingWindowStartStored }
+        set { eatingWindowStartStored = newValue }
+    }
+
+    var eatingWindowEnd: Date? {
+        get { eatingWindowEndStored }
+        set { eatingWindowEndStored = newValue }
+    }
+
+    var offPlanExtraCarbGrams: Double {
+        get { offPlanExtraCarbGramsStored ?? 0 }
+        set { offPlanExtraCarbGramsStored = newValue > 0 ? newValue : nil }
+    }
+
+    var offPlanExtraFatGrams: Double {
+        get { offPlanExtraFatGramsStored ?? 0 }
+        set { offPlanExtraFatGramsStored = newValue > 0 ? newValue : nil }
+    }
+
+    var offPlanExtraKcal: Int {
+        get { offPlanExtraKcalStored ?? 0 }
+        set { offPlanExtraKcalStored = newValue > 0 ? newValue : nil }
     }
 
     var totalProteinCalories: Int {
@@ -1356,6 +1396,18 @@ final class AppSettings {
     /// Profile age for body composition receipts (years).
     var ageYearsStored: Int?
 
+    // Fasting protocol (optional for V3 → V4 lightweight migration)
+    var fastingEnabledStored: Bool?
+    var fastingPresetRaw: String?
+    var fastingCustomFastHoursStored: Double?
+    var fastingEatStartHourStored: Int?
+    var fastingEatStartMinuteStored: Int?
+    var fastingNotifyOpenEnabledStored: Bool?
+    var fastingNotifyOpenMinutesStored: Int?
+    var fastingNotifyCloseEnabledStored: Bool?
+    var fastingNotifyCloseMinutesStored: Int?
+    var fastingNotifyOvertimeEnabledStored: Bool?
+
     init() {
         self.id = UUID()
         self.programPhase = ProgramPhase.week1.rawValue
@@ -1405,13 +1457,21 @@ final class AppSettings {
                   let decoded = try? JSONDecoder().decode([SupplementDefinition].self, from: data) else {
                 return SupplementDefinition.defaults
             }
-            return decoded
+            return SupplementDefinition.migratingClinicNames(decoded)
         }
         set {
             if let data = try? JSONEncoder().encode(newValue),
                let string = String(data: data, encoding: .utf8) {
                 supplementDefinitionsJSON = string
             }
+        }
+    }
+
+    func migrateClinicSupplementNamesIfNeeded() {
+        let current = supplements
+        let migrated = SupplementDefinition.migratingClinicNames(current)
+        if migrated != current {
+            supplements = migrated
         }
     }
 
@@ -1432,6 +1492,67 @@ final class AppSettings {
     }
 
     var hasAge: Bool { ageYears > 0 }
+
+    var fastingEnabled: Bool {
+        get { fastingEnabledStored ?? false }
+        set { fastingEnabledStored = newValue }
+    }
+
+    var fastingPreset: FastingPreset {
+        get { FastingPreset(rawValue: fastingPresetRaw ?? "") ?? .sixteenEight }
+        set { fastingPresetRaw = newValue.rawValue }
+    }
+
+    var fastingCustomFastHours: Double {
+        get {
+            let hours = fastingCustomFastHoursStored ?? 16
+            return min(max(hours, 12), 23)
+        }
+        set { fastingCustomFastHoursStored = min(max(newValue, 12), 23) }
+    }
+
+    var fastingTargetHours: Double {
+        fastingPreset == .custom ? fastingCustomFastHours : fastingPreset.defaultFastHours
+    }
+
+    var fastingEatHours: Double {
+        max(1, 24 - fastingTargetHours)
+    }
+
+    var fastingEatStartHour: Int {
+        get { fastingEatStartHourStored ?? 12 }
+        set { fastingEatStartHourStored = min(max(newValue, 0), 23) }
+    }
+
+    var fastingEatStartMinute: Int {
+        get { fastingEatStartMinuteStored ?? 0 }
+        set { fastingEatStartMinuteStored = min(max(newValue, 0), 59) }
+    }
+
+    var fastingNotifyOpenEnabled: Bool {
+        get { fastingNotifyOpenEnabledStored ?? false }
+        set { fastingNotifyOpenEnabledStored = newValue }
+    }
+
+    var fastingNotifyOpenMinutes: Int {
+        get { fastingNotifyOpenMinutesStored ?? 15 }
+        set { fastingNotifyOpenMinutesStored = min(max(newValue, 0), 120) }
+    }
+
+    var fastingNotifyCloseEnabled: Bool {
+        get { fastingNotifyCloseEnabledStored ?? false }
+        set { fastingNotifyCloseEnabledStored = newValue }
+    }
+
+    var fastingNotifyCloseMinutes: Int {
+        get { fastingNotifyCloseMinutesStored ?? 15 }
+        set { fastingNotifyCloseMinutesStored = min(max(newValue, 0), 120) }
+    }
+
+    var fastingNotifyOvertimeEnabled: Bool {
+        get { fastingNotifyOvertimeEnabledStored ?? false }
+        set { fastingNotifyOvertimeEnabledStored = newValue }
+    }
 
     var heightDisplay: String {
         guard hasHeight else { return "Not set" }
@@ -1472,8 +1593,20 @@ final class AppSettings {
     }
 
     var usdaAPIKey: String {
-        get { usdaAPIKeyStored ?? "" }
-        set { usdaAPIKeyStored = newValue.trimmingCharacters(in: .whitespacesAndNewlines) }
+        get {
+            let keychain = USDAKeychain.key
+            if !keychain.isEmpty { return keychain }
+            if let legacy = usdaAPIKeyStored, !legacy.isEmpty {
+                USDAKeychain.key = legacy
+                usdaAPIKeyStored = nil
+                return legacy
+            }
+            return ""
+        }
+        set {
+            USDAKeychain.key = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            usdaAPIKeyStored = nil
+        }
     }
 
     var bodyCompReminderEnabled: Bool {

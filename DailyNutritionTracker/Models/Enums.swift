@@ -7,6 +7,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
     case drinking
     case feelings
     case protein
+    case fasting
     case checklist
     case workouts
     case hydration
@@ -23,6 +24,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
         case .drinking: return "Drinking"
         case .feelings: return "Feelings & cravings"
         case .protein: return "Protein"
+        case .fasting: return "Fasting"
         case .checklist: return "Fats, veggies & more"
         case .workouts: return "Workouts"
         case .hydration: return "Hydration"
@@ -33,7 +35,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
 
     /// Sections the user can reorder (header stays pinned).
     static var defaultReorderableOrder: [DaySectionID] {
-        [.weight, .smoking, .drinking, .feelings, .protein, .checklist, .workouts, .hydration, .bathroom, .supplements]
+        [.weight, .smoking, .drinking, .feelings, .protein, .fasting, .checklist, .workouts, .hydration, .bathroom, .supplements]
     }
 
     var collapsedMessage: String {
@@ -608,17 +610,39 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
         syncReminderTimes()
     }
 
+    /// Old clinic SKU names keyed by stable id. User-renamed items are left alone.
+    static let clinicNameReplacements: [String: (old: [String], new: String)] = [
+        "vita-super": (["Vita Super"], "Multivitamin"),
+        "calcium": (["Calcium 4 Blend"], "Calcium"),
+        "fat-burner": (["Fat Burner"], "Fat burner"),
+        "inner-balance": (["Inner Balance"], "Digestive support"),
+        "omega-3": (["Omega 3"], "Omega-3"),
+        "stay-slim": (["Stay Slim"], "Appetite support"),
+        "medi-bolic": (["Medi-Bolic Melts"], "Protein melts"),
+        "plateau": (["Plateau Buster"], "Plateau support")
+    ]
+
     static let defaults: [SupplementDefinition] = [
         .init(id: "prescription", name: "Prescription", dosesPerDay: 3),
-        .init(id: "vita-super", name: "Vita Super", dosesPerDay: 3),
-        .init(id: "calcium", name: "Calcium 4 Blend", dosesPerDay: 2),
-        .init(id: "fat-burner", name: "Fat Burner", dosesPerDay: 2),
-        .init(id: "inner-balance", name: "Inner Balance", dosesPerDay: 4),
-        .init(id: "omega-3", name: "Omega 3", dosesPerDay: 2),
-        .init(id: "stay-slim", name: "Stay Slim", dosesPerDay: 2, isEnabled: false),
-        .init(id: "medi-bolic", name: "Medi-Bolic Melts", dosesPerDay: 1, isEnabled: false),
-        .init(id: "plateau", name: "Plateau Buster", dosesPerDay: 2, isEnabled: false)
+        .init(id: "vita-super", name: "Multivitamin", dosesPerDay: 3),
+        .init(id: "calcium", name: "Calcium", dosesPerDay: 2),
+        .init(id: "fat-burner", name: "Fat burner", dosesPerDay: 2),
+        .init(id: "inner-balance", name: "Digestive support", dosesPerDay: 4),
+        .init(id: "omega-3", name: "Omega-3", dosesPerDay: 2),
+        .init(id: "stay-slim", name: "Appetite support", dosesPerDay: 2, isEnabled: false),
+        .init(id: "medi-bolic", name: "Protein melts", dosesPerDay: 1, isEnabled: false),
+        .init(id: "plateau", name: "Plateau support", dosesPerDay: 2, isEnabled: false)
     ]
+
+    static func migratingClinicNames(_ defs: [SupplementDefinition]) -> [SupplementDefinition] {
+        defs.map { def in
+            guard let mapping = clinicNameReplacements[def.id],
+                  mapping.old.contains(def.name) else { return def }
+            var copy = def
+            copy.name = mapping.new
+            return copy
+        }
+    }
 
     static var defaultJSON: String {
         let data = try! JSONEncoder().encode(defaults)
@@ -681,6 +705,38 @@ struct SupplementDefinition: Identifiable, Codable, Hashable {
         try container.encode(isEnabled, forKey: .isEnabled)
         try container.encode(reminderEnabled, forKey: .reminderEnabled)
         try container.encode(reminderTimes, forKey: .reminderTimes)
+    }
+}
+
+enum FastingPreset: String, CaseIterable, Identifiable, Codable {
+    case sixteenEight = "16:8"
+    case eighteenSix = "18:6"
+    case twentyFour = "20:4"
+    case omad = "OMAD"
+    case custom = "custom"
+
+    var id: String { rawValue }
+
+    var title: String { rawValue }
+
+    var defaultFastHours: Double {
+        switch self {
+        case .sixteenEight: return 16
+        case .eighteenSix: return 18
+        case .twentyFour: return 20
+        case .omad: return 23
+        case .custom: return 16
+        }
+    }
+
+    var blurb: String {
+        switch self {
+        case .sixteenEight: return "Eat 8 hours, fast 16."
+        case .eighteenSix: return "Eat 6 hours, fast 18."
+        case .twentyFour: return "Eat 4 hours, fast 20."
+        case .omad: return "One meal, about 1 hour."
+        case .custom: return "Pick your own fast length."
+        }
     }
 }
 

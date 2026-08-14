@@ -20,6 +20,11 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
     /// Raw `WatchQuickAdd.Action` values from iPhone settings. Empty means use defaults.
     var quickAddSlots: [String]
     var hydrationSizesOz: [Double]
+    var fastingEnabled: Bool
+    var eatingWindowStart: Date?
+    var eatingWindowEnd: Date?
+    var fastingTargetHours: Double
+    var fastingStatusLine: String
 
     static let empty = WatchDaySnapshot(
         proteinCalories: 0,
@@ -34,11 +39,16 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
         smokingEnabled: false,
         drinkingEnabled: false,
         bathroomEnabled: true,
-        followedPlan: true,
-        ketosis: true,
+        followedPlan: false,
+        ketosis: false,
         updatedAt: .distantPast,
         quickAddSlots: ["water", "electrolyte", "smoking"],
-        hydrationSizesOz: [8, 12, 16.9, 24]
+        hydrationSizesOz: [8, 12, 16.9, 24],
+        fastingEnabled: false,
+        eatingWindowStart: nil,
+        eatingWindowEnd: nil,
+        fastingTargetHours: 16,
+        fastingStatusLine: ""
     )
 
     init(
@@ -58,7 +68,12 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
         ketosis: Bool,
         updatedAt: Date,
         quickAddSlots: [String] = ["water", "electrolyte", "smoking"],
-        hydrationSizesOz: [Double] = [8, 12, 16.9, 24]
+        hydrationSizesOz: [Double] = [8, 12, 16.9, 24],
+        fastingEnabled: Bool = false,
+        eatingWindowStart: Date? = nil,
+        eatingWindowEnd: Date? = nil,
+        fastingTargetHours: Double = 16,
+        fastingStatusLine: String = ""
     ) {
         self.proteinCalories = proteinCalories
         self.proteinGoal = proteinGoal
@@ -77,6 +92,11 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
         self.updatedAt = updatedAt
         self.quickAddSlots = quickAddSlots
         self.hydrationSizesOz = hydrationSizesOz
+        self.fastingEnabled = fastingEnabled
+        self.eatingWindowStart = eatingWindowStart
+        self.eatingWindowEnd = eatingWindowEnd
+        self.fastingTargetHours = fastingTargetHours
+        self.fastingStatusLine = fastingStatusLine
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -85,6 +105,7 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
         case smokingEnabled, drinkingEnabled, bathroomEnabled
         case followedPlan, ketosis, updatedAt
         case quickAddSlots, hydrationSizesOz
+        case fastingEnabled, eatingWindowStart, eatingWindowEnd, fastingTargetHours, fastingStatusLine
     }
 
     init(from decoder: Decoder) throws {
@@ -108,6 +129,11 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
             ?? ["water", "electrolyte", "smoking"]
         hydrationSizesOz = try c.decodeIfPresent([Double].self, forKey: .hydrationSizesOz)
             ?? [8, 12, 16.9, 24]
+        fastingEnabled = try c.decodeIfPresent(Bool.self, forKey: .fastingEnabled) ?? false
+        eatingWindowStart = try c.decodeIfPresent(Date.self, forKey: .eatingWindowStart)
+        eatingWindowEnd = try c.decodeIfPresent(Date.self, forKey: .eatingWindowEnd)
+        fastingTargetHours = try c.decodeIfPresent(Double.self, forKey: .fastingTargetHours) ?? 16
+        fastingStatusLine = try c.decodeIfPresent(String.self, forKey: .fastingStatusLine) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -129,6 +155,11 @@ struct WatchDaySnapshot: Codable, Hashable, Sendable {
         try c.encode(updatedAt, forKey: .updatedAt)
         try c.encode(quickAddSlots, forKey: .quickAddSlots)
         try c.encode(hydrationSizesOz, forKey: .hydrationSizesOz)
+        try c.encode(fastingEnabled, forKey: .fastingEnabled)
+        try c.encodeIfPresent(eatingWindowStart, forKey: .eatingWindowStart)
+        try c.encodeIfPresent(eatingWindowEnd, forKey: .eatingWindowEnd)
+        try c.encode(fastingTargetHours, forKey: .fastingTargetHours)
+        try c.encode(fastingStatusLine, forKey: .fastingStatusLine)
     }
 
     var proteinFraction: Double {
@@ -182,6 +213,8 @@ enum WatchConnectivityKeys {
         case addDrink
         case addBathroomUrine
         case addBathroomStool
+        case startEating
+        case endEating
         case requestSnapshot
     }
 }
@@ -216,5 +249,54 @@ enum WatchSnapshotCache {
             return nil
         }
         return snapshot
+    }
+}
+
+struct WatchQueuedAction: Codable, Equatable {
+    var action: String
+    var ounces: Double?
+    var electrolyte: Bool?
+    var queuedAt: Date
+}
+
+enum WatchActionQueue {
+    private static let key = "watch.pendingActions.v1"
+
+    static func enqueue(action: WatchConnectivityKeys.Action, extras: [String: Any] = [:]) {
+        guard action != .requestSnapshot else { return }
+        var items = load()
+        items.append(
+            WatchQueuedAction(
+                action: action.rawValue,
+                ounces: extras[WatchConnectivityKeys.ounces] as? Double,
+                electrolyte: extras[WatchConnectivityKeys.electrolyte] as? Bool,
+                queuedAt: Date()
+            )
+        )
+        save(items)
+    }
+
+    static func drain() -> [WatchQueuedAction] {
+        let items = load()
+        save([])
+        return items
+    }
+
+    static var pendingCount: Int { load().count }
+
+    private static func load() -> [WatchQueuedAction] {
+        let suite = UserDefaults(suiteName: "group.com.dailyonplan.tracker.watch")
+        let data = suite?.data(forKey: key) ?? UserDefaults.standard.data(forKey: key)
+        guard let data,
+              let items = try? JSONDecoder().decode([WatchQueuedAction].self, from: data) else {
+            return []
+        }
+        return items
+    }
+
+    private static func save(_ items: [WatchQueuedAction]) {
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+        UserDefaults(suiteName: "group.com.dailyonplan.tracker.watch")?.set(data, forKey: key)
     }
 }

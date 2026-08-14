@@ -1,6 +1,8 @@
 import Foundation
 import HealthKit
+#if canImport(UIKit)
 import UIKit
+#endif
 
 enum HealthKitAuthStatus: Equatable {
     case unavailable
@@ -26,6 +28,8 @@ final class HealthKitService: ObservableObject {
     @Published var isAuthorized = false
     @Published var authStatus: HealthKitAuthStatus = .notDetermined
     @Published var lastMessage: String?
+    @Published var todayStepCount: Int?
+    @Published var lastNightSleepHours: Double?
 
     private var waterType: HKQuantityType? {
         HKQuantityType.quantityType(forIdentifier: .dietaryWater)
@@ -37,6 +41,14 @@ final class HealthKitService: ObservableObject {
 
     private var alcoholType: HKQuantityType? {
         HKQuantityType.quantityType(forIdentifier: .numberOfAlcoholicBeverages)
+    }
+
+    private var stepType: HKQuantityType? {
+        HKQuantityType.quantityType(forIdentifier: .stepCount)
+    }
+
+    private var sleepType: HKCategoryType? {
+        HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)
     }
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -80,13 +92,19 @@ final class HealthKitService: ObservableObject {
             share.insert(alcohol)
             read.insert(alcohol)
         }
+        if let steps = stepType {
+            read.insert(steps)
+        }
+        if let sleep = sleepType {
+            read.insert(sleep)
+        }
 
         do {
             try await store.requestAuthorization(toShare: share, read: read)
             refreshStatus()
             switch authStatus {
             case .sharingAuthorized:
-                lastMessage = "Apple Health connected. Water, weight, workouts, and drinks can sync."
+                lastMessage = "Apple Health connected. Water, weight, workouts, drinks, steps, and sleep can sync."
             case .sharingDenied:
                 lastMessage = "Permissions look limited. Open the Health app → Sharing → Apps to allow \(AppIdentity.displayName)."
             case .notDetermined:
@@ -102,12 +120,13 @@ final class HealthKitService: ObservableObject {
     }
 
     func openHealthOrSystemSettings() {
-        // Prefer Health app; fall back to app settings.
+        #if canImport(UIKit)
         if let healthURL = URL(string: "x-apple-health://"), UIApplication.shared.canOpenURL(healthURL) {
             UIApplication.shared.open(healthURL)
         } else if let settings = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settings)
         }
+        #endif
     }
 
     func writeWater(ounces: Int, on date: Date) async {
@@ -248,5 +267,56 @@ final class HealthKitService: ObservableObject {
         let ours = samples.filter { $0.sourceRevision.source == HKSource.default() }
         guard !ours.isEmpty else { return }
         try? await store.delete(ours)
+    }
+
+    func refreshGlances(on date: Date) async {
+        todayStepCount = await readSteps(on: date)
+        lastNightSleepHours = await readSleepHours(endingOn: date)
+    }
+
+    func readSteps(on date: Date) async -> Int? {
+        guard let steps = stepType else { return nil }
+        let start = DateHelpers.startOfDay(date)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: steps,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, stats, _ in
+                let value = stats?.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                continuation.resume(returning: Int(value.rounded()))
+            }
+            store.execute(query)
+        }
+    }
+
+    func readSleepHours(endingOn date: Date) async -> Double? {
+        guard let sleep = sleepType else { return nil }
+        let morning = DateHelpers.startOfDay(date)
+        let windowStart = Calendar.current.date(byAdding: .hour, value: -18, to: morning) ?? morning
+        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: morning.addingTimeInterval(12 * 3600))
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sleep,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, _ in
+                let asleepValues: Set<Int> = [
+                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepREM.rawValue
+                ]
+                let seconds = (samples as? [HKCategorySample] ?? [])
+                    .filter { asleepValues.contains($0.value) }
+                    .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+                let hours = seconds / 3600
+                continuation.resume(returning: hours > 0.25 ? (hours * 10).rounded() / 10 : nil)
+            }
+            store.execute(query)
+        }
     }
 }

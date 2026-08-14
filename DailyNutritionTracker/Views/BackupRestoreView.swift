@@ -36,7 +36,7 @@ struct BackupRestoreView: View {
                 }
                 .disabled(isWorking)
             } footer: {
-                Text("Backups include all days, weights, measurements, presets, meals, and settings (including any stored USDA API key). Restore replaces everything currently in the app. Use Backup before deleting the app — Export reports cannot restore data.")
+                Text("Backups include all days, weights, measurements, presets, meals, and settings. USDA API keys stay on this device and are not included. Restore replaces everything currently in the app. Use Backup before deleting the app — Export reports cannot restore data.")
             }
 
             if isWorking {

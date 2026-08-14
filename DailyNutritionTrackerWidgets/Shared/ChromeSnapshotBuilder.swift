@@ -23,7 +23,13 @@ enum ChromeSnapshotBuilder {
             stoolCount: day.stoolCount,
             smokingEnabled: day.smokingEnabled,
             drinkingEnabled: day.drinkingEnabled,
-            bathroomEnabled: day.bathroomEnabled
+            bathroomEnabled: day.bathroomEnabled,
+            fastingEnabled: day.fastingEnabled,
+            eatingWindowStart: day.eatingWindowStart,
+            eatingWindowEnd: day.eatingWindowEnd,
+            fastingTargetHours: day.fastingTargetHours,
+            fastingStreak: day.fastingStreak,
+            fastingStatusLine: day.fastingStatusLine
         )
     }
 }

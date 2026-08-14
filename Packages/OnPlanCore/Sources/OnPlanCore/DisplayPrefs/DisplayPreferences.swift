@@ -229,6 +229,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         public var smoking: Bool
         public var drinking: Bool
         public var bathroom: Bool
+        public var fasting: Bool
 
         public static let menuBarDefault = SurfaceToggles(
             followedPlan: true,
@@ -237,7 +238,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
             water: true,
             smoking: false,
             drinking: false,
-            bathroom: false
+            bathroom: false,
+            fasting: false
         )
 
         public static let popoverDefault = SurfaceToggles(
@@ -247,7 +249,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
             water: true,
             smoking: true,
             drinking: true,
-            bathroom: true
+            bathroom: true,
+            fasting: true
         )
 
         public init(
@@ -257,7 +260,8 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
             water: Bool,
             smoking: Bool,
             drinking: Bool,
-            bathroom: Bool
+            bathroom: Bool,
+            fasting: Bool = false
         ) {
             self.followedPlan = followedPlan
             self.ketosis = ketosis
@@ -266,6 +270,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
             self.smoking = smoking
             self.drinking = drinking
             self.bathroom = bathroom
+            self.fasting = fasting
         }
 
         public init(from decoder: Decoder) throws {
@@ -277,6 +282,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
             smoking = try c.decodeIfPresent(Bool.self, forKey: .smoking) ?? true
             drinking = try c.decodeIfPresent(Bool.self, forKey: .drinking) ?? true
             bathroom = try c.decodeIfPresent(Bool.self, forKey: .bathroom) ?? true
+            fasting = try c.decodeIfPresent(Bool.self, forKey: .fasting) ?? false
         }
     }
 

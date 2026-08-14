@@ -1,10 +1,13 @@
 import SwiftUI
+import SwiftData
 import AppKit
 import OnPlanCore
 
 struct MenuBarPopoverView: View {
     @EnvironmentObject private var store: OnPlanStore
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.appTheme) private var theme
+    @Environment(\.modelContext) private var modelContext
     @State private var statusMessage: String?
     @State private var isRefreshing = false
     @State private var statusTick = 0
@@ -23,6 +26,9 @@ struct MenuBarPopoverView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 flags
+                if toggles.fasting, snapshot.fastingEnabled {
+                    fastingClock
+                }
                 if toggles.protein {
                     metricRow(
                         title: "Protein",
@@ -132,24 +138,60 @@ struct MenuBarPopoverView: View {
     @ViewBuilder
     private var flags: some View {
         if toggles.followedPlan || toggles.ketosis {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 if toggles.followedPlan {
-                    Label(
-                        snapshot.followedPlan ? "On plan" : "Off plan",
-                        systemImage: snapshot.followedPlan ? "checkmark.seal.fill" : "xmark.seal"
-                    )
-                    .foregroundStyle(snapshot.followedPlan ? theme.plan : .secondary)
+                    Button {
+                        apply(QuickAddService.setFollowedPlan(!snapshot.followedPlan))
+                    } label: {
+                        Label(
+                            snapshot.followedPlan ? "On plan" : "Off plan",
+                            systemImage: snapshot.followedPlan ? "checkmark.seal.fill" : "xmark.seal"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(snapshot.followedPlan ? theme.plan : .secondary)
+                    .controlSize(.small)
                 }
                 if toggles.ketosis {
-                    Label(
-                        snapshot.ketosis ? "Ketosis" : "No ketosis",
-                        systemImage: snapshot.ketosis ? "flame.fill" : "flame"
-                    )
-                    .foregroundStyle(snapshot.ketosis ? theme.ok : .secondary)
+                    Button {
+                        apply(QuickAddService.setKetosis(!snapshot.ketosis))
+                    } label: {
+                        Label(
+                            snapshot.ketosis ? "Ketosis" : "No ketosis",
+                            systemImage: snapshot.ketosis ? "flame.fill" : "flame"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(snapshot.ketosis ? theme.ok : .secondary)
+                    .controlSize(.small)
                 }
             }
             .appFont(.subheadline, weight: .semibold)
         }
+    }
+
+    @ViewBuilder
+    private var fastingClock: some View {
+        let settings = DataStore.settings(in: modelContext)
+        let log = DataStore.log(for: Date(), in: modelContext, defaultGoal: settings.defaultProteinGoal)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let previous = DataStore.existingLog(for: yesterday, in: modelContext)
+        FastingTrackerCard(
+            log: log,
+            previous: previous,
+            settings: settings,
+            compact: true,
+            onChange: {
+                modelContext.saveAndNotifyJournal()
+                MacDaySync.refresh(store: store)
+            }
+        )
+        .environment(\.accentPrimary, settings.accentPrimary)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(theme.tint.opacity(0.08))
+        )
     }
 
     @ViewBuilder
@@ -175,47 +217,65 @@ struct MenuBarPopoverView: View {
     }
 
     private var quickAdds: some View {
-        HStack(spacing: 6) {
-            Button("Water") { apply(QuickAddService.addWaterBottle()) }
-            if snapshot.smokingEnabled {
-                Button("Cig") { apply(QuickAddService.addCigarette()) }
+        VStack(alignment: .leading, spacing: 8) {
+            if toggles.protein {
+                HStack(spacing: 6) {
+                    Text("Protein")
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("+50") { apply(QuickAddService.addProteinCalories(50)) }
+                    Button("+100") { apply(QuickAddService.addProteinCalories(100)) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            if snapshot.drinkingEnabled {
-                Button("Drink") { apply(QuickAddService.addDrinks(1)) }
+            HStack(spacing: 6) {
+                Button("Water") { apply(QuickAddService.addWaterBottle()) }
+                if snapshot.smokingEnabled {
+                    Button("Cig") { apply(QuickAddService.addCigarette()) }
+                }
+                if snapshot.drinkingEnabled {
+                    Button("Drink") { apply(QuickAddService.addDrinks(1)) }
+                }
+                if snapshot.bathroomEnabled {
+                    Button("Urine") { apply(QuickAddService.addBathroom(kind: .urine)) }
+                    Button("Stool") { apply(QuickAddService.addBathroom(kind: .stool)) }
+                }
             }
-            if snapshot.bathroomEnabled {
-                Button("Urine") { apply(QuickAddService.addBathroom(kind: .urine)) }
-                Button("Stool") { apply(QuickAddService.addBathroom(kind: .stool)) }
-            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
     }
 
     private var footer: some View {
-        HStack {
-            SettingsOpenLink {
-                Label("Settings", systemImage: "gearshape")
+        VStack(spacing: 6) {
+            HStack {
+                SettingsOpenLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+                Button {
+                    AppActivation.bringToFront()
+                    openWindow(id: "onplan-today")
+                } label: {
+                    Label("Today", systemImage: "checkmark.seal")
+                }
+                Spacer(minLength: 8)
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Label("Quit", systemImage: "xmark.circle")
+                }
+                .keyboardShortcut("q", modifiers: .command)
             }
-            .keyboardShortcut(",", modifiers: .command)
-            Spacer(minLength: 8)
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                Label("Quit", systemImage: "xmark.circle")
-            }
-            .keyboardShortcut("q", modifiers: .command)
-        }
-        .overlay {
+            .labelStyle(.titleAndIcon)
+            .controlSize(.small)
+
             Text(AppAbout.organization)
                 .appFont(.caption2)
                 .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .allowsHitTesting(false)
+                .frame(maxWidth: .infinity)
         }
-        .labelStyle(.titleAndIcon)
-        .controlSize(.small)
     }
 
     private func metricRow(

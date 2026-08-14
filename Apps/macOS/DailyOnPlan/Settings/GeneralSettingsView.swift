@@ -10,11 +10,15 @@ struct GeneralSettingsView: View {
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
-        MacSettingsScroll {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
+        MacSettingsFillStack {
+            MacSettingsTwoColumn {
                 thisMacPanel
+            } right: {
                 todayPanel
+            }
+            MacSettingsTwoColumn {
                 iCloudPanel
+            } right: {
                 remindersPanel
             }
         }
@@ -25,7 +29,8 @@ struct GeneralSettingsView: View {
         SettingsPanel(
             title: "This Mac",
             systemImage: "laptopcomputer",
-            subtitle: "Daily On Plan lives in the menu bar. Click the icon for today’s log."
+            subtitle: "Lives in the menu bar. Click the icon for today’s log.",
+            fillsHeight: true
         ) {
             Toggle("Launch at login", isOn: launchAtLoginBinding)
                 .toggleStyle(.checkbox)
@@ -43,7 +48,7 @@ struct GeneralSettingsView: View {
                 preferences: store.preferences
             )
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var todayPanel: some View {
@@ -53,7 +58,8 @@ struct GeneralSettingsView: View {
             systemImage: "sun.max",
             subtitle: snap.generatedAt == .distantPast
                 ? "Waiting on the iCloud journal."
-                : "Live from this Mac’s copy of the journal."
+                : "Live from this Mac’s copy of the journal.",
+            fillsHeight: true
         ) {
             metricRow(
                 "Protein",
@@ -69,15 +75,21 @@ struct GeneralSettingsView: View {
                 statusChip("Plan", on: snap.followedPlan)
                 statusChip("Ketosis", on: snap.ketosis)
             }
+            if snap.fastingEnabled, !snap.fastingStatusLine.isEmpty {
+                Text(snap.fastingStatusLine)
+                    .appFont(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var iCloudPanel: some View {
         SettingsPanel(
             title: "iCloud",
             systemImage: "icloud",
-            subtitle: "Journal syncs with iPhone. Theme and menu bar stay on this Mac."
+            subtitle: "Journal syncs with iPhone. Theme and menu bar stay here.",
+            fillsHeight: true
         ) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Circle()
@@ -104,15 +116,19 @@ struct GeneralSettingsView: View {
                 .controlSize(.small)
                 .disabled(isChecking)
             }
+            Text("Full backup and restore live in Data.")
+                .appFont(.caption2)
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var remindersPanel: some View {
         SettingsPanel(
             title: "Reminders on this Mac",
             systemImage: "bell",
-            subtitle: "Times live in Notifications. This mute is Mac-only."
+            subtitle: "Times live in Notifications. This mute is Mac-only.",
+            fillsHeight: true
         ) {
             Toggle("Show banners on this Mac", isOn: Binding(
                 get: { store.preferences.notifyOnThisMac },
@@ -148,7 +164,7 @@ struct GeneralSettingsView: View {
                 .controlSize(.small)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func metricRow(_ title: String, value: String, fraction: Double) -> some View {

@@ -17,6 +17,25 @@ enum ExportService {
             lines.append(csvRow(["day", day, "", "proteinGoal", "\(log.proteinGoal)", ""]))
             lines.append(csvRow(["day", day, "", "proteinCalories", "\(log.totalProteinCalories)", ""]))
             lines.append(csvRow(["day", day, "", "ketosis", "\(log.ketosis)", ""]))
+            if let ketone = log.ketoneMmol {
+                lines.append(csvRow(["day", day, "", "ketoneMmol", String(format: "%.1f", ketone), ""]))
+            }
+            if let start = log.eatingWindowStart {
+                lines.append(csvRow(["day", day, "", "eatingWindowStart", DateHelpers.formattedTime(start), ""]))
+            }
+            if let end = log.eatingWindowEnd {
+                lines.append(csvRow(["day", day, "", "eatingWindowEnd", DateHelpers.formattedTime(end), ""]))
+            }
+            if log.offPlanExtraKcal > 0 || log.offPlanExtraCarbGrams > 0 || log.offPlanExtraFatGrams > 0 {
+                lines.append(csvRow([
+                    "day",
+                    day,
+                    "",
+                    "offPlanExtras",
+                    "\(log.offPlanExtraKcal)",
+                    "carb \(log.offPlanExtraCarbGrams)g fat \(log.offPlanExtraFatGrams)g"
+                ]))
+            }
             lines.append(csvRow(["day", day, "", "followedPlan", "\(log.followedPlan)", ""]))
             if !log.offPlanReasons.isEmpty {
                 lines.append(csvRow(["day", day, "", "offPlanReasons", log.offPlanReasons.joined(separator: "; "), ""]))
@@ -293,7 +312,7 @@ enum ExportService {
             for log in logs {
                 ensureSpace(80)
                 drawLine(DateHelpers.formattedDay(log.date), font: .boldSystemFont(ofSize: 14))
-                drawLine("Protein \(log.totalProteinCalories)/\(log.proteinGoal) kcal  |  Ketosis: \(log.ketosis ? "Y" : "N")  |  Plan: \(log.followedPlan ? "Y" : "N")")
+                drawLine("Protein \(log.totalProteinCalories)/\(log.proteinGoal) kcal  |  Ketosis: \(log.ketosis ? "Y" : "N")\(log.ketoneMmol.map { String(format: " (%.1f mmol/L)", $0) } ?? "")  |  Plan: \(log.followedPlan ? "Y" : "N")")
                 drawLine("Water: \(log.totalHydrationOz(settings: settings)) / \(settings.hydrationTargetOz) oz")
                 if log.proteinHydrationOz(settings: settings) > 0 {
                     drawLine("Incl. protein drinks: \(log.proteinHydrationOz(settings: settings)) oz", indent: 12)

@@ -17,6 +17,22 @@ extension Color {
         #endif
     }
 
+    static var onPlanGroupedBackground: Color {
+        #if os(iOS)
+        Color(.systemGroupedBackground)
+        #else
+        Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+
+    static var onPlanHairline: Color {
+        #if os(iOS)
+        Color(.systemGray5)
+        #else
+        Color(nsColor: .separatorColor)
+        #endif
+    }
+
     static var onPlanTertiaryFill: Color {
         #if os(iOS)
         Color(.tertiarySystemFill)
