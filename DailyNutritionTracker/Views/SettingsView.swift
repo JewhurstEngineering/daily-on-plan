@@ -8,7 +8,9 @@ struct SettingsView: View {
     @State private var heightFeet = 5
     @State private var heightInchesPart = 8
     @State private var goalWeightText = ""
+    @State private var todayWeightText = ""
     @FocusState private var goalWeightFocused: Bool
+    @FocusState private var todayWeightFocused: Bool
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
     var body: some View {
@@ -20,14 +22,17 @@ struct SettingsView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(Self.screenTitle)
             .toolbar {
+                #if os(iOS)
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") {
                         goalWeightFocused = false
+                        todayWeightFocused = false
                         if let settings {
                             commitGoalWeight(settings)
+                            commitTodayWeight(settings)
                         }
                         Keyboard.dismiss()
                     }
@@ -36,11 +41,13 @@ struct SettingsView: View {
                     Button("Done") {
                         if let settings {
                             commitGoalWeight(settings)
+                            commitTodayWeight(settings)
                         }
                         Keyboard.dismiss()
                         dismiss()
                     }
                 }
+                #endif
             }
             .onAppear {
                 let s = DataStore.settings(in: modelContext)
@@ -51,6 +58,7 @@ struct SettingsView: View {
                 } else {
                     goalWeightText = ""
                 }
+                loadTodayWeight(s)
                 let total = Int(s.heightInches)
                 if total > 0 {
                     heightFeet = total / 12
@@ -69,7 +77,9 @@ struct SettingsView: View {
             trackingLinksSection(settings)
             presetsSection
             hungerScaleSection
+            #if os(iOS)
             healthSection
+            #endif
             backupSection
         }
     }
@@ -253,8 +263,28 @@ struct SettingsView: View {
             )
 
             HStack {
+                TextField("Today’s weight", text: $todayWeightText)
+                    .onPlanKeyboard(.decimalPad)
+                    .focused($todayWeightFocused)
+                    .onChange(of: todayWeightText) { _, newValue in
+                        let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "," }
+                        if filtered != newValue { todayWeightText = filtered }
+                    }
+                Text(settings.usesMetricWeight ? "kg" : "lb")
+                    .foregroundStyle(.secondary)
+            }
+            if let bmiLine = todayBMILine(settings) {
+                Text(bmiLine)
+                    .font(.subheadline.weight(.semibold))
+            } else if settings.hasHeight {
+                Text("Enter today’s weight to see BMI.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack {
                 TextField("Goal weight", text: $goalWeightText)
-                    .keyboardType(.decimalPad)
+                    .onPlanKeyboard(.decimalPad)
                     .focused($goalWeightFocused)
                     .onChange(of: goalWeightText) { _, newValue in
                         let filtered = newValue.filter { $0.isNumber || $0 == "." || $0 == "," }
@@ -273,12 +303,18 @@ struct SettingsView: View {
         } header: {
             Text("Body metrics")
         } footer: {
-            Text("Height and age prefill body composition receipts. BMI uses height with each day’s weight. Tape measurements (waist, arms, legs) live under Body measurements.")
+            Text("Height and age prefill body composition receipts. BMI uses height with today’s weight. Tape measurements live under Body measurements.")
         }
         .onChange(of: heightFeet) { _, _ in persistHeight(settings) }
         .onChange(of: heightInchesPart) { _, _ in persistHeight(settings) }
         .onChange(of: goalWeightFocused) { _, focused in
             if !focused { commitGoalWeight(settings) }
+        }
+        .onChange(of: todayWeightFocused) { _, focused in
+            if !focused { commitTodayWeight(settings) }
+        }
+        .onChange(of: settings.usesMetricWeight) { _, _ in
+            loadTodayWeight(settings)
         }
     }
 
@@ -375,7 +411,7 @@ struct SettingsView: View {
                         Spacer()
                         Button(role: .destructive) {
                             modelContext.delete(preset)
-                            try? modelContext.save()
+                            modelContext.saveAndNotifyJournal()
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -411,6 +447,49 @@ struct SettingsView: View {
         }
     }
 
+    private static var screenTitle: String {
+        #if os(macOS)
+        "Program"
+        #else
+        "Settings"
+        #endif
+    }
+
+    private func loadTodayWeight(_ settings: AppSettings) {
+        guard let weight = DataStore.weight(for: Date(), in: modelContext) else {
+            todayWeightText = ""
+            return
+        }
+        let value = settings.usesMetricWeight ? weight.weightLbs * 0.453592 : weight.weightLbs
+        todayWeightText = String(format: "%.1f", value)
+    }
+
+    private func commitTodayWeight(_ settings: AppSettings) {
+        let cleaned = todayWeightText.replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespaces)
+        if cleaned.isEmpty { return }
+        guard let value = Double(cleaned), value > 0 else {
+            loadTodayWeight(settings)
+            return
+        }
+        let lbs = settings.usesMetricWeight ? value / 0.453592 : value
+        if let existing = DataStore.weight(for: Date(), in: modelContext) {
+            existing.weightLbs = lbs
+            existing.timeLogged = Date()
+        } else {
+            modelContext.insert(WeightEntry(date: Date(), weightLbs: lbs))
+        }
+        todayWeightText = String(format: "%.1f", value)
+        save(settings)
+    }
+
+    private func todayBMILine(_ settings: AppSettings) -> String? {
+        guard let weight = DataStore.weight(for: Date(), in: modelContext),
+              let bmi = BMICalculator.bmi(weightLbs: weight.weightLbs, heightInches: settings.heightInches)
+        else { return nil }
+        return String(format: "Today’s BMI: %.1f · %@", bmi, BMICalculator.category(for: bmi))
+    }
+
     private func commitGoalWeight(_ settings: AppSettings) {
         let cleaned = goalWeightText.replacingOccurrences(of: ",", with: ".")
         if cleaned.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -434,13 +513,13 @@ struct SettingsView: View {
     }
 
     private func save(_ settings: AppSettings) {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 
     private func appearanceFooter(for mode: AppearanceMode) -> String {
         switch mode {
         case .system:
-            return "Follows your iPhone’s Light/Dark setting."
+            return "Follows this device’s Light/Dark setting."
         case .light:
             return "Always use Light appearance."
         case .dark:
@@ -450,6 +529,7 @@ struct SettingsView: View {
         }
     }
 
+    #if os(iOS)
     private var healthButtonTitle: String {
         switch HealthKitService.shared.authStatus {
         case .unavailable: return "Health unavailable"
@@ -489,6 +569,7 @@ struct SettingsView: View {
             HealthKitService.shared.refreshStatus()
         }
     }
+    #endif
 }
 
 struct SmokingSettingsForm: View {
@@ -570,7 +651,7 @@ struct SmokingSettingsForm: View {
                         Text("Pack price")
                         Spacer()
                         TextField("optional", text: $packPriceText)
-                            .keyboardType(.decimalPad)
+                            .onPlanKeyboard(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .focused($packPriceFocused)
                             .frame(maxWidth: 100)
@@ -586,7 +667,7 @@ struct SmokingSettingsForm: View {
             }
         }
         .navigationTitle("Smoking")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .onAppear {
             if let price = settings.cigarettePackPrice {
                 packPriceText = String(format: "%.2f", price)
@@ -619,7 +700,7 @@ struct SmokingSettingsForm: View {
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -684,11 +765,11 @@ struct DrinkingSettingsForm: View {
             }
         }
         .navigationTitle("Drinking")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -718,7 +799,7 @@ struct HydrationSettingsForm: View {
                     Text("Daily target")
                     Spacer()
                     TextField("oz", text: $hydrationTargetText)
-                        .keyboardType(.numberPad)
+                        .onPlanKeyboard(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .focused($hydrationTargetFocused)
                         .frame(maxWidth: 100)
@@ -764,7 +845,7 @@ struct HydrationSettingsForm: View {
             }
         }
         .navigationTitle("Hydration")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .keyboardDoneToolbar(focus: $hydrationTargetFocused)
         .onAppear { hydrationTargetText = "\(settings.hydrationTargetOz)" }
         .onChange(of: hydrationTargetFocused) { _, focused in
@@ -783,7 +864,7 @@ struct HydrationSettingsForm: View {
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -806,11 +887,11 @@ struct BathroomSettingsForm: View {
             }
         }
         .navigationTitle("Bathroom")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -886,7 +967,7 @@ struct SupplementsSettingsForm: View {
             }
         }
         .navigationTitle("Supplements")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .keyboardDoneToolbar(focus: $nameFocused)
     }
 
@@ -907,7 +988,7 @@ struct SupplementsSettingsForm: View {
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         Task { await NotificationService.shared.reschedule(using: settings) }
     }
 }
@@ -1000,7 +1081,7 @@ struct FoodLookupSettingsView: View {
             get: { settings.usdaAPIKey },
             set: {
                 settings.usdaAPIKey = $0
-                try? modelContext.save()
+                modelContext.saveAndNotifyJournal()
                 if $0.trimmingCharacters(in: .whitespacesAndNewlines) != lastTestedKey {
                     testResult = nil
                 }
@@ -1019,7 +1100,7 @@ struct FoodLookupSettingsView: View {
                             SecureField("USDA API key", text: keyBinding)
                         }
                     }
-                    .textInputAutocapitalization(.never)
+                    .onPlanNeverAutocapitalize()
                     .autocorrectionDisabled()
                     .focused($keyFocused)
                     .textContentType(.password)
@@ -1059,7 +1140,7 @@ struct FoodLookupSettingsView: View {
                         testResult = nil
                         lastTestedKey = ""
                         keyVisible = false
-                        try? modelContext.save()
+                        modelContext.saveAndNotifyJournal()
                     }
                 }
             } header: {
@@ -1087,7 +1168,7 @@ struct FoodLookupSettingsView: View {
             }
         }
         .navigationTitle("Food lookup")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .keyboardDoneToolbar(focus: $keyFocused)
         .onChange(of: keyFocused) { _, focused in
             // Auto-test once when you leave the key field after pasting/typing.

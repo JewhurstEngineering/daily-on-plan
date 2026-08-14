@@ -47,7 +47,7 @@ struct BodyCompositionListView: View {
             }
         }
         .navigationTitle("Body composition")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             if showsDismissButton {
                 ToolbarItem(placement: .cancellationAction) {
@@ -79,7 +79,7 @@ struct BodyCompositionListView: View {
         for index in offsets {
             modelContext.delete(readings[index])
         }
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -286,7 +286,7 @@ struct BodyCompositionEditView: View {
             }
         }
         .navigationTitle(reading == nil ? "Add reading" : "Edit reading")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -300,13 +300,10 @@ struct BodyCompositionEditView: View {
                     }
                 }
             }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    focusedField = nil
-                    Keyboard.dismiss()
-                }
-            }
+        }
+        .onPlanKeyboardDone {
+            focusedField = nil
+            Keyboard.dismiss()
         }
         .alert("Apply goals to settings?", isPresented: $showApplyGoalsAlert) {
             Button("Just save reading") {
@@ -336,7 +333,7 @@ struct BodyCompositionEditView: View {
         placeholder: String,
         text: Binding<String>,
         field: BodyCompField,
-        keyboard: UIKeyboardType = .default
+        keyboard: OnPlanKeyboard = .default
     ) -> some View {
         receiptNumberField(title, placeholder: placeholder, text: text, field: field, keyboard: keyboard)
     }
@@ -346,19 +343,19 @@ struct BodyCompositionEditView: View {
         placeholder: String,
         text: Binding<String>,
         field: BodyCompField,
-        keyboard: UIKeyboardType = .decimalPad,
+        keyboard: OnPlanKeyboard = .decimalPad,
         hint: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
             TextField(placeholder, text: text)
-                .keyboardType(keyboard)
+                .onPlanKeyboard(keyboard)
                 .font(.title3.monospacedDigit())
                 .padding(.horizontal, 14)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemBackground))
+                .background(Color.onPlanSecondaryFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .focused($focusedField, equals: field)
             if let hint {
@@ -461,7 +458,7 @@ struct BodyCompositionEditView: View {
             applyGoalsToSettings()
         }
 
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         dismiss()
     }
 

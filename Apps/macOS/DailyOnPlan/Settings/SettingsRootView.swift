@@ -14,8 +14,10 @@ struct SettingsRootView: View {
                 .tabItem { Label("Theme", systemImage: "paintpalette") }
             AccessibilitySettingsView()
                 .tabItem { Label("Accessibility", systemImage: "accessibility") }
-            TrackingSettingsView()
-                .tabItem { Label("Tracking", systemImage: "checklist") }
+            SettingsView()
+                .tabItem { Label("Program", systemImage: "slider.horizontal.3") }
+            MacNotificationsSettingsView()
+                .tabItem { Label("Notifications", systemImage: "bell") }
             DataSettingsView()
                 .tabItem { Label("Data", systemImage: "externaldrive") }
             AboutSettingsView()
@@ -50,29 +52,13 @@ struct SettingsRootView: View {
     }
 }
 
-struct TrackingSettingsView: View {
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                SettingsPanel(
-                    title: "Smoking, drinking & bathroom",
-                    systemImage: "iphone",
-                    subtitle: "Modes and limits are set on iPhone."
-                ) {
-                    Text("Use the iPhone app to turn smoking or drinking tracking on, pick count / reduce / quit, and show or hide bathroom. This Mac menu bar shows today’s counts and quick-add when those sections are enabled.")
-                        .appFont(.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(16)
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-    }
-}
-
 struct DataSettingsView: View {
+    @EnvironmentObject private var store: OnPlanStore
+    @State private var statusTick = 0
+    @State private var isChecking = false
+
     var body: some View {
+        NavigationStack {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 SettingsPanel(
@@ -80,18 +66,49 @@ struct DataSettingsView: View {
                     systemImage: "icloud",
                     subtitle: "Same day log as iPhone."
                 ) {
-                    Text("Protein, water, plan flags, and the rest of the journal sync with iPhone over iCloud when this Mac is signed into the same Apple ID. Theme and menu bar layout stay on this Mac. First sync can take a minute after you open the iPhone app.")
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Circle()
+                            .fill(SharedModelContainer.usesCloudKit ? Color.green : Color.orange)
+                            .frame(width: 8, height: 8)
+                        Text(iCloudLine)
+                            .appFont(.subheadline, weight: .semibold)
+                            .id(statusTick)
+                        Spacer(minLength: 8)
+                        Button {
+                            isChecking = true
+                            defer { isChecking = false }
+                            _ = try? SharedModelContainer.reopen()
+                            MacDaySync.refresh(store: store)
+                            statusTick += 1
+                        } label: {
+                            if isChecking {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Check now")
+                            }
+                        }
+                        .controlSize(.small)
+                        .disabled(isChecking)
+                    }
+
+                    Text("Protein, water, plan flags, body metrics, and the rest of the journal sync with iPhone over iCloud when this Mac is signed into the same Apple ID. Theme and menu bar layout stay on this Mac.")
                         .appFont(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 SettingsPanel(
-                    title: "Backup on iPhone",
-                    systemImage: "externaldrive",
-                    subtitle: "Full backup and restore live on iPhone."
+                    title: "Backup & restore",
+                    systemImage: "externaldrive.badge.timemachine",
+                    subtitle: "Full journal snapshot. Same format as iPhone."
                 ) {
-                    Text("Create and restore backups from the iPhone app. Export a backup on iPhone before deleting the app. Report exports from iPhone cannot restore data.")
+                    NavigationLink {
+                        BackupRestoreView()
+                    } label: {
+                        Label("Open backup & restore", systemImage: "arrow.up.arrow.down")
+                    }
+                    Text("Backups include days, weights, body composition, measurements, meals, and settings. Restore replaces everything currently in the journal.")
                         .appFont(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -100,5 +117,16 @@ struct DataSettingsView: View {
             .padding(16)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+
+    private var iCloudLine: String {
+        if SharedModelContainer.usesCloudKit {
+            return "iCloud on"
+        }
+        if let error = SharedModelContainer.cloudKitError {
+            return "iCloud off — \(error)"
+        }
+        return "iCloud off"
     }
 }

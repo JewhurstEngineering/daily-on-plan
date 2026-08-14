@@ -70,7 +70,7 @@ struct BodyMeasurementsListView: View {
             }
         }
         .navigationTitle("Measurements")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             if showsDismissButton {
                 ToolbarItem(placement: .cancellationAction) {
@@ -115,7 +115,7 @@ struct BodyMeasurementsListView: View {
         for index in offsets {
             modelContext.delete(entries[index])
         }
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -187,7 +187,7 @@ struct BodyMeasurementEditView: View {
             }
         }
         .navigationTitle(entry == nil ? "Add measurements" : "Edit measurements")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -196,11 +196,8 @@ struct BodyMeasurementEditView: View {
                 Button("Save") { save() }
                     .disabled(!canSave)
             }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focusedField = nil }
-            }
         }
+        .onPlanKeyboardDone { focusedField = nil }
         .onAppear { load() }
     }
 
@@ -209,7 +206,7 @@ struct BodyMeasurementEditView: View {
             Text(title)
             Spacer()
             TextField("—", text: text)
-                .keyboardType(.decimalPad)
+                .onPlanKeyboard(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .focused($focusedField, equals: field)
                 .frame(maxWidth: 100)
@@ -261,7 +258,7 @@ struct BodyMeasurementEditView: View {
         target.leftThighInches = parse(leftThighText)
         target.rightThighInches = parse(rightThighText)
         target.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         dismiss()
     }
 }

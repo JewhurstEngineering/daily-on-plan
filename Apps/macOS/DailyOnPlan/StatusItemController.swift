@@ -3,8 +3,8 @@ import SwiftUI
 import Combine
 import OnPlanCore
 
-/// Previously hosted an AppKit `NSStatusItem`. macOS 26 Control Center drops
-/// those in a SwiftUI Settings-only app; the extra now lives in `MenuBarExtra`.
+/// AppKit extra so the popover parks under the status item. SwiftUI
+/// `MenuBarExtra` on macOS 26 can open the window against the left edge.
 @MainActor
 final class StatusItemController: NSObject {
     private var item: NSStatusItem?
@@ -120,18 +120,12 @@ final class StatusItemController: NSObject {
         guard let store, let button = item?.button else { return }
         button.image = Self.menuBarLogo()
         button.imagePosition = .imageLeft
-        let text = MenuBarFormatter.title(snapshot: store.snapshot, preferences: store.preferences)
-        let font = NSFont.menuBarFont(ofSize: 0)
-        if store.preferences.showInMenuBar {
-            button.attributedTitle = NSAttributedString(string: " \(text)", attributes: [
-                .font: font,
-                .foregroundColor: NSColor.labelColor,
-                .baselineOffset: -0.5,
-            ])
-        } else {
-            button.attributedTitle = NSAttributedString()
-        }
-        button.toolTip = text
+        let spoken = MenuBarFormatter.title(snapshot: store.snapshot, preferences: store.preferences)
+        button.attributedTitle = Self.makeAttributedTitle(
+            snapshot: store.snapshot,
+            preferences: store.preferences
+        )
+        button.toolTip = spoken
     }
 
     func closePopover() {
@@ -139,10 +133,10 @@ final class StatusItemController: NSObject {
         removeEventMonitor()
     }
 
-    @objc private func togglePopover(_ sender: Any?) {
+    func presentPopover() {
         guard let store, let popover, let button = item?.button else { return }
         if popover.isShown {
-            closePopover()
+            syncPopoverSize()
             return
         }
         AppActivation.bringToFront()
@@ -158,6 +152,14 @@ final class StatusItemController: NSObject {
             self?.syncPopoverSize()
         }
         addEventMonitor()
+    }
+
+    @objc private func togglePopover(_ sender: Any?) {
+        if popover?.isShown == true {
+            closePopover()
+            return
+        }
+        presentPopover()
     }
 
     /// NSPopover wraps content in a vibrant effect view; force an opaque material so dark apps don't show through.
@@ -195,20 +197,73 @@ final class StatusItemController: NSObject {
         }
     }
 
+    private static func makeAttributedTitle(
+        snapshot: ChromeSnapshot?,
+        preferences: DisplayPreferences
+    ) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        guard preferences.showInMenuBar else { return result }
+
+        let font = NSFont.menuBarFont(ofSize: 0)
+        let textAttrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .baselineOffset: -0.5,
+        ]
+        let sepAttrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .baselineOffset: -0.5,
+        ]
+        let segments = MenuBarFormatter.segments(snapshot: snapshot, preferences: preferences)
+        if !segments.isEmpty {
+            result.append(NSAttributedString(string: " ", attributes: textAttrs))
+        }
+        for (index, segment) in segments.enumerated() {
+            if index > 0 {
+                result.append(NSAttributedString(string: " · ", attributes: sepAttrs))
+            }
+            if let icon = segment.systemImage {
+                appendSymbol(named: icon, to: result, pointSize: 11)
+            }
+            if !segment.text.isEmpty {
+                result.append(NSAttributedString(string: segment.text, attributes: textAttrs))
+            }
+        }
+        return result
+    }
+
     private static func menuBarLogo() -> NSImage? {
-        if let base = NSImage(named: "AppLogoTemplate") {
+        if let base = NSImage(named: "AppLogo") {
             let point = NSSize(width: 18, height: 18)
             let image = NSImage(size: point, flipped: false) { rect in
                 NSGraphicsContext.current?.imageInterpolation = .high
                 base.draw(in: rect)
                 return true
             }
-            image.isTemplate = true
+            image.isTemplate = false
             return image
         }
         let image = NSImage(systemSymbolName: "checkmark.seal.fill", accessibilityDescription: "Daily On Plan")
         image?.isTemplate = true
         image?.size = NSSize(width: 18, height: 18)
         return image
+    }
+
+    private static func appendSymbol(named name: String, to result: NSMutableAttributedString, pointSize: CGFloat) {
+        guard let base = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return }
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .medium)
+        let image = (base.withSymbolConfiguration(config) ?? base).copy() as? NSImage ?? base
+        image.isTemplate = true
+        image.size = NSSize(width: pointSize + 1, height: pointSize + 1)
+
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        let y = (NSFont.menuBarFont(ofSize: 0).capHeight - image.size.height) / 2
+        attachment.bounds = CGRect(x: 0, y: y, width: image.size.width, height: image.size.height)
+        result.append(NSAttributedString(attachment: attachment))
+        result.append(NSAttributedString(string: " ", attributes: [
+            .font: NSFont.menuBarFont(ofSize: 0),
+        ]))
     }
 }

@@ -213,7 +213,9 @@ enum BackupService {
 
     private static func applyPostRestoreSideEffects(settings: AppSettings) {
         WidgetCenter.shared.reloadAllTimelines()
+        #if os(iOS)
         PhoneWatchBridge.shared.pushSnapshot()
+        #endif
         Task {
             await NotificationService.shared.reschedule(using: settings)
         }

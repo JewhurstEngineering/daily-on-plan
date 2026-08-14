@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 struct BackupRestoreView: View {
     @Environment(\.modelContext) private var modelContext
@@ -55,7 +58,7 @@ struct BackupRestoreView: View {
             }
         }
         .navigationTitle("Backup & restore")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .disabled(isWorking)
         .alert("Restore failed", isPresented: Binding(
             get: { errorMessage != nil },
@@ -98,9 +101,17 @@ struct BackupRestoreView: View {
                 errorMessage = error.localizedDescription
             }
         }
+        #if os(iOS)
         .sheet(item: $shareItem) { item in
             ShareSheet(items: [item.url])
         }
+        #elseif os(macOS)
+        .onChange(of: shareItem) { _, item in
+            guard let url = item?.url else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            shareItem = nil
+        }
+        #endif
     }
 
     private static var allowedTypes: [UTType] {
@@ -149,6 +160,7 @@ struct BackupRestoreView: View {
             do {
                 let settings = try BackupService.replaceAll(with: snapshot, in: modelContext)
                 onRestored?(settings)
+                NotificationCenter.default.post(name: .onPlanJournalDidChange, object: nil)
                 isWorking = false
                 statusMessage = "Restored \(BackupService.summary(for: snapshot))."
             } catch {
@@ -159,7 +171,7 @@ struct BackupRestoreView: View {
     }
 }
 
-private struct ShareableBackup: Identifiable {
+private struct ShareableBackup: Identifiable, Equatable {
     let id = UUID()
     let url: URL
 }

@@ -70,7 +70,7 @@ struct FoodPreferencesView: View {
             }
         }
         .navigationTitle("Food preferences")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
     }
 
     private var filteredFoods: [CatalogFood] {
@@ -103,6 +103,6 @@ struct FoodPreferencesView: View {
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }

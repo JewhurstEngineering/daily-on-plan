@@ -68,11 +68,11 @@ struct MotivationQuotesSettingsView: View {
             }
         }
         .navigationTitle("Motivational quotes")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
     }
 
     private func save() {
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         Task { await NotificationService.shared.reschedule(using: settings) }
     }
 }

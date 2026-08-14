@@ -39,9 +39,11 @@ struct DayLayoutSettingsView: View {
                 }
             }
         }
+        #if os(iOS)
         .environment(\.editMode, .constant(.active))
+        #endif
         .navigationTitle("Day layout")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .onAppear {
             order = settings.sectionOrder
         }
@@ -64,6 +66,6 @@ struct DayLayoutSettingsView: View {
 
     private func persist() {
         settings.sectionOrder = order
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }

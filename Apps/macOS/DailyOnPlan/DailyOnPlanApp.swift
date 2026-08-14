@@ -5,16 +5,36 @@ import OnPlanCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = OnPlanStore()
+    let statusItem = StatusItemController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.onSnapshotWritten = { WidgetReload.afterWritingSnapshot() }
+        // Create the extra before accessory policy. LSUIElement / flipping
+        // accessory too early used to let Control Center drop AppKit extras.
+        statusItem.start(store: store)
+        MacNotifications.configure()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(openFromNotification(_:)),
+            name: .openDaySection,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshAfterNotification),
+            name: .onPlanNotificationHandled,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(refreshAfterNotification),
+            name: .onPlanJournalDidChange,
+            object: nil
+        )
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             MacDaySync.refresh(store: self.store)
             MacDaySync.startObserving(store: self.store)
-            // Hide Dock after SwiftUI has registered the MenuBarExtra. Putting
-            // LSUIElement in Info.plist (or flipping accessory too early) lets
-            // macOS 26 Control Center drop the extra entirely.
             NSApp.setActivationPolicy(.accessory)
         }
         DispatchQueue.global(qos: .utility).async {
@@ -34,22 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return true
     }
-}
 
-/// SwiftUI scene so Control Center actually installs the extra. AppKit
-/// `NSStatusItem` in a Settings-only `App` is silently dropped on macOS 26.
-private struct OnPlanMenuBarScene: Scene {
-    @ObservedObject var store: OnPlanStore
+    @objc private func openFromNotification(_ note: Notification) {
+        MacDaySync.refresh(store: store)
+        statusItem.presentPopover()
+    }
 
-    var body: some Scene {
-        MenuBarExtra {
-            MenuBarPopoverView()
-                .environmentObject(store)
-        } label: {
-            MenuBarLabelView()
-                .environmentObject(store)
-        }
-        .menuBarExtraStyle(.window)
+    @objc private func refreshAfterNotification() {
+        MacDaySync.refresh(store: store)
     }
 }
 
@@ -58,16 +70,25 @@ struct DailyOnPlanApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        OnPlanMenuBarScene(store: appDelegate.store)
-
         Settings {
             SettingsRootView()
                 .environmentObject(appDelegate.store)
+                .modifier(MacJournalContainer())
                 .onAppear {
                     AppActivation.scheduleSettingsFocus()
                 }
         }
         .defaultSize(width: 960, height: 680)
         .windowResizability(.contentMinSize)
+    }
+}
+
+private struct MacJournalContainer: ViewModifier {
+    func body(content: Content) -> some View {
+        if let container = try? SharedModelContainer.shared() {
+            content.modelContainer(container)
+        } else {
+            content
+        }
     }
 }

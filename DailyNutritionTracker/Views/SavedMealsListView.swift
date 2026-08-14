@@ -89,7 +89,7 @@ struct SavedMealsListView: View {
             }
         }
         .navigationTitle("Saved meals")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .sheet(item: $editing) { meal in
             EditSavedMealView(meal: meal, settings: settings)
         }
@@ -127,7 +127,7 @@ struct SavedMealsListView: View {
                         }
                     }
                     .navigationTitle("Suggested meal")
-                    .navigationBarTitleDisplayMode(.inline)
+                    .onPlanInlineNav()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Dismiss") { draftSuggest = nil }
@@ -155,12 +155,21 @@ struct SavedMealsListView: View {
                         }
                     }
                     .toolbar {
+                        #if os(iOS)
                         ToolbarItem(placement: .bottomBar) {
                             Button("Suggest again") {
                                 let remaining = max((log?.proteinGoal ?? settings.defaultProteinGoal) - (log?.totalProteinCalories ?? 0), 70)
                                 draftSuggest = MealSuggestor.suggest(settings: settings, remainingProteinCalories: remaining)
                             }
                         }
+                        #else
+                        ToolbarItem(placement: .automatic) {
+                            Button("Suggest again") {
+                                let remaining = max((log?.proteinGoal ?? settings.defaultProteinGoal) - (log?.totalProteinCalories ?? 0), 70)
+                                draftSuggest = MealSuggestor.suggest(settings: settings, remainingProteinCalories: remaining)
+                            }
+                        }
+                        #endif
                     }
                 }
             }
@@ -171,26 +180,26 @@ struct SavedMealsListView: View {
         for index in offsets {
             modelContext.delete(meals[index])
         }
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 
     private func logMeal(_ meal: SavedMeal) {
         guard let log else { return }
         MealLogger.apply(components: meal.components, to: log, settings: settings)
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         dismiss()
     }
 
     private func saveDraft(_ components: [MealComponent]) {
         let meal = SavedMeal(name: suggestName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Suggested meal" : suggestName, components: components)
         modelContext.insert(meal)
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 
     private func applyDraft(_ components: [MealComponent]) {
         guard let log else { return }
         MealLogger.apply(components: components, to: log, settings: settings)
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
     }
 }
 
@@ -251,7 +260,7 @@ struct EditSavedMealView: View {
                 }
             }
             .navigationTitle(meal == nil ? "New meal" : "Edit meal")
-            .navigationBarTitleDisplayMode(.inline)
+            .onPlanInlineNav()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -306,7 +315,7 @@ struct EditSavedMealView: View {
         } else {
             modelContext.insert(SavedMeal(name: trimmed, components: components))
         }
-        try? modelContext.save()
+        modelContext.saveAndNotifyJournal()
         dismiss()
     }
 }

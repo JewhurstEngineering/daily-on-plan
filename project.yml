@@ -85,9 +85,29 @@ targets:
           - AppIdentity.swift
           - OnPlanColors.swift
           - UsageSuggestions.swift
+          - Keyboard.swift
+          - PlatformSwiftUI.swift
+          - MealSuggestor.swift
+          - ExportFileStore.swift
       - path: DailyNutritionTracker/Services
         includes:
           - DataStore.swift
+          - NotificationService.swift
+          - BackupService.swift
+          - USDAFoodDataClient.swift
+          - RemoteFoodModels.swift
+      - path: DailyNutritionTracker/Views
+        includes:
+          - SettingsView.swift
+          - NotificationsSettingsView.swift
+          - MotivationQuotesSettingsView.swift
+          - DayLayoutSettingsView.swift
+          - BodyCompositionViews.swift
+          - BodyMeasurementsViews.swift
+          - FoodPreferencesView.swift
+          - SavedMealsListView.swift
+          - BackupRestoreView.swift
+          - Components/FoodPickers.swift
       - path: DailyNutritionTrackerWidgets/Shared
         includes:
           - AppGroupStore.swift
@@ -120,6 +140,8 @@ targets:
         embed: true
       - sdk: WidgetKit.framework
       - sdk: SwiftData.framework
+      - sdk: UserNotifications.framework
+      - sdk: Charts.framework
   DailyOnPlanWidgets:
     type: app-extension
     platform: macOS
