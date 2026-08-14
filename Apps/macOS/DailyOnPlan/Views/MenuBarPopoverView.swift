@@ -207,7 +207,7 @@ struct MenuBarPopoverView: View {
             .keyboardShortcut("q", modifiers: .command)
         }
         .overlay {
-            Text("Made by \(AppAbout.copyrightHolder)")
+            Text(AppAbout.organization)
                 .appFont(.caption2)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)

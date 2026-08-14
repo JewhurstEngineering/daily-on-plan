@@ -21,8 +21,8 @@ struct PhoneAboutSettings: View {
                 .padding(.vertical, 8)
                 .listRowBackground(Color.clear)
                 LabeledContent("Version", value: version)
-                LabeledContent("Developer", value: "James Jewhurst")
-                LabeledContent("License", value: "MIT")
+                LabeledContent("Developer", value: AppAbout.organization)
+                LabeledContent("License", value: AppAbout.licenseName)
             }
             Section("What it tracks") {
                 Label("Daily plan, protein, and water", systemImage: "checkmark.circle")
@@ -30,6 +30,9 @@ struct PhoneAboutSettings: View {
                 Label("Habits, workouts, and supplements", systemImage: "heart.text.square")
             }
             Section {
+                Text(AppAbout.copyrightLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Stay on plan. One day at a time.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
