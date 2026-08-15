@@ -42,58 +42,14 @@ struct AboutSettingsView: View {
                     fillsHeight: true
                 ) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Xcode Run copies live in DerivedData, so Edit Widgets search stays empty until the app is installed.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        if isRunningFromApplications {
-                            Label("Installed in Applications — search “Daily On Plan”.", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                                .fixedSize(horizontal: false, vertical: true)
+                        if AppInstall.allowsSelfInstall {
+                            debugInstallHelp
                         } else {
-                            Button {
-                                do {
-                                    let dest = try AppInstall.copyRunningAppToApplications()
-                                    installSucceeded = true
-                                    installMessage = "Copied to \(dest.path). Keep this Settings window. Then quit the Xcode copy and open the Applications app."
-                                } catch {
-                                    installSucceeded = false
-                                    installMessage = "Couldn’t install: \(error.localizedDescription)"
-                                }
-                                AppActivation.scheduleSettingsFocus()
-                            } label: {
-                                Label("Install to Applications", systemImage: "square.and.arrow.down")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        }
-
-                        if installSucceeded, !isRunningFromApplications {
-                            HStack(spacing: 8) {
-                                Button("Reveal in Finder") {
-                                    NSWorkspace.shared.activateFileViewerSelecting([AppInstall.installedAppURL])
-                                    AppActivation.scheduleSettingsFocus()
-                                }
-                                .controlSize(.small)
-                                Button("Quit this copy & open installed app") {
-                                    AppInstall.launchInstalledAndTerminate()
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
-                            }
-                        }
-
-                        aboutBullet("1.circle", "Install (button above) — does not launch a second copy")
-                        aboutBullet("2.circle", "Quit this Xcode build, then open Applications ▸ Daily On Plan")
-                        aboutBullet("3.circle", "Right-click desktop → Edit Widgets → Daily On Plan")
-
-                        if let installMessage {
-                            Text(installMessage)
-                                .font(.caption2)
-                                .foregroundStyle(installSucceeded ? Color.secondary : Color.orange)
+                            Text("Right-click the desktop → Edit Widgets → search “Daily On Plan”.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
+                            aboutBullet("rectangle.on.rectangle", "Small and medium Daily Status widgets")
                         }
                     }
                 }
@@ -147,6 +103,63 @@ struct AboutSettingsView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
         )
+    }
+
+    @ViewBuilder
+    private var debugInstallHelp: some View {
+        Text("Xcode Run copies live in DerivedData, so Edit Widgets search stays empty until the app is installed.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        if isRunningFromApplications {
+            Label("Installed in Applications — search “Daily On Plan”.", systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.green)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Button {
+                do {
+                    let dest = try AppInstall.copyRunningAppToApplications()
+                    installSucceeded = true
+                    installMessage = "Copied to \(dest.path). Keep this Settings window. Then quit the Xcode copy and open the Applications app."
+                } catch {
+                    installSucceeded = false
+                    installMessage = "Couldn’t install: \(error.localizedDescription)"
+                }
+                AppActivation.scheduleSettingsFocus()
+            } label: {
+                Label("Install to Applications", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+
+        if installSucceeded, !isRunningFromApplications {
+            HStack(spacing: 8) {
+                Button("Reveal in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([AppInstall.installedAppURL])
+                    AppActivation.scheduleSettingsFocus()
+                }
+                .controlSize(.small)
+                Button("Quit this copy & open installed app") {
+                    AppInstall.launchInstalledAndTerminate()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+
+        aboutBullet("1.circle", "Install (button above) — does not launch a second copy")
+        aboutBullet("2.circle", "Quit this Xcode build, then open Applications ▸ Daily On Plan")
+        aboutBullet("3.circle", "Right-click desktop → Edit Widgets → Daily On Plan")
+
+        if let installMessage {
+            Text(installMessage)
+                .font(.caption2)
+                .foregroundStyle(installSucceeded ? Color.secondary : Color.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func aboutBullet(_ systemImage: String, _ text: String) -> some View {

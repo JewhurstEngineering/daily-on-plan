@@ -1,6 +1,16 @@
 import AppKit
 
+/// Copies the running app into `/Applications` and registers the desktop widget.
+/// Store / Release builds omit the spawn path — App Store installs already live in Applications.
 enum AppInstall {
+    static var allowsSelfInstall: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
     static var applicationsURL: URL {
         FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask).first
             ?? URL(fileURLWithPath: "/Applications")
@@ -11,6 +21,7 @@ enum AppInstall {
     }
 
     static func copyRunningAppToApplications() throws -> URL {
+        #if DEBUG
         let src = Bundle.main.bundleURL
         let dest = installedAppURL
         guard src.standardizedFileURL != dest.standardizedFileURL else {
@@ -40,9 +51,17 @@ enum AppInstall {
         }
         registerLaunchServices(at: dest)
         return dest
+        #else
+        throw NSError(
+            domain: "AppInstall",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Self-install is only available in local Debug builds."]
+        )
+        #endif
     }
 
     static func launchInstalledAndTerminate() {
+        #if DEBUG
         let dest = installedAppURL.path
         let escaped = dest.replacingOccurrences(of: "'", with: "'\\''")
         let task = Process()
@@ -53,12 +72,16 @@ enum AppInstall {
         task.standardError = FileHandle.nullDevice
         try? task.run()
         NSApp.terminate(nil)
+        #endif
     }
 
     static func registerEmbeddedWidget() {
+        #if DEBUG
         registerLaunchServices(at: Bundle.main.bundleURL)
+        #endif
     }
 
+    #if DEBUG
     private static func registerLaunchServices(at appURL: URL) {
         let plugin = appURL
             .appendingPathComponent("Contents/PlugIns/DailyOnPlanWidgets.appex", isDirectory: true)
@@ -86,4 +109,5 @@ enum AppInstall {
             return -1
         }
     }
+    #endif
 }

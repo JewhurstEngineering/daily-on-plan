@@ -22,6 +22,7 @@
 		0A92E689983A3B292C20533D /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0653C73F004F0352E35750 /* Keyboard.swift */; };
 		0D18B0F01DF754F215BC4C9A /* CloudKitJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2539876233F04A5F41EBD42 /* CloudKitJournal.swift */; };
 		0D6391069EF3FA448BB10025 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 554CF6C37F7242947A5425DF /* Models.swift */; };
+		0D77661438B0E934CE50B395 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		0DDD2DECC3DEE81468B271C2 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E42190512930A810837A59C /* ReportsView.swift */; };
 		0E2A32D54D3ECBD63852E76A /* OnPlanCoreiOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F92D7D53335213BEC2B8631 /* OnPlanCoreiOS.framework */; };
 		0F0F469C411B9FD9C5304725 /* DaySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06E0AF7C0E1724779B8D1AB /* DaySnapshotStore.swift */; };
@@ -51,6 +52,7 @@
 		2773CC22BDC4F858B425C835 /* USDAFoodDataClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7DC467EF9D0D57AD9F65A4 /* USDAFoodDataClient.swift */; };
 		288B42E493FFDB5E217A1D89 /* DaySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06E0AF7C0E1724779B8D1AB /* DaySnapshotStore.swift */; };
 		2918489B649C546E77CE0137 /* QuickAddService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C239F6201EFF4FD029E623D1 /* QuickAddService.swift */; };
+		2951F6731F44BA91F9CE13FC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		29A44950640325FCE4317E70 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		2AFE5025401CCC0AD44D985D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E93CF92611EDB386F9C9DF3 /* SettingsView.swift */; };
 		2B03C5EA16B3868EE8DD9279 /* WidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED50FCBC23CE029D996DCE3 /* WidgetReload.swift */; };
@@ -76,6 +78,7 @@
 		40879D282EEC346460BFC96C /* AppGroupIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4E961919C550374062C952 /* AppGroupIDs.swift */; };
 		4389EA66CEE07BE90CE4F9FA /* AppDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A300A57C1C0EE5226CB2599 /* AppDeepLink.swift */; };
 		439BBA8050DDECD334D4CCE3 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274BF19FD10C9DB106515A9D /* ExportService.swift */; };
+		46640B8E425457C6B7693297 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		46C71497CACE271E1C93BEC4 /* FoodPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24BE4A408EB926CAC894B37F /* FoodPreferencesView.swift */; };
 		475B60B335A6960494351A23 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		47D77811625E7D7D458CCFDB /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152729661DEBB69BF96A29F /* NotificationService.swift */; };
@@ -186,7 +189,10 @@
 		A92EE0AAC555DE4019D2C0F3 /* UsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ECC03ACED84D9F0529F4F5F /* UsageProgressBar.swift */; };
 		A9AB2E9F597544CE84537BFD /* WidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED50FCBC23CE029D996DCE3 /* WidgetReload.swift */; };
 		AB1AE88E706E317D027E1205 /* ProteinSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B502E29B01D89A688445BDD /* ProteinSection.swift */; };
+		AB2A8E555C2817ACA3311E46 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		ABD28463EF865908991801BC /* WidgetReloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75EEB25E65574D62110DA181 /* WidgetReloader.swift */; };
+		ACEB6189C03E268FFDF6D22B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
+		AE195D4748EBD498EFFC58AC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		AED561585A2357071026864A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		AFA93E964DA918036C9A6328 /* AccessibilitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F472AEFCF4A79F65F8EC5C7 /* AccessibilitySettingsView.swift */; };
 		B1AB1B5C01FBA8742739E2E3 /* JournalMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */; };
@@ -220,6 +226,7 @@
 		CDD42E1F2E31989AA823FA53 /* NotificationsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8385AA86EC6A82C6FBC4966A /* NotificationsSettingsView.swift */; };
 		CE558B0BB3D8F7487229909A /* AppGroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515A74B09DF70A23196C941F /* AppGroupStore.swift */; };
 		CEF246175D9CFC6A38CDD7CA /* DailySummaryWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184FA01301594CCBF1D22AD7 /* DailySummaryWidget.swift */; };
+		D0080ADB532769B8EAA7E707 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		D0609E3D1EFC23C18B9BA454 /* DailyOnPlaniOSWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C2CC812C08C703E6FFF4B04C /* DailyOnPlaniOSWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0700735480A64BB724B3DD9 /* USDAKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14E1141A2CE3315E10475CC /* USDAKeychain.swift */; };
 		D0EEEED88BE7A5B84C28E56F /* MenuBarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA16C5AD1C2094C4C23FCDE /* MenuBarPopoverView.swift */; };
@@ -227,6 +234,7 @@
 		D13FA9013C2F580416647A26 /* BodyMeasurementsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B923AA45730F5B93E2E3EF20 /* BodyMeasurementsViews.swift */; };
 		D2BB1ECA4821D6325E3D2D2E /* JournalSchemaV3.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD99AB08859BC145D5020A56 /* JournalSchemaV3.swift */; };
 		D2F2E6C1FDD708A6B40902D0 /* BackupRestoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC8BBB5F0E62AC096D8AA5F /* BackupRestoreView.swift */; };
+		D3292833BBC0E8D133E559C4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		D4A24E7F3D67A200584B38CF /* ZipStoreWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D55C511A47C89DCC82371B8D /* ZipStoreWriter.swift */; };
 		D631DBE08E5F38CF90340A7D /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7A617D67A92F85B9B3F384 /* DaySnapshot.swift */; };
 		D6BC7D77E4DC54FBC06B897C /* WatchConnectivityClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9325844BE1F8FA8C129463 /* WatchConnectivityClient.swift */; };
@@ -239,6 +247,7 @@
 		E2D0B94CD5D81BBD82AC7826 /* BodyMeasurementsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B923AA45730F5B93E2E3EF20 /* BodyMeasurementsViews.swift */; };
 		E3B95EF75B26C34F26303F89 /* MacFastingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD0C15540CF701D33BFCD66 /* MacFastingSettingsView.swift */; };
 		E3FB0BDA1F84F92A635117D3 /* MotivationQuotesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDB09D69D643ECC5F4B263 /* MotivationQuotesSettingsView.swift */; };
+		E4E54F8A7B9160FFB8CBDAFC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		E564A264DD19A81F88E8B4EC /* BodyCompositionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A535E2A8D1C291C79945A77C /* BodyCompositionViews.swift */; };
 		E70D4CBEDCBB1BAD31794956 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CE183D88EBD8EE0F669A5D /* Charts.framework */; };
 		E728EB69677F82F4C2C44C79 /* SwiftData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 77E713B39C99BE8A21146403 /* SwiftData.framework */; };
@@ -544,6 +553,7 @@
 		FBA16C5AD1C2094C4C23FCDE /* MenuBarPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopoverView.swift; sourceTree = "<group>"; };
 		FD992DB5D29BB5765CA69192 /* ReportAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportAggregator.swift; sourceTree = "<group>"; };
 		FD99AB08859BC145D5020A56 /* JournalSchemaV3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalSchemaV3.swift; sourceTree = "<group>"; };
+		FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		FDC6F447FA9AABE6A8AC9723 /* AppLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLimits.swift; sourceTree = "<group>"; };
 		FF3B3614275463806BFDCAAF /* DayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -644,6 +654,7 @@
 				DA850F848B08ED4B5D1C233D /* AppLogo.swift */,
 				BBD95D2ACA566172649B59FC /* AppTheme.swift */,
 				C480E2C8F75826A33AB33F0A /* Assets.xcassets */,
+				FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */,
 				4ECC03ACED84D9F0529F4F5F /* UsageProgressBar.swift */,
 				5ED50FCBC23CE029D996DCE3 /* WidgetReload.swift */,
 			);
@@ -1059,6 +1070,7 @@
 			buildConfigurationList = 92CCDC719DDB45B7A8A15B49 /* Build configuration list for PBXNativeTarget "OnPlanCoreWatch" */;
 			buildPhases = (
 				292F2C9A223032791C96731C /* Sources */,
+				781221587BAC3450EF0B04EF /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1076,6 +1088,7 @@
 			buildConfigurationList = 961AFF045A1DB34366A4B7EC /* Build configuration list for PBXNativeTarget "OnPlanCoreiOS" */;
 			buildPhases = (
 				F44327C45024A48FA3EA2436 /* Sources */,
+				C761198DEA7225AE6020DF57 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1093,6 +1106,7 @@
 			buildConfigurationList = 961E836C567F19D71CEF00D1 /* Build configuration list for PBXNativeTarget "DailyOnPlanWatchWidgets" */;
 			buildPhases = (
 				090C0AFB5AA6D818D8EA21B6 /* Sources */,
+				3C439A297060D858A84D230C /* Resources */,
 				FCAD1A6355EF7B33EF371323 /* Frameworks */,
 			);
 			buildRules = (
@@ -1111,6 +1125,7 @@
 			buildConfigurationList = 93972D0860E8903C681210FA /* Build configuration list for PBXNativeTarget "DailyOnPlaniOSWidgets" */;
 			buildPhases = (
 				AB57BC83BD64E45E0F1FBA81 /* Sources */,
+				FD956FF546A724FFCF6F10A3 /* Resources */,
 				DE12BF5D7B02136EE0E54C0A /* Frameworks */,
 			);
 			buildRules = (
@@ -1194,6 +1209,7 @@
 			buildConfigurationList = D5AAD259775130ED887C3063 /* Build configuration list for PBXNativeTarget "OnPlanCore" */;
 			buildPhases = (
 				53EA81C7522810FB2AAF3CF8 /* Sources */,
+				7DA0A1ACA8EFF82F7289C6B3 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1311,6 +1327,31 @@
 			buildActionMask = 2147483647;
 			files = (
 				20F37FEBBC20F7C133F1507D /* Assets.xcassets in Resources */,
+				0D77661438B0E934CE50B395 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C439A297060D858A84D230C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACEB6189C03E268FFDF6D22B /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		781221587BAC3450EF0B04EF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4E54F8A7B9160FFB8CBDAFC /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DA0A1ACA8EFF82F7289C6B3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2951F6731F44BA91F9CE13FC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1319,6 +1360,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				ECFB50A94A40DD64677673ED /* Assets.xcassets in Resources */,
+				AE195D4748EBD498EFFC58AC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1327,6 +1369,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				CC6DF89554B12777FE7EFC00 /* Assets.xcassets in Resources */,
+				AB2A8E555C2817ACA3311E46 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C761198DEA7225AE6020DF57 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46640B8E425457C6B7693297 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1335,6 +1386,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				715FEB452BDE6006CB2F1FD6 /* Assets.xcassets in Resources */,
+				D3292833BBC0E8D133E559C4 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD956FF546A724FFCF6F10A3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0080ADB532769B8EAA7E707 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1761,6 +1821,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Daily On Plan";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1947,6 +2008,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Daily On Plan";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
