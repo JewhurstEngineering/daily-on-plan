@@ -41,7 +41,7 @@ enum DaySnapshotBuilder {
             smokingEnabled: settings?.smokingMode.showsSection ?? false,
             drinkingEnabled: settings?.drinkingMode.showsSection ?? false,
             bathroomEnabled: settings?.showBathroomSection ?? true,
-            fastingEnabled: bits.enabled,
+            fastingEnabled: bits.enabled || log?.eatingWindowStart != nil || log?.eatingWindowEnd != nil,
             eatingWindowStart: bits.start,
             eatingWindowEnd: bits.end,
             fastingTargetHours: bits.hours,

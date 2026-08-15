@@ -26,7 +26,7 @@ struct MenuBarPopoverView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 flags
-                if toggles.fasting, snapshot.fastingEnabled {
+                if toggles.fasting, snapshot.fastingEnabled || snapshot.eatingWindowStart != nil || snapshot.eatingWindowEnd != nil {
                     fastingClock
                 }
                 if toggles.protein {
@@ -173,25 +173,31 @@ struct MenuBarPopoverView: View {
     @ViewBuilder
     private var fastingClock: some View {
         let settings = DataStore.settings(in: modelContext)
-        let log = DataStore.log(for: Date(), in: modelContext, defaultGoal: settings.defaultProteinGoal)
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let previous = DataStore.existingLog(for: yesterday, in: modelContext)
-        FastingTrackerCard(
-            log: log,
-            previous: previous,
-            settings: settings,
-            compact: true,
-            onChange: {
-                modelContext.saveAndNotifyJournal()
-                MacDaySync.refresh(store: store)
-            }
-        )
-        .environment(\.accentPrimary, settings.accentPrimary)
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(theme.tint.opacity(0.08))
-        )
+        if let log = DataStore.existingLog(for: Date(), in: modelContext) {
+            let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+            let previous = DataStore.existingLog(for: yesterday, in: modelContext)
+            FastingTrackerCard(
+                log: log,
+                previous: previous,
+                settings: settings,
+                compact: true,
+                onChange: {
+                    modelContext.saveAndNotifyJournal()
+                    MacDaySync.refresh(store: store)
+                }
+            )
+            .environment(\.accentPrimary, settings.accentPrimary)
+            .id(snapshot.generatedAt)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(theme.tint.opacity(0.08))
+            )
+        } else if !snapshot.fastingStatusLine.isEmpty {
+            Text(snapshot.fastingStatusLine)
+                .appFont(.subheadline, weight: .semibold)
+                .id(snapshot.generatedAt)
+        }
     }
 
     @ViewBuilder

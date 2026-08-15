@@ -23,6 +23,15 @@ enum MacDaySync {
             refresh(store: store)
             MacNotifications.sync(requestIfNeeded: false)
         }
+        NotificationCenter.default.addObserver(
+            forName: .onPlanJournalDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                refresh(store: store)
+            }
+        }
         Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
             Task { @MainActor in
                 refresh(store: store)

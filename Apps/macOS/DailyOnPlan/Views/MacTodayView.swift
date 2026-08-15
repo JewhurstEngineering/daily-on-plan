@@ -16,12 +16,13 @@ struct MacTodayView: View {
         let log = DataStore.log(for: selectedDate, in: modelContext, defaultGoal: settings.defaultProteinGoal)
         let weight = DataStore.weight(for: selectedDate, in: modelContext)
         let checklist = FoodCatalog.checklistCalories(for: log, phase: settings.phase)
+        let _ = store.snapshot.generatedAt
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header(log: log, settings: settings)
                 flags(log: log)
-                if settings.fastingEnabled {
+                if settings.fastingEnabled || log.eatingWindowStart != nil || log.eatingWindowEnd != nil {
                     fasting(log: log, settings: settings)
                 }
                 protein(log: log)

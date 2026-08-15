@@ -106,7 +106,10 @@ enum FastingMath {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> FastingPhase {
-        guard settings.fastingEnabled else { return .off }
+        if !settings.fastingEnabled {
+            let hasWindow = today?.eatingWindowStart != nil || today?.eatingWindowEnd != nil
+            if !hasWindow { return .off }
+        }
         let target = settings.fastingTargetHours * 3600
         if let start = today?.eatingWindowStart, today?.eatingWindowEnd == nil {
             let elapsed = now.timeIntervalSince(start)
@@ -250,6 +253,8 @@ enum FastingMath {
         now: Date = Date()
     ) -> (enabled: Bool, start: Date?, end: Date?, hours: Double, streak: Int, line: String) {
         let enabled = settings.fastingEnabled
+            || today?.eatingWindowStart != nil
+            || today?.eatingWindowEnd != nil
         return (
             enabled,
             today?.eatingWindowStart,
