@@ -32,6 +32,7 @@
 		131091DB68B31E8E16D97591 /* PhoneAboutSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2E3A0D1A664A202FADF0D9 /* PhoneAboutSettings.swift */; };
 		14DBAD5D9C5D7C0F35C92D2C /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7A617D67A92F85B9B3F384 /* DaySnapshot.swift */; };
 		152A91D2107DBDBCF545DD28 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CE183D88EBD8EE0F669A5D /* Charts.framework */; };
+		17B6CDCB9827A70EE2291A9B /* SolarDaylight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6E0B16D34C172DFBC1796 /* SolarDaylight.swift */; };
 		17DDD23000E971C58AE9EEE7 /* AccentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7BC21E38542FD83BA9C871B /* AccentTheme.swift */; };
 		17FB2B6DCDB1EB4A7247EF80 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 82F7A6ED00C40C74DC0E4C0D /* WatchConnectivity.framework */; };
 		189993C3B505E263973DCF0F /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10F9626A539DA00D1E3573D2 /* DataStore.swift */; };
@@ -113,6 +114,7 @@
 		62A071C587E77B61FA4B2123 /* OnPlanColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1800CB41C9649C992E3CED82 /* OnPlanColors.swift */; };
 		641EA93E786FF3A556224D17 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD95D2ACA566172649B59FC /* AppTheme.swift */; };
 		648CF4B32BA91B1B4A215FB1 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD95D2ACA566172649B59FC /* AppTheme.swift */; };
+		667002D2874187FF00CDC6CC /* SolarDaylight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6E0B16D34C172DFBC1796 /* SolarDaylight.swift */; };
 		668E6BD8C6229DA1BF76A4E1 /* AppLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDC6F447FA9AABE6A8AC9723 /* AppLimits.swift */; };
 		6749253893768E9F85D70C4D /* EatingDaySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41ACB30303C34A5CECE402C /* EatingDaySummary.swift */; };
 		68FC8CF3B3E90E044D88299B /* FastingMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE743D950FC3F8915FD8C7E /* FastingMath.swift */; };
@@ -175,6 +177,7 @@
 		9AF1E625376040CCCAA5D5E7 /* USDAKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14E1141A2CE3315E10475CC /* USDAKeychain.swift */; };
 		9CA31F0858BFD7C7FE2376D6 /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AACE592A50BDD617E4CC8734 /* AboutSettingsView.swift */; };
 		9D05C225873F631B85D6545A /* UsageSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5900F9E340EE2FE6D5D58CF4 /* UsageSuggestions.swift */; };
+		9E4DD059C32CBC2DFBF31615 /* SolarDaylight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6E0B16D34C172DFBC1796 /* SolarDaylight.swift */; };
 		9EC871A5D6332F60FEFDBF3B /* ReportAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD992DB5D29BB5765CA69192 /* ReportAggregator.swift */; };
 		9F4704EA3F0214E5E3164D76 /* FastingMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE743D950FC3F8915FD8C7E /* FastingMath.swift */; };
 		9FCBB802950EA8C4853CDC33 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD95D2ACA566172649B59FC /* AppTheme.swift */; };
@@ -461,6 +464,7 @@
 		5FBA12C8C8C10A8D9BF603DF /* CloudKitLegacyImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitLegacyImport.swift; sourceTree = "<group>"; };
 		6063BE3962F6E215DA20E2EB /* FirstLaunchImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstLaunchImportView.swift; sourceTree = "<group>"; };
 		631763D8FED94F479BD9C2F5 /* CalendarHeatmapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarHeatmapView.swift; sourceTree = "<group>"; };
+		67B6E0B16D34C172DFBC1796 /* SolarDaylight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarDaylight.swift; sourceTree = "<group>"; };
 		67BB50C7D47B48999837DC90 /* BarcodeScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerSheet.swift; sourceTree = "<group>"; };
 		6B502E29B01D89A688445BDD /* ProteinSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProteinSection.swift; sourceTree = "<group>"; };
 		6E93CF92611EDB386F9C9DF3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -857,6 +861,7 @@
 			children = (
 				4A6B99DF7549ECDFE56D325C /* DisplayPreferences.swift */,
 				045CDB3CB681A1B23679C4DF /* OnPlanStore.swift */,
+				67B6E0B16D34C172DFBC1796 /* SolarDaylight.swift */,
 			);
 			path = DisplayPrefs;
 			sourceTree = "<group>";
@@ -1420,6 +1425,7 @@
 				FB6C126075541C6159BF91CD /* DisplayPreferences.swift in Sources */,
 				9959EF7B1FD8AFA41BF3BCD2 /* MenuBarFormatter.swift in Sources */,
 				767C84EB39C562A9D29931BC /* OnPlanStore.swift in Sources */,
+				9E4DD059C32CBC2DFBF31615 /* SolarDaylight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1433,6 +1439,7 @@
 				4823AD70C8B033A855A66AD9 /* DisplayPreferences.swift in Sources */,
 				C58B85D5E2C43AB974C4B149 /* MenuBarFormatter.swift in Sources */,
 				EAA7C4CB15B79ABD62DF2121 /* OnPlanStore.swift in Sources */,
+				667002D2874187FF00CDC6CC /* SolarDaylight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1680,6 +1687,7 @@
 				1C83F8E5E6893FB92DD8B6D1 /* DisplayPreferences.swift in Sources */,
 				F25BE9E1508CBCD17EC71018 /* MenuBarFormatter.swift in Sources */,
 				BD80606D435587A06D6EB849 /* OnPlanStore.swift in Sources */,
+				17B6CDCB9827A70EE2291A9B /* SolarDaylight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

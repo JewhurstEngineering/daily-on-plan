@@ -220,7 +220,7 @@ struct GoalRingView: View {
     var successWhenMet: Bool = false
     /// Fractions of the full ring (0...1) for electrolyte highlights, drawn on top of the fill.
     var electrolyteSegments: [(start: Double, end: Double)] = []
-    @Environment(\.accentTheme) private var theme
+    @Environment(\.appTheme) private var appTheme
     @Environment(\.accentProgress) private var progressColor
 
     /// Uncapped ratio used for overage arc (capped visually at +100% = two full loops).
@@ -244,7 +244,7 @@ struct GoalRingView: View {
 
     private var baseStrokeColor: Color {
         // Goal lap stays green when met/over; overage is drawn separately in red.
-        if isMet { return theme.success }
+        if isMet { return appTheme.ok }
         return progressColor
     }
 
@@ -364,7 +364,7 @@ struct HydrationProgressBar: View {
     let goal: Int
     var electrolyteSegments: [(start: Double, end: Double)] = []
     @Environment(\.accentProgress) private var progressColor
-    @Environment(\.accentTheme) private var theme
+    @Environment(\.appTheme) private var appTheme
 
     private var fraction: CGFloat {
         guard goal > 0 else { return 0 }
@@ -380,7 +380,7 @@ struct HydrationProgressBar: View {
                     Capsule()
                         .fill(Color.onPlanHairline)
                     Capsule()
-                        .fill(isMet ? theme.success : progressColor)
+                        .fill(isMet ? appTheme.ok : progressColor)
                         .frame(width: max(8, geo.size.width * fraction))
                         .animation(.easeInOut(duration: 0.35), value: current)
 
@@ -402,7 +402,7 @@ struct HydrationProgressBar: View {
                 if isMet {
                     Label("Goal hit", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(theme.success)
+                        .foregroundStyle(appTheme.ok)
                 } else {
                     Text("\(max(goal - current, 0)) oz to go")
                         .font(.caption)

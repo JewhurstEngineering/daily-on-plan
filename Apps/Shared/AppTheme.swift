@@ -444,32 +444,36 @@ struct AppThemed<Content: View>: View {
     #endif
 
     var body: some View {
-        #if os(macOS)
-        let systemIsDark = system.isDark
-        #else
-        let systemIsDark = systemScheme == .dark
-        #endif
-        let scheme = preferences.appearanceMode.colorScheme(systemIsDark: systemIsDark)
-        let palette = ThemePalette.resolved(preferences, scheme: scheme)
-            .adapted(
-                for: preferences.colorVision,
-                highContrast: preferences.highContrast,
-                scheme: scheme
-            )
-        let themed = content()
-            .environment(\.appTheme, palette)
-            .environment(\.colorScheme, scheme)
-            .environment(\.appUsePatterns, preferences.distinguishWithoutColor || preferences.colorVision != .typical)
-            .environment(\.appHighContrast, preferences.highContrast)
-            .environment(\.appScale, preferences.interfaceSize.scale)
-            .environment(\.appTextScale, preferences.textSize.textScale)
-            .preferredColorScheme(scheme)
-            .tint(palette.tint)
-        themed
-            .dynamicTypeSize(preferences.textSize.dynamicTypeSize)
+        // Sunrise–Sunset needs a periodic tick to flip at dawn/dusk; other modes never need to refresh.
+        let refreshInterval: TimeInterval = preferences.appearanceMode.isDaylightDependent ? 60 : 3600
+        TimelineView(.periodic(from: .now, by: refreshInterval)) { context in
             #if os(macOS)
-            .background(WindowAppearanceBridge(appearance: preferences.appearanceMode.nsAppearance))
+            let systemIsDark = system.isDark
+            #else
+            let systemIsDark = systemScheme == .dark
             #endif
+            let scheme = preferences.appearanceMode.resolvedColorScheme(at: context.date, systemIsDark: systemIsDark)
+            let palette = ThemePalette.resolved(preferences, scheme: scheme)
+                .adapted(
+                    for: preferences.colorVision,
+                    highContrast: preferences.highContrast,
+                    scheme: scheme
+                )
+            let themed = content()
+                .environment(\.appTheme, palette)
+                .environment(\.colorScheme, scheme)
+                .environment(\.appUsePatterns, preferences.distinguishWithoutColor || preferences.colorVision != .typical)
+                .environment(\.appHighContrast, preferences.highContrast)
+                .environment(\.appScale, preferences.interfaceSize.scale)
+                .environment(\.appTextScale, preferences.textSize.textScale)
+                .preferredColorScheme(scheme)
+                .tint(palette.tint)
+            themed
+                .dynamicTypeSize(preferences.textSize.dynamicTypeSize)
+                #if os(macOS)
+                .background(WindowAppearanceBridge(appearance: preferences.appearanceMode.nsAppearance))
+                #endif
+        }
     }
 }
 
@@ -621,11 +625,18 @@ private final class AppearanceProbeView: NSView {
 #endif
 
 extension DisplayPreferences.AppearanceMode {
+    /// Static resolution for System / Light / Dark. Sunrise–Sunset needs `resolvedColorScheme(at:systemIsDark:)`
+    /// for a live-updating result — this falls back to "now" so non-`TimelineView` call sites still work.
     func colorScheme(systemIsDark: Bool) -> ColorScheme {
+        resolvedColorScheme(at: Date(), systemIsDark: systemIsDark)
+    }
+
+    func resolvedColorScheme(at date: Date, systemIsDark: Bool) -> ColorScheme {
         switch self {
         case .light: return .light
         case .dark: return .dark
         case .system: return systemIsDark ? .dark : .light
+        case .sunriseSunset: return SolarDaylight.isDaylight(at: date) ? .light : .dark
         }
     }
 
@@ -635,6 +646,7 @@ extension DisplayPreferences.AppearanceMode {
         case .system: return nil
         case .light: return NSAppearance(named: .aqua)
         case .dark: return NSAppearance(named: .darkAqua)
+        case .sunriseSunset: return SolarDaylight.isDaylight(at: Date()) ? NSAppearance(named: .aqua) : NSAppearance(named: .darkAqua)
         }
     }
     #endif

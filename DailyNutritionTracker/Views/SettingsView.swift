@@ -72,7 +72,7 @@ struct SettingsView: View {
     private func settingsForm(_ settings: AppSettings) -> some View {
         Form {
             #if os(iOS)
-            appearanceSection(settings)
+            appearanceSection()
             #endif
             programSection(settings)
             bodyMetricsSection(settings)
@@ -88,108 +88,16 @@ struct SettingsView: View {
 
     #if os(iOS)
     @ViewBuilder
-    private func appearanceSection(_ settings: AppSettings) -> some View {
-        Section("Appearance") {
+    private func appearanceSection() -> some View {
+        Section {
             Text(AppIdentity.tagline)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-
-            Picker("Appearance", selection: Binding(
-                get: { settings.appearanceMode },
-                set: {
-                    settings.appearanceMode = $0
-                    save(settings)
-                }
-            )) {
-                ForEach(AppearanceMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-
-            Text(appearanceFooter(for: settings.appearanceMode))
-                .font(.caption2)
+            Text("Appearance and color theme now live in Settings → Look → Theme.")
+                .font(.caption)
                 .foregroundStyle(.secondary)
-
-            Text("Color theme")
-                .font(.subheadline)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-                ForEach(AccentTheme.pickerCases) { themeOption in
-                    Button {
-                        settings.accentTheme = themeOption
-                        settings.customAccentHex = nil
-                        save(settings)
-                    } label: {
-                        ZStack {
-                            if let secondary = themeOption.pickerSecondary {
-                                Circle()
-                                    .fill(
-                                        AngularGradient(
-                                            colors: [themeOption.primary, secondary, themeOption.primary],
-                                            center: .center
-                                        )
-                                    )
-                                    .frame(width: 36, height: 36)
-                            } else {
-                                Circle()
-                                    .fill(themeOption.color)
-                                    .frame(width: 36, height: 36)
-                            }
-                            if settings.accentTheme == themeOption {
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(themeOption.title)
-                }
-            }
-
-            ColorPicker(
-                "Custom color",
-                selection: Binding(
-                    get: {
-                        settings.accentPrimary
-                    },
-                    set: { newColor in
-                        if let hex = newColor.toHexRGB() {
-                            settings.customAccentHex = hex
-                            settings.accentTheme = .custom
-                            save(settings)
-                        }
-                    }
-                ),
-                supportsOpacity: false
-            )
-
-            if settings.accentTheme == .custom {
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(settings.accentPrimary)
-                        .frame(width: 22, height: 22)
-                        .overlay {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    Text("Using custom color")
-                        .font(.caption.weight(.semibold))
-                    Spacer()
-                    Button("Reset") {
-                        settings.accentTheme = .onPlan
-                        settings.customAccentHex = nil
-                        save(settings)
-                    }
-                    .font(.caption)
-                }
-            }
-
-            Text(settings.accentTheme.title)
-                .font(.caption.weight(.semibold))
-            Text(settings.accentTheme.subtitle)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        } header: {
+            Text("Appearance")
         }
     }
     #endif
@@ -527,20 +435,6 @@ struct SettingsView: View {
         modelContext.saveAndNotifyJournal()
     }
 
-    #if os(iOS)
-    private func appearanceFooter(for mode: AppearanceMode) -> String {
-        switch mode {
-        case .system:
-            return "Follows this device’s Light/Dark setting."
-        case .light:
-            return "Always use Light appearance."
-        case .dark:
-            return "Always use Dark appearance."
-        case .sunriseSunset:
-            return "Light from approximate local sunrise to sunset, Dark at night. Uses your time zone (no location permission)."
-        }
-    }
-    #endif
 
     #if os(iOS)
     private var healthButtonTitle: String {

@@ -186,7 +186,7 @@ struct MenuBarPopoverView: View {
                     MacDaySync.refresh(store: store)
                 }
             )
-            .environment(\.accentPrimary, settings.accentPrimary)
+            .environment(\.accentPrimary, theme.tint)
             .id(snapshot.generatedAt)
             .padding(10)
             .background(

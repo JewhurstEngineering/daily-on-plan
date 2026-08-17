@@ -6,7 +6,7 @@ struct DayHeaderSection: View {
     @Bindable var log: DailyLog
     @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accentTheme) private var theme
+    @Environment(\.appTheme) private var appTheme
     @Environment(\.accentPrimary) private var accentPrimary
     @EnvironmentObject private var healthKit: HealthKitService
     @State private var showNotes = false
@@ -123,7 +123,7 @@ struct DayHeaderSection: View {
                     Text("Followed Plan")
                         .font(.subheadline.weight(.medium))
                 }
-                .tint(theme.success)
+                .tint(appTheme.ok)
             }
 
             if !settings.fastingEnabled {

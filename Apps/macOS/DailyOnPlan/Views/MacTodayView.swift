@@ -4,6 +4,7 @@ import OnPlanCore
 
 struct MacTodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appTheme) private var appTheme
     @EnvironmentObject private var store: OnPlanStore
     @State private var selectedDate = Date()
     @State private var weightText = ""
@@ -108,7 +109,7 @@ struct MacTodayView: View {
                     refreshFastingStreak(settings: settings)
                 }
             )
-            .environment(\.accentPrimary, settings.accentPrimary)
+            .environment(\.accentPrimary, appTheme.tint)
         }
     }
 

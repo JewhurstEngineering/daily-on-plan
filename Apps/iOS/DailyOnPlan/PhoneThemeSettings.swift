@@ -5,7 +5,6 @@ import SwiftUI
 struct PhoneThemeSettings: View {
     @EnvironmentObject private var store: OnPlanStore
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         Form {
@@ -15,7 +14,7 @@ struct PhoneThemeSettings: View {
                         Text(mode.title).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             } header: {
                 Text("Appearance")
             } footer: {
@@ -80,40 +79,10 @@ struct PhoneThemeSettings: View {
 
     private func applyAppearance(_ mode: DisplayPreferences.AppearanceMode) {
         store.updatePreferences { $0.appearanceMode = mode }
-        let settings = DataStore.settings(in: modelContext)
-        switch mode {
-        case .system: settings.appearanceMode = .system
-        case .light: settings.appearanceMode = .light
-        case .dark: settings.appearanceMode = .dark
-        }
-        try? modelContext.save()
     }
 
     private func applyColorTheme(_ option: DisplayPreferences.ColorTheme) {
         store.updatePreferences { $0.colorTheme = option }
-        syncJournalAccent()
-    }
-
-    private func syncJournalAccent() {
-        let settings = DataStore.settings(in: modelContext)
-        let prefs = store.preferences
-        switch prefs.colorTheme {
-        case .onPlan:
-            settings.accentTheme = .onPlan
-            settings.customAccentHex = nil
-        case .custom:
-            settings.accentTheme = .custom
-            settings.customAccentHex = prefs.customThemeColors.protein.hexString
-        default:
-            settings.accentTheme = .custom
-            let palette = ThemePalette.resolved(
-                prefs.colorTheme,
-                scheme: scheme,
-                custom: prefs.customThemeColors
-            )
-            settings.customAccentHex = DisplayPreferences.ThemeSwatch(palette.tint).hexString
-        }
-        try? modelContext.save()
     }
 
     private func customPicker(
@@ -128,7 +97,6 @@ struct PhoneThemeSettings: View {
                     store.updatePreferences {
                         $0.customThemeColors[keyPath: keyPath] = DisplayPreferences.ThemeSwatch(newColor)
                     }
-                    syncJournalAccent()
                 }
             ),
             supportsOpacity: false

@@ -4,7 +4,6 @@ import OnPlanCore
 
 struct ThemeSettingsView: View {
     @EnvironmentObject private var store: OnPlanStore
-    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         MacSettingsScroll {
@@ -18,7 +17,7 @@ struct ThemeSettingsView: View {
                             Text(mode.title).tag(mode)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .labelsHidden()
                 }
 
@@ -77,40 +76,10 @@ struct ThemeSettingsView: View {
 
     private func applyAppearance(_ mode: DisplayPreferences.AppearanceMode) {
         store.updatePreferences { $0.appearanceMode = mode }
-        let settings = DataStore.settings(in: modelContext)
-        switch mode {
-        case .system: settings.appearanceMode = .system
-        case .light: settings.appearanceMode = .light
-        case .dark: settings.appearanceMode = .dark
-        }
-        modelContext.saveAndNotifyJournal()
     }
 
     private func applyColorTheme(_ option: DisplayPreferences.ColorTheme) {
         store.updatePreferences { $0.colorTheme = option }
-        syncJournalAccent()
-    }
-
-    private func syncJournalAccent() {
-        let settings = DataStore.settings(in: modelContext)
-        let prefs = store.preferences
-        switch prefs.colorTheme {
-        case .onPlan:
-            settings.accentTheme = .onPlan
-            settings.customAccentHex = nil
-        case .custom:
-            settings.accentTheme = .custom
-            settings.customAccentHex = prefs.customThemeColors.protein.hexString
-        default:
-            settings.accentTheme = .custom
-            let palette = ThemePalette.resolved(
-                prefs.colorTheme,
-                scheme: previewScheme,
-                custom: prefs.customThemeColors
-            )
-            settings.customAccentHex = DisplayPreferences.ThemeSwatch(palette.tint).hexString
-        }
-        modelContext.saveAndNotifyJournal()
     }
 
     private var previewScheme: ColorScheme {
@@ -137,7 +106,6 @@ struct ThemeSettingsView: View {
                         store.updatePreferences {
                             $0.customThemeColors[keyPath: keyPath] = DisplayPreferences.ThemeSwatch(newColor)
                         }
-                        syncJournalAccent()
                     }
                 ),
                 supportsOpacity: false

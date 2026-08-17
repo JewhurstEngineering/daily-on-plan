@@ -2,23 +2,31 @@ import SwiftUI
 import SwiftData
 import OnPlanCore
 
+private enum RootTab: Hashable {
+    case today, reports, settings
+}
+
 struct RootTabView: View {
     @EnvironmentObject private var store: OnPlanStore
     @Environment(\.modelContext) private var modelContext
 
     @State private var showFirstLaunchImport = false
     @State private var didEvaluateFirstLaunch = false
+    @State private var selectedTab: RootTab = .today
 
     var body: some View {
         ZStack {
             if didEvaluateFirstLaunch {
-                TabView {
-                    TodayTabView()
+                TabView(selection: $selectedTab) {
+                    TodayTabView(onOpenSettings: { selectedTab = .settings })
                         .tabItem { Label("Today", systemImage: "checkmark.seal.fill") }
+                        .tag(RootTab.today)
                     ReportsView(showsCloseButton: false)
                         .tabItem { Label("Reports", systemImage: "chart.xyaxis.line") }
+                        .tag(RootTab.reports)
                     PhoneSettingsView()
                         .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                        .tag(RootTab.settings)
                 }
             }
         }

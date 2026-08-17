@@ -4,6 +4,7 @@ import OnPlanCore
 
 struct MacFastingSettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appTheme) private var appTheme
     @EnvironmentObject private var store: OnPlanStore
     @Query private var allSettings: [AppSettings]
     @Query(sort: \DailyLog.date, order: .reverse) private var logs: [DailyLog]
@@ -40,7 +41,7 @@ struct MacFastingSettingsView: View {
                             MacDaySync.refresh(store: store)
                         }
                     )
-                    .environment(\.accentPrimary, settings.accentPrimary)
+                    .environment(\.accentPrimary, appTheme.tint)
                 }
             }
 

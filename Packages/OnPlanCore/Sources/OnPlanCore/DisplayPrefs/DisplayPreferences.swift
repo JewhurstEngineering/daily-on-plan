@@ -25,14 +25,18 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         case system
         case light
         case dark
+        case sunriseSunset
 
         public var title: String {
             switch self {
             case .system: return "System"
             case .light: return "Light"
             case .dark: return "Dark"
+            case .sunriseSunset: return "Sunrise–Sunset"
             }
         }
+
+        public var isDaylightDependent: Bool { self == .sunriseSunset }
     }
 
     public struct ThemeSwatch: Codable, Sendable, Equatable {
