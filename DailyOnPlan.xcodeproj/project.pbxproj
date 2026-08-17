@@ -255,6 +255,7 @@
 		E3FB0BDA1F84F92A635117D3 /* MotivationQuotesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDB09D69D643ECC5F4B263 /* MotivationQuotesSettingsView.swift */; };
 		E4E54F8A7B9160FFB8CBDAFC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		E564A264DD19A81F88E8B4EC /* BodyCompositionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A535E2A8D1C291C79945A77C /* BodyCompositionViews.swift */; };
+		E6DFFFA845CD3F8C99C56BF2 /* HabitTrackingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A356B40D6CFF47127EA5C87D /* HabitTrackingSupport.swift */; };
 		E70D4CBEDCBB1BAD31794956 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CE183D88EBD8EE0F669A5D /* Charts.framework */; };
 		E728EB69677F82F4C2C44C79 /* SwiftData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 77E713B39C99BE8A21146403 /* SwiftData.framework */; };
 		E8F514991A1350C00F804AF5 /* QuickAddService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C239F6201EFF4FD029E623D1 /* QuickAddService.swift */; };
@@ -500,6 +501,7 @@
 		A08880DB9F976919889580D5 /* WatchDaySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchDaySnapshot.swift; sourceTree = "<group>"; };
 		A0EBCBA4A2FE912994C406BB /* DailyOnPlanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyOnPlanApp.swift; sourceTree = "<group>"; };
 		A2828367F03A3D9C9E635C47 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		A356B40D6CFF47127EA5C87D /* HabitTrackingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTrackingSupport.swift; sourceTree = "<group>"; };
 		A535E2A8D1C291C79945A77C /* BodyCompositionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyCompositionViews.swift; sourceTree = "<group>"; };
 		A9A01D79614B4998F5DAE8BC /* SmokingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokingSection.swift; sourceTree = "<group>"; };
 		AA1A56F0DE0D9ABCB8C388D9 /* MenuBarFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarFormatter.swift; sourceTree = "<group>"; };
@@ -748,6 +750,7 @@
 			children = (
 				20B109551F6DA06A0509F650 /* FastingTrackerCard.swift */,
 				A0716F9E37393B213498EB5D /* FoodPickers.swift */,
+				A356B40D6CFF47127EA5C87D /* HabitTrackingSupport.swift */,
 				E7684781E24BAD2509F58870 /* SharedUI.swift */,
 			);
 			path = Components;
@@ -1576,6 +1579,7 @@
 				6C29543775FF3C4C9346C73B /* FoodCatalog.swift in Sources */,
 				90F4279037EEA523E8347FDB /* FoodPickers.swift in Sources */,
 				46C71497CACE271E1C93BEC4 /* FoodPreferencesView.swift in Sources */,
+				E6DFFFA845CD3F8C99C56BF2 /* HabitTrackingSupport.swift in Sources */,
 				C860277683C0A04604854194 /* HealthKitService.swift in Sources */,
 				0293D18391E6187C30F3A037 /* HydrationDrinkConfirmSheet.swift in Sources */,
 				72F16BD7A41B7A69CCAC2AEB /* HydrationSection.swift in Sources */,

@@ -563,18 +563,20 @@ struct ReportSnapshot {
     }
 
     var currentSmokeFreeStreak: Int {
-        SmokingSection.trailingSmokeFreeDays(
+        HabitStreakMath.trailingZeroDays(
             from: end,
             logs: logs,
-            quitDate: settings.quitDate
+            since: settings.quitDate,
+            count: { $0.cigarettesSmoked }
         )
     }
 
     var currentAlcoholFreeStreak: Int {
-        DrinkingSection.trailingAlcoholFreeDays(
+        HabitStreakMath.trailingZeroDays(
             from: end,
             logs: logs,
-            quitDate: settings.alcoholQuitDate
+            since: settings.alcoholQuitDate,
+            count: { $0.drinksLogged }
         )
     }
 

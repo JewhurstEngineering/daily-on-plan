@@ -8,7 +8,6 @@ struct SmokingSection: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accentPrimary) private var accentPrimary
     @State private var showUrgeSheet = false
     @State private var urgeNote = ""
     @State private var showEventList = false
@@ -23,12 +22,22 @@ struct SmokingSection: View {
     }
 
     private var smokeFreeStreak: Int {
-        Self.trailingSmokeFreeDays(from: log.date, logs: recentLogs, quitDate: settings.quitDate)
+        HabitStreakMath.trailingZeroDays(
+            from: log.date,
+            logs: recentLogs,
+            since: settings.quitDate,
+            count: { $0.cigarettesSmoked }
+        )
     }
 
     private var reduceStreak: Int {
         guard let limit else { return 0 }
-        return Self.trailingUnderLimitDays(from: log.date, logs: recentLogs, limit: limit)
+        return HabitStreakMath.trailingUnderLimitDays(
+            from: log.date,
+            logs: recentLogs,
+            limit: limit,
+            count: { $0.cigarettesSmoked }
+        )
     }
 
     private var moneySavedText: String? {
@@ -118,41 +127,21 @@ struct SmokingSection: View {
                     } label: {
                         Text(packChipLabel(packs))
                             .font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .chipStyle(fullWidth: true)
                     }
                     .buttonStyle(.plain)
                 }
             }
 
-            if !log.cigaretteEvents.isEmpty {
-                DisclosureGroup("Log (\(log.cigaretteEvents.count))", isExpanded: $showEventList) {
-                    ForEach(log.cigaretteEvents.reversed()) { event in
-                        HStack {
-                            Button(DateHelpers.formattedTime(event.timeLogged)) {
-                                editCigaretteID = event.id
-                            }
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(accentPrimary)
-                            .buttonStyle(.plain)
-                            Text(event.label)
-                                .font(.caption)
-                            Spacer()
-                            Button(role: .destructive) {
-                                log.removeCigaretteEvent(id: event.id)
-                                try? modelContext.save()
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+            HabitEventLogDisclosure(
+                rows: log.cigaretteEvents.reversed().map { HabitEventRow(id: $0.id, time: $0.timeLogged, label: $0.label) },
+                isExpanded: $showEventList,
+                onEdit: { editCigaretteID = $0 },
+                onDelete: { id in
+                    log.removeCigaretteEvent(id: id)
+                    try? modelContext.save()
                 }
-                .font(.caption)
-            }
+            )
 
             if settings.smokingMode == .reduce {
                 reduceBudgetBlock
@@ -189,27 +178,17 @@ struct SmokingSection: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
                             ForEach(log.cigaretteUrges) { urge in
-                                HStack {
-                                    Button(DateHelpers.formattedTime(urge.timeLogged)) {
-                                        editUrgeID = urge.id
-                                    }
-                                    .font(.caption.weight(.semibold).monospacedDigit())
-                                    .foregroundStyle(accentPrimary)
-                                    .buttonStyle(.plain)
-                                    Text(urge.note.isEmpty ? "Urge logged" : urge.note)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                    Spacer()
-                                    Button(role: .destructive) {
+                                HabitLogRow(
+                                    time: urge.timeLogged,
+                                    label: urge.note.isEmpty ? "Urge logged" : urge.note,
+                                    labelIsSecondary: true,
+                                    lineLimit: 2,
+                                    onEditTime: { editUrgeID = urge.id },
+                                    onDelete: {
                                         log.removeUrge(id: urge.id)
                                         try? modelContext.save()
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .font(.caption)
                                     }
-                                    .buttonStyle(.plain)
-                                }
+                                )
                             }
                         }
                     }
@@ -327,91 +306,34 @@ struct SmokingSection: View {
 
     @ViewBuilder
     private var reduceBudgetBlock: some View {
+        let streakText = reduceStreak == 1
+            ? "1 day at or under max"
+            : "\(reduceStreak) days at or under max"
         if let limit, limit > 0 {
             let remaining = max(0, limit - log.cigarettesSmoked)
-            let remainingFraction = min(1, Double(remaining) / Double(limit))
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Budget left")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(remaining) of \(limit)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(overLimit ? .orange : .secondary)
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color(.tertiarySystemFill))
-                        Capsule()
-                            .fill(overLimit ? Color.orange : Color.accentColor)
-                            .frame(width: max(4, geo.size.width * remainingFraction))
-                    }
-                }
-                .frame(height: 10)
-
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(rateLabel(cigsInLastHour))
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
-                        Text("Last hour")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(dayAveragePerHour.map { String(format: "%.1f / hr" , $0) } ?? "—")
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
-                        Text("Avg today")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Text(reduceStreak == 1
-                     ? "1 day at or under max"
-                     : "\(reduceStreak) days at or under max")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 4)
+            let reference = HabitStreakMath.paceReferenceDate(for: log.date)
+            HabitBudgetBlock(
+                remaining: remaining,
+                limit: limit,
+                remainingFraction: min(1, Double(remaining) / Double(limit)),
+                overLimit: overLimit,
+                lastHourCount: HabitStreakMath.countInLastHour(
+                    times: log.cigaretteEvents.map(\.timeLogged),
+                    counts: log.cigaretteEvents.map(\.count),
+                    referenceDate: reference
+                ),
+                dayAveragePerHour: HabitStreakMath.dayAveragePerHour(
+                    totalCount: log.cigarettesSmoked,
+                    firstEventTime: log.cigaretteEvents.first?.timeLogged,
+                    referenceDate: reference
+                ),
+                streakText: streakText
+            )
         } else {
-            Text(reduceStreak == 1
-                 ? "1 day at or under max"
-                 : "\(reduceStreak) days at or under max")
+            Text(streakText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-
-    private var cigsInLastHour: Int {
-        let reference = paceReferenceDate
-        let cutoff = reference.addingTimeInterval(-3600)
-        return log.cigaretteEvents
-            .filter { $0.timeLogged >= cutoff && $0.timeLogged <= reference }
-            .reduce(0) { $0 + $1.count }
-    }
-
-    private var dayAveragePerHour: Double? {
-        guard log.cigarettesSmoked > 0,
-              let first = log.cigaretteEvents.first?.timeLogged else { return nil }
-        let hours = max(paceReferenceDate.timeIntervalSince(first) / 3600.0, 1.0 / 60.0)
-        return Double(log.cigarettesSmoked) / hours
-    }
-
-    private var paceReferenceDate: Date {
-        if Calendar.current.isDateInToday(log.date) {
-            return Date()
-        }
-        return Calendar.current.date(byAdding: .day, value: 1, to: DateHelpers.startOfDay(log.date))
-            ?? log.date
-    }
-
-    private func rateLabel(_ count: Int) -> String {
-        count == 1 ? "1 / hr" : "\(count) / hr"
     }
 
     private var modeBlurb: String {
@@ -429,42 +351,6 @@ struct SmokingSection: View {
 
     private var countColor: Color {
         underLimit ? .primary : .orange
-    }
-
-    static func trailingSmokeFreeDays(from day: Date, logs: [DailyLog], quitDate: Date?) -> Int {
-        let startBound = quitDate.map { DateHelpers.startOfDay($0) }
-        let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
-        var cursor = DateHelpers.startOfDay(day)
-        var streak = 0
-        while true {
-            if let startBound, cursor < startBound { break }
-            let smoked = byDay[cursor]?.cigarettesSmoked ?? 0
-            if smoked > 0 { break }
-            streak += 1
-            guard let previous = Calendar.current.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = previous
-            if startBound == nil, byDay[cursor] == nil, streak > 0 {
-                let hasAnyEarlier = byDay.keys.contains { $0 < cursor }
-                if !hasAnyEarlier { break }
-            }
-        }
-        return streak
-    }
-
-    static func trailingUnderLimitDays(from day: Date, logs: [DailyLog], limit: Int) -> Int {
-        let byDay = Dictionary(uniqueKeysWithValues: logs.map { (DateHelpers.startOfDay($0.date), $0) })
-        var cursor = DateHelpers.startOfDay(day)
-        var streak = 0
-        while let entry = byDay[cursor] {
-            if entry.cigarettesSmoked > limit { break }
-            streak += 1
-            guard let previous = Calendar.current.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = previous
-        }
-        if streak == 0, (byDay[DateHelpers.startOfDay(day)]?.cigarettesSmoked ?? 0) <= limit {
-            return 1
-        }
-        return streak
     }
 
     static func cigarettesAvoidedSinceQuit(
