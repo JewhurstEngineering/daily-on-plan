@@ -10,6 +10,7 @@ struct BathroomSection: View {
     @State private var pendingNoteEventID: UUID?
     @State private var noteDraft = ""
     @State private var editTimeEventID: UUID?
+    @State private var showLogList = true
     @FocusState private var noteFocused: Bool
 
     var body: some View {
@@ -49,50 +50,52 @@ struct BathroomSection: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(log.bathroomEvents.reversed()) { event in
-                        HStack(alignment: .top) {
-                            Image(systemName: event.kind == .urine ? "drop.fill" : "toilet.fill")
-                                .font(.title3)
-                                .foregroundStyle(event.kind == .urine ? Color.accentColor : Color(hex: "#8B5E3C"))
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(event.kind.title)
-                                    .font(.subheadline.weight(.semibold))
-                                Button(DateHelpers.formattedTime(event.timeLogged)) {
-                                    editTimeEventID = event.id
+                DisclosureGroup("Log (\(log.bathroomEvents.count))", isExpanded: $showLogList) {
+                    VStack(spacing: 0) {
+                        ForEach(log.bathroomEvents.reversed()) { event in
+                            HStack(alignment: .top) {
+                                Image(systemName: event.kind == .urine ? "drop.fill" : "toilet.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(event.kind == .urine ? Color.accentColor : Color(hex: "#8B5E3C"))
+                                    .frame(width: 28)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(event.kind.title)
+                                        .font(.subheadline.weight(.semibold))
+                                    Button(DateHelpers.formattedTime(event.timeLogged)) {
+                                        editTimeEventID = event.id
+                                    }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(accentPrimary)
+                                    .buttonStyle(.plain)
+                                    if !event.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Text(event.note)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(accentPrimary)
-                                .buttonStyle(.plain)
-                                if !event.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(event.note)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                Spacer(minLength: 8)
+                                Button {
+                                    pendingNoteEventID = event.id
+                                    noteDraft = event.note
+                                } label: {
+                                    Image(systemName: event.note.isEmpty ? "note.text.badge.plus" : "note.text")
                                 }
-                            }
-                            Spacer(minLength: 8)
-                            Button {
-                                pendingNoteEventID = event.id
-                                noteDraft = event.note
-                            } label: {
-                                Image(systemName: event.note.isEmpty ? "note.text.badge.plus" : "note.text")
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel(event.note.isEmpty ? "Add note" : "Edit note")
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel(event.note.isEmpty ? "Add note" : "Edit note")
 
-                            Button(role: .destructive) {
-                                log.removeBathroomEvent(id: event.id)
-                                try? modelContext.save()
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(.red)
+                                Button(role: .destructive) {
+                                    log.removeBathroomEvent(id: event.id)
+                                    try? modelContext.save()
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Delete \(event.kind.title)")
                             }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Delete \(event.kind.title)")
+                            .padding(.vertical, 6)
+                            Divider()
                         }
-                        .padding(.vertical, 6)
-                        Divider()
                     }
                 }
             }

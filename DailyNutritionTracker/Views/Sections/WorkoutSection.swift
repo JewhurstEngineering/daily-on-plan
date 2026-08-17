@@ -11,6 +11,7 @@ struct WorkoutSection: View {
     @State private var chips: [SuggestionItem] = []
     @State private var pendingName = "Brisk walking"
     @State private var editTimeWorkout: WorkoutEntry?
+    @State private var showLogList = true
 
     var body: some View {
         SectionCard(
@@ -42,31 +43,33 @@ struct WorkoutSection: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(log.sortedWorkouts, id: \.id) { workout in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(workout.activityName)
-                                .font(.subheadline.weight(.semibold))
-                            Button(DateHelpers.formattedTime(workout.timeLogged)) {
-                                editTimeWorkout = workout
+                DisclosureGroup("Log (\(log.sortedWorkouts.count))", isExpanded: $showLogList) {
+                    ForEach(log.sortedWorkouts, id: \.id) { workout in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(workout.activityName)
+                                    .font(.subheadline.weight(.semibold))
+                                Button(DateHelpers.formattedTime(workout.timeLogged)) {
+                                    editTimeWorkout = workout
+                                }
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(accentPrimary)
+                                .buttonStyle(.plain)
                             }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(accentPrimary)
-                            .buttonStyle(.plain)
+                            Spacer()
+                            Text("\(workout.durationMinutes) min")
+                                .font(.subheadline.monospacedDigit())
+                            Button(role: .destructive) {
+                                log.workouts.removeAll { $0.id == workout.id }
+                                modelContext.delete(workout)
+                                try? modelContext.save()
+                                refreshChips()
+                            } label: {
+                                Image(systemName: "trash")
+                            }
                         }
-                        Spacer()
-                        Text("\(workout.durationMinutes) min")
-                            .font(.subheadline.monospacedDigit())
-                        Button(role: .destructive) {
-                            log.workouts.removeAll { $0.id == workout.id }
-                            modelContext.delete(workout)
-                            try? modelContext.save()
-                            refreshChips()
-                        } label: {
-                            Image(systemName: "trash")
-                        }
+                        Divider()
                     }
-                    Divider()
                 }
             }
         }

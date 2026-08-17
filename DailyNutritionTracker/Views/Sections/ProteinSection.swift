@@ -15,6 +15,7 @@ struct ProteinSection: View {
     @State private var editingEntry: ProteinEntry?
     @State private var editTimeEntry: ProteinEntry?
     @State private var suggestionChips: [SuggestionItem] = []
+    @State private var showLogList = true
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
     @Query(sort: \SavedMeal.createdAt, order: .reverse) private var savedMeals: [SavedMeal]
 
@@ -132,59 +133,61 @@ struct ProteinSection: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(log.sortedProteins, id: \.id) { entry in
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Button {
-                                    onWillPresentSheet?(scrollAnchor)
-                                    editingEntry = entry
-                                } label: {
-                                    Text(entry.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.primary)
-                                }
-                                .buttonStyle(.plain)
-
-                                HStack(spacing: 4) {
-                                    Button(DateHelpers.formattedTime(entry.time)) {
-                                        editTimeEntry = entry
+                DisclosureGroup("Log (\(log.sortedProteins.count))", isExpanded: $showLogList) {
+                    VStack(spacing: 0) {
+                        ForEach(log.sortedProteins, id: \.id) { entry in
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Button {
+                                        onWillPresentSheet?(scrollAnchor)
+                                        editingEntry = entry
+                                    } label: {
+                                        Text(entry.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
                                     }
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(accentPrimary)
                                     .buttonStyle(.plain)
-                                    Text("· \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
-                                    Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
+
+                                    HStack(spacing: 4) {
+                                        Button(DateHelpers.formattedTime(entry.time)) {
+                                            editTimeEntry = entry
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(accentPrimary)
+                                        .buttonStyle(.plain)
+                                        Text("· \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
+                                        Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(settings.proteinDrinksCountTowardHydration
+                                         ? "Tap name to edit calories & fl oz"
+                                         : "Tap name to edit amount")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
-                                Text(settings.proteinDrinksCountTowardHydration
-                                     ? "Tap name to edit calories & fl oz"
-                                     : "Tap name to edit amount")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 8)
-                            Text("\(entry.calories) kcal")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(.primary)
+                                Spacer(minLength: 8)
+                                Text("\(entry.calories) kcal")
+                                    .font(.subheadline.monospacedDigit())
+                                    .foregroundStyle(.primary)
 
-                            Button(role: .destructive) {
-                                delete(entry)
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.body)
-                                    .foregroundStyle(.red)
+                                Button(role: .destructive) {
+                                    delete(entry)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.body)
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Delete \(entry.name)")
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Delete \(entry.name)")
+                            .padding(.vertical, 6)
+                            Divider()
                         }
-                        .padding(.vertical, 6)
-                        Divider()
                     }
                 }
             }
