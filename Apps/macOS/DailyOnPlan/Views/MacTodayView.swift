@@ -10,6 +10,7 @@ struct MacTodayView: View {
     @State private var extraCarb = ""
     @State private var extraFat = ""
     @State private var extraKcal = ""
+    @State private var fastingStreak = 0
 
     var body: some View {
         let settings = DataStore.settings(in: modelContext)
@@ -40,6 +41,7 @@ struct MacTodayView: View {
         .frame(minWidth: 420, minHeight: 520)
         .onAppear {
             MacDaySync.refresh(store: store, context: modelContext)
+            refreshFastingStreak(settings: settings)
             if let weight {
                 weightText = String(format: "%.1f", settings.usesMetricWeight ? weight.weightLbs * 0.453592 : weight.weightLbs)
             }
@@ -49,6 +51,7 @@ struct MacTodayView: View {
         }
         .onChange(of: log.followedPlan) { _, _ in MacDaySync.refresh(store: store, context: modelContext) }
         .onChange(of: log.ketosis) { _, _ in MacDaySync.refresh(store: store, context: modelContext) }
+        .onChange(of: selectedDate) { _, _ in refreshFastingStreak(settings: settings) }
     }
 
     private func header(log: DailyLog, settings: AppSettings) -> some View {
@@ -94,18 +97,16 @@ struct MacTodayView: View {
     private func fasting(log: DailyLog, settings: AppSettings) -> some View {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
         let previous = DataStore.existingLog(for: yesterday, in: modelContext)
-        let recent = DataStore.logs(
-            from: Calendar.current.date(byAdding: .day, value: -60, to: selectedDate) ?? selectedDate,
-            to: selectedDate,
-            in: modelContext
-        )
         return GroupBox {
             FastingTrackerCard(
                 log: log,
                 previous: previous,
                 settings: settings,
-                streak: FastingMath.streak(logs: recent, settings: settings),
-                onChange: save
+                streak: fastingStreak,
+                onChange: {
+                    save()
+                    refreshFastingStreak(settings: settings)
+                }
             )
             .environment(\.accentPrimary, settings.accentPrimary)
         }
@@ -247,5 +248,14 @@ struct MacTodayView: View {
 
     private func refresh() {
         MacDaySync.refresh(store: store, context: modelContext)
+    }
+
+    private func refreshFastingStreak(settings: AppSettings) {
+        let recent = DataStore.logs(
+            from: Calendar.current.date(byAdding: .day, value: -60, to: selectedDate) ?? selectedDate,
+            to: selectedDate,
+            in: modelContext
+        )
+        fastingStreak = FastingMath.streak(logs: recent, settings: settings)
     }
 }

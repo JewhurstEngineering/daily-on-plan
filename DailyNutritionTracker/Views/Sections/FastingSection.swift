@@ -4,6 +4,7 @@ import SwiftData
 struct FastingSection: View {
     @Bindable var log: DailyLog
     @Bindable var settings: AppSettings
+    var recentLogs: [DailyLog]
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
@@ -17,7 +18,7 @@ struct FastingSection: View {
                 log: log,
                 previous: previousLog,
                 settings: settings,
-                streak: streak,
+                streak: FastingMath.streak(logs: recentLogs, settings: settings),
                 onChange: { modelContext.saveAndNotifyJournal() }
             )
         }
@@ -25,15 +26,6 @@ struct FastingSection: View {
 
     private var previousLog: DailyLog? {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: log.date) ?? log.date
-        return DataStore.existingLog(for: yesterday, in: modelContext)
-    }
-
-    private var streak: Int {
-        let recent = DataStore.logs(
-            from: Calendar.current.date(byAdding: .day, value: -60, to: log.date) ?? log.date,
-            to: log.date,
-            in: modelContext
-        )
-        return FastingMath.streak(logs: recent, settings: settings)
+        return recentLogs.first { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }
     }
 }

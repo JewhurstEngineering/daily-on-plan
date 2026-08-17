@@ -90,7 +90,7 @@ struct WatchSummaryView: View {
                 .font(.caption)
 
                 if snapshot.fastingEnabled {
-                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    TimelineView(.periodic(from: .now, by: 15)) { timeline in
                         watchFasting(now: timeline.date)
                     }
                 }

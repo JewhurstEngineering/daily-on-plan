@@ -237,12 +237,14 @@ enum FastingMath {
         return "\(minutes)m"
     }
 
-    static func formatClock(_ interval: TimeInterval) -> String {
+    static func formatClock(_ interval: TimeInterval, seconds: Bool = true) -> String {
         let total = max(0, Int(interval))
         let hours = total / 3600
         let minutes = (total % 3600) / 60
-        let seconds = total % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        if seconds {
+            return String(format: "%02d:%02d:%02d", hours, minutes, total % 60)
+        }
+        return String(format: "%02d:%02d", hours, minutes)
     }
 
     static func snapshotBits(

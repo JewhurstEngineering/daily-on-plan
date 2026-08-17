@@ -173,7 +173,7 @@ struct DayView: View {
             .id("protein")
         case .fasting:
             if settings.fastingEnabled {
-                FastingSection(log: log, settings: settings)
+                FastingSection(log: log, settings: settings, recentLogs: recentLogs)
                     .id("fasting")
             }
         case .checklist:

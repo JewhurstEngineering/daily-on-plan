@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Zero / EasyFast-style fasting clock. Same math as the day sheet — no social feed.
+/// Fasting clock. Only the dial ticks — the rest of the card stays still.
 struct FastingTrackerCard: View {
     var log: DailyLog
     var previous: DailyLog?
@@ -10,96 +10,16 @@ struct FastingTrackerCard: View {
     var onChange: () -> Void = {}
 
     @Environment(\.accentPrimary) private var accent
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let now = timeline.date
-            let phase = FastingMath.phase(today: log, previous: previous, settings: settings, now: now)
-            content(phase: phase, now: now)
-        }
-    }
-
-    @ViewBuilder
-    private func content(phase: FastingPhase, now: Date) -> some View {
-        let elapsed = elapsedInterval(phase)
-        let target = targetInterval(phase)
-        let progress = target > 0 ? min(max(elapsed / target, 0), 1) : 0
-        let remaining = max(0, target - elapsed)
-        let ringSize: CGFloat = compact ? 128 : 200
-
+        let now = Date()
+        let phase = FastingMath.phase(today: log, previous: previous, settings: settings, now: now)
         VStack(spacing: compact ? 12 : 18) {
-            HStack(alignment: .center, spacing: 8) {
-                Image(systemName: phase.isEating ? "fork.knife" : "flame.fill")
-                    .foregroundStyle(accent)
-                    .font(compact ? .title3 : .title2)
-                Text(headline(phase))
-                    .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
-                Spacer(minLength: 8)
-                Text(settings.fastingPreset.title)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(accent.opacity(0.16)))
-                    .foregroundStyle(accent)
-            }
-
-            ZStack {
-                Circle()
-                    .stroke(Color.primary.opacity(0.10), lineWidth: compact ? 12 : 16)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        AngularGradient(
-                            colors: [accent.opacity(0.55), accent, accent.opacity(0.85)],
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: compact ? 12 : 16, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.25), value: progress)
-
-                VStack(spacing: 4) {
-                    Text(progressLabel(phase, progress: progress))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(FastingMath.formatClock(elapsed))
-                        .font(compact ? .title.weight(.bold).monospacedDigit() : .largeTitle.weight(.bold).monospacedDigit())
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
-                    if remaining > 0, showsRemaining(phase) {
-                        Text("Remaining \(FastingMath.formatDuration(remaining))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if hit(phase) {
-                        Text("Target hit")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(accent.opacity(0.16)))
-                            .foregroundStyle(accent)
-                    }
-                }
-                .padding(compact ? 16 : 22)
-            }
-            .frame(width: ringSize, height: ringSize)
-            .frame(maxWidth: .infinity)
-
-            HStack(alignment: .top) {
-                timeColumn(
-                    title: leftStampTitle(phase),
-                    value: leftStampValue(phase, now: now),
-                    alignment: .leading
-                )
-                Spacer()
-                timeColumn(
-                    title: rightStampTitle(phase),
-                    value: rightStampValue(phase, now: now),
-                    alignment: .trailing
-                )
-            }
-
+            header(phase)
+            liveDial(initialPhase: phase)
+            stamps(phase, now: now)
             primaryButton(phase)
-
             if !compact {
                 Text(streak == 0 ? "No streak yet — hit the overnight target to start one." : (streak == 1 ? "1 day streak" : "\(streak) day streak"))
                     .font(.caption)
@@ -108,6 +28,110 @@ struct FastingTrackerCard: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var tickInterval: TimeInterval { compact ? 15 : 1 }
+
+    private func shouldTick(_ phase: FastingPhase) -> Bool {
+        if scenePhase != .active { return false }
+        switch phase {
+        case .fasting, .eating(_, _, _, nil): return true
+        default: return false
+        }
+    }
+
+    @ViewBuilder
+    private func liveDial(initialPhase: FastingPhase) -> some View {
+        if shouldTick(initialPhase) {
+            TimelineView(.periodic(from: .now, by: tickInterval)) { timeline in
+                let phase = FastingMath.phase(
+                    today: log,
+                    previous: previous,
+                    settings: settings,
+                    now: timeline.date
+                )
+                dial(phase: phase)
+                    .transaction { $0.animation = nil }
+            }
+        } else {
+            dial(phase: initialPhase)
+        }
+    }
+
+    private func header(_ phase: FastingPhase) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: phase.isEating ? "fork.knife" : "flame.fill")
+                .foregroundStyle(accent)
+                .font(compact ? .title3 : .title2)
+            Text(headline(phase))
+                .font(compact ? .title3.weight(.bold) : .title2.weight(.bold))
+            Spacer(minLength: 8)
+            Text(settings.fastingPreset.title)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(accent.opacity(0.16)))
+                .foregroundStyle(accent)
+        }
+    }
+
+    private func dial(phase: FastingPhase) -> some View {
+        let elapsed = elapsedInterval(phase)
+        let target = targetInterval(phase)
+        let progress = target > 0 ? min(max(elapsed / target, 0), 1) : 0
+        let remaining = max(0, target - elapsed)
+        let ringSize: CGFloat = compact ? 128 : 200
+        let lineWidth: CGFloat = compact ? 12 : 16
+
+        return ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.10), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(accent, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 4) {
+                Text(progressLabel(phase, progress: progress))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(FastingMath.formatClock(elapsed, seconds: !compact))
+                    .font(compact ? .title.weight(.bold).monospacedDigit() : .largeTitle.weight(.bold).monospacedDigit())
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                if remaining > 0, showsRemaining(phase) {
+                    Text("Remaining \(FastingMath.formatDuration(remaining))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if hit(phase) {
+                    Text("Target hit")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(accent.opacity(0.16)))
+                        .foregroundStyle(accent)
+                }
+            }
+            .padding(compact ? 16 : 22)
+        }
+        .frame(width: ringSize, height: ringSize)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func stamps(_ phase: FastingPhase, now: Date) -> some View {
+        HStack(alignment: .top) {
+            timeColumn(
+                title: leftStampTitle(phase),
+                value: leftStampValue(phase, now: now),
+                alignment: .leading
+            )
+            Spacer()
+            timeColumn(
+                title: rightStampTitle(phase),
+                value: rightStampValue(phase, now: now),
+                alignment: .trailing
+            )
+        }
     }
 
     private func headline(_ phase: FastingPhase) -> String {
