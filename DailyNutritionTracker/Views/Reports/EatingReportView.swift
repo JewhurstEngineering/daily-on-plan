@@ -308,6 +308,7 @@ private struct EatingDayPage: View {
     }
 
     private var header: some View {
+        Card {
         VStack(alignment: .leading, spacing: 10) {
             Text(summary.formattedDay)
                 .font(.title3.bold())
@@ -333,10 +334,7 @@ private struct EatingDayPage: View {
                 )
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private var proteinValueColor: Color {
@@ -358,15 +356,13 @@ private struct EatingDayPage: View {
         systemImage: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
+        Card {
         VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: systemImage)
                 .font(.headline)
             content()
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private func proteinRow(_ protein: EatingProteinRow) -> some View {
@@ -411,6 +407,7 @@ private struct EatingWeekCard: View {
     let onSelectDay: (EatingDaySummary) -> Void
 
     var body: some View {
+        Card {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(week.title)
@@ -469,9 +466,6 @@ private struct EatingWeekCard: View {
             }
             .font(.subheadline.weight(.semibold))
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 }

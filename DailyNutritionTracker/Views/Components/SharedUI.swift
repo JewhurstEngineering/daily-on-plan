@@ -21,6 +21,36 @@ extension WaterSlotRecord {
     }
 }
 
+/// The shared card chrome (padding, background, corner radius, optional caution border) used by
+/// every `SectionCard` and, via this type directly, by non-collapsible cards like Reports screens —
+/// see docs/DESIGN_IMPROVEMENT_PLAN.md §5.2. Reports previously re-implemented this same recipe inline.
+struct Card<Content: View>: View {
+    var emphasis: SectionCardEmphasis = .none
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(cardBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .strokeBorder(emphasis == .caution ? Color.orange.opacity(0.45) : Color.clear, lineWidth: 1.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .animation(.easeInOut(duration: 0.25), value: emphasis)
+    }
+
+    private var cardBackground: Color {
+        switch emphasis {
+        case .none:
+            return Color(.secondarySystemGroupedBackground)
+        case .caution:
+            return Color.orange.opacity(0.10)
+        }
+    }
+}
+
 struct SectionCard<Content: View, Trailing: View>: View {
     let title: String
     var systemImage: String? = nil
@@ -53,67 +83,51 @@ struct SectionCard<Content: View, Trailing: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                        .foregroundStyle(emphasis == .caution ? Color.orange : Color.accentColor)
-                }
-                Text(title)
-                    .font(.headline)
-                if emphasis == .caution {
-                    Text("Over")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.orange.opacity(0.18))
-                        .foregroundStyle(.orange)
-                        .clipShape(Capsule())
-                }
-                Spacer(minLength: 8)
-                trailing()
-                if let isCollapsed {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isCollapsed.wrappedValue.toggle()
-                        }
-                    } label: {
-                        Image(systemName: collapsed ? "chevron.down" : "chevron.up")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(minWidth: 36, minHeight: 32)
-                            .contentShape(Rectangle())
+        Card(emphasis: emphasis) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                HStack(spacing: Spacing.s) {
+                    if let systemImage {
+                        Image(systemName: systemImage)
+                            .foregroundStyle(emphasis == .caution ? Color.orange : Color.accentColor)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(collapsed ? "Expand \(title)" : "Collapse \(title)")
+                    Text(title)
+                        .font(.headline)
+                    if emphasis == .caution {
+                        Text("Over")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, Spacing.s)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.18))
+                            .foregroundStyle(.orange)
+                            .clipShape(Capsule())
+                    }
+                    Spacer(minLength: 8)
+                    trailing()
+                    if let isCollapsed {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isCollapsed.wrappedValue.toggle()
+                            }
+                        } label: {
+                            Image(systemName: collapsed ? "chevron.down" : "chevron.up")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(minWidth: 36, minHeight: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(collapsed ? "Expand \(title)" : "Collapse \(title)")
+                    }
+                }
+
+                if collapsed {
+                    Text(collapsedMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    content
                 }
             }
-
-            if collapsed {
-                Text(collapsedMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                content
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(emphasis == .caution ? Color.orange.opacity(0.45) : Color.clear, lineWidth: 1.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .animation(.easeInOut(duration: 0.25), value: emphasis)
-    }
-
-    private var cardBackground: Color {
-        switch emphasis {
-        case .none:
-            return Color(.secondarySystemGroupedBackground)
-        case .caution:
-            return Color.orange.opacity(0.10)
         }
     }
 }
@@ -508,13 +522,76 @@ struct GlassButton: View {
     }
 }
 
+/// Chip shape used by `chipStyle(...)` — capsule for toggled/selectable chips, rounded rect for
+/// tap-to-act chips. See docs/DESIGN_IMPROVEMENT_PLAN.md §5.2 (one chip look, not three).
+enum ChipShape {
+    case capsule
+    case roundedRect
+}
+
+/// Chip fill — one vocabulary for "selected" everywhere a chip appears, instead of each section
+/// picking its own opacity/text-color combination. `.tinted` is the soft look (category pickers,
+/// always-on suggestion chips); `.solid` is the high-contrast look (toggled reason chips).
+enum ChipFill {
+    case neutral
+    case tinted(Color)
+    case solid(Color)
+}
+
+/// Shared chip chrome (padding, fill, corner radius). Each call site keeps its own content layout
+/// (icon, truncation, grid vs horizontal scroll) — only the visual "look" is unified here.
+struct ChipStyleModifier: ViewModifier {
+    var fill: ChipFill = .neutral
+    var shape: ChipShape = .roundedRect
+    var fullWidth: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.s)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .background(background)
+            .foregroundStyle(foreground)
+            .clipShape(clipShape)
+    }
+
+    private var background: some ShapeStyle {
+        switch fill {
+        case .neutral: return AnyShapeStyle(Color(.secondarySystemBackground))
+        case .tinted(let color): return AnyShapeStyle(color.opacity(0.18))
+        case .solid(let color): return AnyShapeStyle(color)
+        }
+    }
+
+    private var foreground: Color {
+        switch fill {
+        case .neutral: return .primary
+        case .tinted(let color): return color
+        case .solid: return .white
+        }
+    }
+
+    private var clipShape: AnyShape {
+        switch shape {
+        case .capsule: AnyShape(Capsule())
+        case .roundedRect: AnyShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        }
+    }
+}
+
+extension View {
+    func chipStyle(fill: ChipFill = .neutral, shape: ChipShape = .roundedRect, fullWidth: Bool = false) -> some View {
+        modifier(ChipStyleModifier(fill: fill, shape: shape, fullWidth: fullWidth))
+    }
+}
+
 struct SuggestionChipRow: View {
     let items: [SuggestionItem]
     let onTap: (SuggestionItem) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.s) {
                 ForEach(items) { item in
                     Button {
                         onTap(item)
@@ -530,11 +607,7 @@ struct SuggestionChipRow: View {
                                     .lineLimit(1)
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.accentColor.opacity(0.12))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .chipStyle(fill: .tinted(.accentColor))
                     }
                     .buttonStyle(.plain)
                 }

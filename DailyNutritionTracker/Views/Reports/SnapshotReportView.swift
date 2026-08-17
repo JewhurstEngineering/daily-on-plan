@@ -89,6 +89,7 @@ struct SnapshotReportView: View {
     }
 
     private var averageDayCard: some View {
+        Card {
         VStack(alignment: .leading, spacing: 12) {
             Label("Average day", systemImage: "sun.max")
                 .font(.headline)
@@ -244,10 +245,7 @@ struct SnapshotReportView: View {
                 )
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private var metricGrid: some View {
@@ -363,6 +361,7 @@ struct SnapshotReportView: View {
     }
 
     private func weekCard(_ week: ReportSnapshot.WeekRollup) -> some View {
+        Card {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(week.title)
@@ -403,10 +402,7 @@ struct SnapshotReportView: View {
                 .accessibilityLabel("Protein sparkline for \(week.title)")
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private func miniStat(title: String, value: String) -> some View {

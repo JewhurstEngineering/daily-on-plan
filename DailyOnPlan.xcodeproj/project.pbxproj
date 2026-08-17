@@ -183,12 +183,14 @@
 		9FCBB802950EA8C4853CDC33 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD95D2ACA566172649B59FC /* AppTheme.swift */; };
 		A02CC5E1AD353F804639C16A /* SharedModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F549C27EC5976831FEEF5E0 /* SharedModelContainer.swift */; };
 		A2F6F5869EB8444297D0419D /* DayHeaderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B243753E88A718C91B3DFC8E /* DayHeaderSection.swift */; };
+		A31F71253BE8317D1A9CE509 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73A7F221E280A4D0CB9AC42 /* DesignTokens.swift */; };
 		A3E9FB72BC158A26870E520F /* SupplementsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBD137D5AED397F67E3AF50 /* SupplementsSection.swift */; };
 		A413794D29A93610E0C41F4C /* MealSuggestor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0F664F90148438403826CD /* MealSuggestor.swift */; };
 		A487137D1311DAC20ACDDCD8 /* OnPlanCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D47E423AAF82213EC1EA742 /* OnPlanCore.framework */; };
 		A4A7F7C75EDB60B397C198B8 /* FastingMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE743D950FC3F8915FD8C7E /* FastingMath.swift */; };
 		A55AEC25DA743600F601596B /* CalendarHeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631763D8FED94F479BD9C2F5 /* CalendarHeatmapView.swift */; };
 		A561D6999587EFADED7CC5C6 /* OnPlanColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1800CB41C9649C992E3CED82 /* OnPlanColors.swift */; };
+		A701F07D36E49AFC70888687 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73A7F221E280A4D0CB9AC42 /* DesignTokens.swift */; };
 		A92EE0AAC555DE4019D2C0F3 /* UsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ECC03ACED84D9F0529F4F5F /* UsageProgressBar.swift */; };
 		A9AB2E9F597544CE84537BFD /* WidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED50FCBC23CE029D996DCE3 /* WidgetReload.swift */; };
 		AB1AE88E706E317D027E1205 /* ProteinSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B502E29B01D89A688445BDD /* ProteinSection.swift */; };
@@ -198,6 +200,7 @@
 		AE195D4748EBD498EFFC58AC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */; };
 		AED561585A2357071026864A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FCD9C47FE6D0EE80B71B34E /* WidgetKit.framework */; };
 		AFA93E964DA918036C9A6328 /* AccessibilitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F472AEFCF4A79F65F8EC5C7 /* AccessibilitySettingsView.swift */; };
+		B1527D39963EEAD261DB5EA2 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73A7F221E280A4D0CB9AC42 /* DesignTokens.swift */; };
 		B1AB1B5C01FBA8742739E2E3 /* JournalMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A03CBF5E7C28EA930507C /* JournalMigration.swift */; };
 		B2CD56C2EB972FB4AD1E2601 /* FastingTrackerCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20B109551F6DA06A0509F650 /* FastingTrackerCard.swift */; };
 		B33787A5DD15451FC3CC2B18 /* FastingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D5A35E78F984F224711D94 /* FastingSettingsView.swift */; };
@@ -534,6 +537,7 @@
 		D445E04A316784FAC064FFAC /* WatchComplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchComplications.swift; sourceTree = "<group>"; };
 		D4DDB09D69D643ECC5F4B263 /* MotivationQuotesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotivationQuotesSettingsView.swift; sourceTree = "<group>"; };
 		D55C511A47C89DCC82371B8D /* ZipStoreWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipStoreWriter.swift; sourceTree = "<group>"; };
+		D73A7F221E280A4D0CB9AC42 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		DA850F848B08ED4B5D1C233D /* AppLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogo.swift; sourceTree = "<group>"; };
 		DBCFC1FB5D76D6BC1392ED45 /* EatingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EatingReportView.swift; sourceTree = "<group>"; };
 		DD3203666CC9ABBD17C27C48 /* UsageUIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageUIComponents.swift; sourceTree = "<group>"; };
@@ -658,6 +662,7 @@
 				DA850F848B08ED4B5D1C233D /* AppLogo.swift */,
 				BBD95D2ACA566172649B59FC /* AppTheme.swift */,
 				C480E2C8F75826A33AB33F0A /* Assets.xcassets */,
+				D73A7F221E280A4D0CB9AC42 /* DesignTokens.swift */,
 				FD9C0EB27559F3489C56984A /* PrivacyInfo.xcprivacy */,
 				4ECC03ACED84D9F0529F4F5F /* UsageProgressBar.swift */,
 				5ED50FCBC23CE029D996DCE3 /* WidgetReload.swift */,
@@ -1470,6 +1475,7 @@
 				4ADEBFEEBF7C67A1E54B67DC /* DayLayoutSettingsView.swift in Sources */,
 				F4044B725DEAFB32F9A495A2 /* DayProgressSnapshot.swift in Sources */,
 				311FEB420D4C954FF9E23995 /* DaySnapshotBuilder.swift in Sources */,
+				B1527D39963EEAD261DB5EA2 /* DesignTokens.swift in Sources */,
 				7FAE01D5E7A736D572E9984B /* Enums.swift in Sources */,
 				96E0BCFA28D792CA1B9F6D70 /* ExportFileStore.swift in Sources */,
 				9F4704EA3F0214E5E3164D76 /* FastingMath.swift in Sources */,
@@ -1552,6 +1558,7 @@
 				85F51B23C81C1C336A90330D /* DayLayoutSettingsView.swift in Sources */,
 				4D9016904AFF555CD9FDDB60 /* DayProgressSnapshot.swift in Sources */,
 				5A8EC4ABE12888534AC52C31 /* DayView.swift in Sources */,
+				A701F07D36E49AFC70888687 /* DesignTokens.swift in Sources */,
 				9932AE72BC6E796722AC5EC5 /* DrinkingSection.swift in Sources */,
 				6749253893768E9F85D70C4D /* EatingDaySummary.swift in Sources */,
 				7D2FFD47F9F4A65099BFC7B8 /* EatingReportView.swift in Sources */,
@@ -1672,6 +1679,7 @@
 				51ABE493093FAAA1A7058B45 /* AppLogo.swift in Sources */,
 				641EA93E786FF3A556224D17 /* AppTheme.swift in Sources */,
 				4E368C0F4532DD10EA20BBBC /* DailyOnPlanMacWidgets.swift in Sources */,
+				A31F71253BE8317D1A9CE509 /* DesignTokens.swift in Sources */,
 				C8BFD5105160C6B045D13A5A /* UsageProgressBar.swift in Sources */,
 				2B03C5EA16B3868EE8DD9279 /* WidgetReload.swift in Sources */,
 			);

@@ -50,11 +50,11 @@ struct FeelingsSection: View {
                             .font(.caption.weight(.semibold))
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(selectedCategory == category ? accentPrimary.opacity(0.18) : Color(.secondarySystemBackground))
-                            .foregroundStyle(selectedCategory == category ? accentPrimary : .primary)
-                            .clipShape(Capsule())
+                            .chipStyle(
+                                fill: selectedCategory == category ? .tinted(accentPrimary) : .neutral,
+                                shape: .capsule,
+                                fullWidth: true
+                            )
                     }
                     .buttonStyle(.plain)
                 }
@@ -80,10 +80,7 @@ struct FeelingsSection: View {
                                 .truncationMode(.tail)
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 10)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .chipStyle(fullWidth: true)
                     }
                     .buttonStyle(.plain)
                     .simultaneousGesture(

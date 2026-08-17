@@ -394,48 +394,25 @@ struct DayHeaderSection: View {
     }
 }
 
-/// Simple wrapping chip row without a FlowLayout dependency.
+/// Wraps chips to fit the available width (via `FlowLayout`) instead of a fixed rows-of-3 split,
+/// so it adapts on wider devices instead of under/over-filling rows.
 private struct FlowReasonChips: View {
     let options: [String]
     let selected: [String]
     let onToggle: (String) -> Void
+    @Environment(\.accentPrimary) private var accentPrimary
 
     var body: some View {
-        FlexibleChipWrap(options: options, selected: selected, onToggle: onToggle)
-    }
-}
-
-private struct FlexibleChipWrap: View {
-    let options: [String]
-    let selected: [String]
-    let onToggle: (String) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(rows, id: \.self) { row in
-                HStack(spacing: 8) {
-                    ForEach(row, id: \.self) { option in
-                        let isOn = selected.contains(where: { $0.caseInsensitiveCompare(option) == .orderedSame })
-                        Button(option) {
-                            onToggle(option)
-                        }
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isOn ? Color.accentColor : Color.onPlanTertiaryFill)
-                        .foregroundStyle(isOn ? Color.white : Color.primary)
-                        .clipShape(Capsule())
-                        .buttonStyle(.plain)
-                    }
+        FlowLayout(spacing: Spacing.s, rowSpacing: Spacing.s) {
+            ForEach(options, id: \.self) { option in
+                let isOn = selected.contains(where: { $0.caseInsensitiveCompare(option) == .orderedSame })
+                Button(option) {
+                    onToggle(option)
                 }
+                .font(.caption.weight(.semibold))
+                .chipStyle(fill: isOn ? .solid(accentPrimary) : .neutral, shape: .capsule)
+                .buttonStyle(.plain)
             }
-        }
-    }
-
-    /// Rough wrap into rows of ~3 chips for readability.
-    private var rows: [[String]] {
-        stride(from: 0, to: options.count, by: 3).map { start in
-            Array(options[start..<min(start + 3, options.count)])
         }
     }
 }
