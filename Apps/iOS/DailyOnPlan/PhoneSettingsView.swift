@@ -45,17 +45,31 @@ struct PhoneSettingsView: View {
                     }
                 }
 
-                Section("Data") {
+                Section {
                     NavigationLink {
                         BackupRestoreView()
                     } label: {
-                        Label("Backup & restore", systemImage: "externaldrive.badge.icloud")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Backup & restore", systemImage: "externaldrive.badge.icloud")
+                            Text("Full data backup for reinstalls or a new device")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     NavigationLink {
                         ExportSheetView(selectedDate: Date())
                     } label: {
-                        Label("Export & share", systemImage: "square.and.arrow.up")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label("Export & share", systemImage: "square.and.arrow.up")
+                            Text("A day's report as CSV, PDF, or a share card")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                } header: {
+                    Text("Data")
+                } footer: {
+                    Text("Backup is your whole journal, for moving devices. Export is a snapshot of one day's data to share.")
                 }
 
                 Section("App") {

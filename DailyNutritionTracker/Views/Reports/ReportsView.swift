@@ -30,45 +30,41 @@ struct ReportsView: View {
                     }
                 }
 
-                Section("Overview") {
-                    NavigationLink {
-                        EatingReportView(snapshot: currentSnapshot)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("What I’ve Been Eating", systemImage: "list.bullet.rectangle")
-                            Text("Day-by-day food & drink for this range")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Spacing.m) {
+                            ReportMarqueeCard(
+                                title: "What I’ve Been Eating",
+                                subtitle: "Day-by-day food & drink",
+                                systemImage: "list.bullet.rectangle"
+                            ) {
+                                EatingReportView(snapshot: currentSnapshot)
+                            }
+                            ReportMarqueeCard(
+                                title: "Snapshot",
+                                subtitle: "Average day + weekly rollups",
+                                systemImage: "chart.bar.doc.horizontal"
+                            ) {
+                                SnapshotReportView(snapshot: currentSnapshot)
+                            }
+                            ReportMarqueeCard(
+                                title: "Calendar heatmap",
+                                subtitle: "Plan, water, protein & habit-free days",
+                                systemImage: "calendar"
+                            ) {
+                                CalendarHeatmapView(snapshot: currentSnapshot)
+                            }
                         }
+                        .padding(.vertical, Spacing.xs)
                     }
-                    NavigationLink {
-                        SnapshotReportView(snapshot: currentSnapshot)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("Snapshot", systemImage: "chart.bar.doc.horizontal")
-                            Text("Average day + weekly rollups for this range")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    NavigationLink {
-                        CalendarHeatmapView(snapshot: currentSnapshot)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("Calendar heatmap", systemImage: "calendar")
-                            Text("Plan, water, protein, and habit free days")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } header: {
+                    Text("Overview")
                 }
 
-                Section("Section reports") {
-                    NavigationLink {
-                        FeelingsReportView(snapshot: currentSnapshot)
-                    } label: {
-                        Label("Feelings & Cravings", systemImage: "heart.text.square")
-                    }
+                Section("Nutrition") {
                     NavigationLink {
                         ProteinReportView(snapshot: currentSnapshot)
                     } label: {
@@ -80,26 +76,22 @@ struct ReportsView: View {
                         Label("Fats, Veggies & More", systemImage: "leaf")
                     }
                     NavigationLink {
-                        WorkoutReportView(snapshot: currentSnapshot)
-                    } label: {
-                        Label("Workouts", systemImage: "figure.run")
-                    }
-                    NavigationLink {
                         HydrationReportView(snapshot: currentSnapshot)
                     } label: {
                         Label("Hydration", systemImage: "drop.fill")
                     }
                     NavigationLink {
+                        SupplementsReportView(snapshot: currentSnapshot)
+                    } label: {
+                        Label("Supplements", systemImage: "pills")
+                    }
+                }
+
+                Section("Body") {
+                    NavigationLink {
                         WeightReportView(snapshot: currentSnapshot)
                     } label: {
                         Label("Weight & BMI", systemImage: "scalemass")
-                    }
-                    if currentSnapshot.showsBathroomReport {
-                        NavigationLink {
-                            BathroomReportView(snapshot: currentSnapshot)
-                        } label: {
-                            Label("Bathroom", systemImage: "toilet")
-                        }
                     }
                     NavigationLink {
                         BodyCompositionReportView(snapshot: currentSnapshot)
@@ -110,6 +102,14 @@ struct ReportsView: View {
                         TapeMeasurementsReportView(snapshot: currentSnapshot)
                     } label: {
                         Label("Tape measurements", systemImage: "ruler")
+                    }
+                }
+
+                Section("Activity & Habits") {
+                    NavigationLink {
+                        WorkoutReportView(snapshot: currentSnapshot)
+                    } label: {
+                        Label("Workouts", systemImage: "figure.run")
                     }
                     if currentSnapshot.showsSmokingReport {
                         NavigationLink {
@@ -125,10 +125,20 @@ struct ReportsView: View {
                             Label("Drinking", systemImage: "wineglass")
                         }
                     }
+                }
+
+                Section("Wellbeing") {
                     NavigationLink {
-                        SupplementsReportView(snapshot: currentSnapshot)
+                        FeelingsReportView(snapshot: currentSnapshot)
                     } label: {
-                        Label("Supplements", systemImage: "pills")
+                        Label("Feelings & Cravings", systemImage: "heart.text.square")
+                    }
+                    if currentSnapshot.showsBathroomReport {
+                        NavigationLink {
+                            BathroomReportView(snapshot: currentSnapshot)
+                        } label: {
+                            Label("Bathroom", systemImage: "toilet")
+                        }
                     }
                 }
             }
@@ -184,6 +194,41 @@ struct ReportMetricRow: View {
                 .foregroundStyle(valueColor ?? .primary)
         }
         .font(.subheadline)
+    }
+}
+
+/// The three marquee-weight reports (Eating report, Snapshot, Calendar heatmap) get a bigger,
+/// scannable tile instead of blending into the flat list of section reports below them.
+struct ReportMarqueeCard<Destination: View>: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    @ViewBuilder var destination: () -> Destination
+
+    var body: some View {
+        NavigationLink {
+            destination()
+        } label: {
+            Card {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Image(systemName: systemImage)
+                        .font(.title2)
+                        .foregroundStyle(Color.accentColor)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(width: 168, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
