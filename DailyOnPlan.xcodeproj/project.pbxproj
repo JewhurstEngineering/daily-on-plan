@@ -158,6 +158,7 @@
 		85707383E5C04CE3AC03DD24 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 45AF3802EC589920D6B51134 /* SwiftUI.framework */; };
 		85F51B23C81C1C336A90330D /* DayLayoutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DF4203804C3ADF4A672D38 /* DayLayoutSettingsView.swift */; };
 		86A95960DB4231D85247948F /* AppAbout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FBC4F01CD3AED9FCAB1430 /* AppAbout.swift */; };
+		8838B0EFCBD6F6DAE62F6D31 /* GoalsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6CE686B42F7429BB1634170 /* GoalsSection.swift */; };
 		89952002EACAEB8596AE1234 /* DailyOnPlanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B7615AFD792AD8D1F986CD7 /* DailyOnPlanApp.swift */; };
 		89BE840E9ACCC9BC1EC52037 /* MacBodySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BE36CEA4A9FB1B4605B486 /* MacBodySettingsView.swift */; };
 		8A4DE1472476D7A92F6E99BA /* WidgetReloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75EEB25E65574D62110DA181 /* WidgetReloader.swift */; };
@@ -527,6 +528,7 @@
 		C41ACB30303C34A5CECE402C /* EatingDaySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EatingDaySummary.swift; sourceTree = "<group>"; };
 		C480E2C8F75826A33AB33F0A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C4BE36CEA4A9FB1B4605B486 /* MacBodySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacBodySettingsView.swift; sourceTree = "<group>"; };
+		C6CE686B42F7429BB1634170 /* GoalsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsSection.swift; sourceTree = "<group>"; };
 		C702194B3343F8C0D430300B /* DailyOnPlan.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DailyOnPlan.entitlements; sourceTree = "<group>"; };
 		CC9325844BE1F8FA8C129463 /* WatchConnectivityClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityClient.swift; sourceTree = "<group>"; };
 		CD171A37E4229772C00DAD44 /* LayoutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutSettingsView.swift; sourceTree = "<group>"; };
@@ -1003,6 +1005,7 @@
 				BCCCD011946BDF147676AD32 /* DrinkingSection.swift */,
 				233C8DEE5A880F2227A35F4A /* FastingSection.swift */,
 				ADAFABF942ABDD71B2F8475F /* FeelingsSection.swift */,
+				C6CE686B42F7429BB1634170 /* GoalsSection.swift */,
 				73DCDA86B9FC1C5D61B41CAB /* HydrationSection.swift */,
 				6B502E29B01D89A688445BDD /* ProteinSection.swift */,
 				A9A01D79614B4998F5DAE8BC /* SmokingSection.swift */,
@@ -1579,6 +1582,7 @@
 				6C29543775FF3C4C9346C73B /* FoodCatalog.swift in Sources */,
 				90F4279037EEA523E8347FDB /* FoodPickers.swift in Sources */,
 				46C71497CACE271E1C93BEC4 /* FoodPreferencesView.swift in Sources */,
+				8838B0EFCBD6F6DAE62F6D31 /* GoalsSection.swift in Sources */,
 				E6DFFFA845CD3F8C99C56BF2 /* HabitTrackingSupport.swift in Sources */,
 				C860277683C0A04604854194 /* HealthKitService.swift in Sources */,
 				0293D18391E6187C30F3A037 /* HydrationDrinkConfirmSheet.swift in Sources */,

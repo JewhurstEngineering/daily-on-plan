@@ -126,6 +126,13 @@ struct DayView: View {
         switch section {
         case .dailyStatus:
             EmptyView()
+        case .goals:
+            GoalsSection(
+                selectedDate: selectedDate,
+                log: log,
+                settings: settings
+            )
+            .id("goals")
         case .weight:
             WeightBMISection(
                 selectedDate: selectedDate,

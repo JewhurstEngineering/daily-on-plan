@@ -2,6 +2,7 @@ import Foundation
 
 enum DaySectionID: String, CaseIterable, Identifiable {
     case dailyStatus
+    case goals
     case weight
     case smoking
     case drinking
@@ -19,6 +20,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
     var settingsTitle: String {
         switch self {
         case .dailyStatus: return "Daily status"
+        case .goals: return "Goals"
         case .weight: return "Weight & BMI"
         case .smoking: return "Smoking"
         case .drinking: return "Drinking"
@@ -35,7 +37,7 @@ enum DaySectionID: String, CaseIterable, Identifiable {
 
     /// Sections the user can reorder (header stays pinned).
     static var defaultReorderableOrder: [DaySectionID] {
-        [.weight, .smoking, .drinking, .feelings, .protein, .fasting, .checklist, .workouts, .hydration, .bathroom, .supplements]
+        [.goals, .weight, .smoking, .drinking, .feelings, .protein, .fasting, .checklist, .workouts, .hydration, .bathroom, .supplements]
     }
 
     var collapsedMessage: String {
