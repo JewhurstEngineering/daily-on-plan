@@ -71,36 +71,15 @@ struct SettingsView: View {
     @ViewBuilder
     private func settingsForm(_ settings: AppSettings) -> some View {
         Form {
-            #if os(iOS)
-            appearanceSection()
-            #endif
             programSection(settings)
             bodyMetricsSection(settings)
-            trackingLinksSection(settings)
             presetsSection
             hungerScaleSection
             #if os(iOS)
             healthSection
-            backupSection
             #endif
         }
     }
-
-    #if os(iOS)
-    @ViewBuilder
-    private func appearanceSection() -> some View {
-        Section {
-            Text(AppIdentity.tagline)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text("Appearance and color theme now live in Settings → Look → Theme.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } header: {
-            Text("Appearance")
-        }
-    }
-    #endif
 
     @ViewBuilder
     private func programSection(_ settings: AppSettings) -> some View {
@@ -231,86 +210,6 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func trackingLinksSection(_ settings: AppSettings) -> some View {
-        Section {
-            NavigationLink {
-                BodyCompositionListView(showsDismissButton: false)
-            } label: {
-                Label("Body composition", systemImage: "list.clipboard")
-            }
-            NavigationLink {
-                BodyMeasurementsListView(showsDismissButton: false)
-            } label: {
-                Label("Body measurements", systemImage: "ruler")
-            }
-            NavigationLink {
-                FastingSettingsView(settings: settings)
-            } label: {
-                Label("Fasting", systemImage: "clock")
-            }
-            NavigationLink {
-                NotificationsSettingsView(settings: settings)
-            } label: {
-                Label("Notifications", systemImage: "bell.badge")
-            }
-            NavigationLink {
-                MotivationQuotesSettingsView(settings: settings)
-            } label: {
-                Label("Motivational quotes", systemImage: "quote.bubble")
-            }
-            NavigationLink {
-                DayLayoutSettingsView(settings: settings)
-            } label: {
-                Label("Day layout", systemImage: "list.bullet.rectangle")
-            }
-            NavigationLink {
-                SavedMealsListView(settings: settings)
-            } label: {
-                Label("Saved meals", systemImage: "fork.knife")
-            }
-            NavigationLink {
-                FoodPreferencesView(settings: settings)
-            } label: {
-                Label("Food preferences", systemImage: "heart.slash")
-            }
-            NavigationLink {
-                FoodLookupSettingsView(settings: settings)
-            } label: {
-                Label("Food lookup", systemImage: "barcode.viewfinder")
-            }
-            NavigationLink {
-                SmokingSettingsForm(settings: settings)
-            } label: {
-                Label("Smoking", systemImage: "smoke")
-            }
-            NavigationLink {
-                DrinkingSettingsForm(settings: settings)
-            } label: {
-                Label("Drinking", systemImage: "wineglass")
-            }
-            NavigationLink {
-                HydrationSettingsForm(settings: settings)
-            } label: {
-                Label("Hydration", systemImage: "drop.fill")
-            }
-            NavigationLink {
-                SupplementsSettingsForm(settings: settings)
-            } label: {
-                Label("Supplements", systemImage: "pills.fill")
-            }
-            NavigationLink {
-                BathroomSettingsForm(settings: settings)
-            } label: {
-                Label("Bathroom", systemImage: "toilet.fill")
-            }
-        } header: {
-            Text("Tracking & habits")
-        } footer: {
-            Text("Day-to-day tracking options live here so Settings stays uncluttered.")
-        }
-    }
-
-    @ViewBuilder
     private var presetsSection: some View {
         Section("My Presets") {
             if presets.isEmpty {
@@ -349,28 +248,11 @@ struct SettingsView: View {
         }
     }
 
-    #if os(iOS)
-    @ViewBuilder
-    private var backupSection: some View {
-        Section {
-            NavigationLink {
-                BackupRestoreView { restored in
-                    settings = restored
-                }
-            } label: {
-                Label("Backup & restore", systemImage: "externaldrive.badge.timemachine")
-            }
-        } footer: {
-            Text("Full data backup for reinstalls. Separate from day Export reports.")
-        }
-    }
-    #endif
-
     private static var screenTitle: String {
         #if os(macOS)
         "Program"
         #else
-        "Settings"
+        "Program & Body"
         #endif
     }
 
@@ -477,6 +359,92 @@ struct SettingsView: View {
         }
     }
     #endif
+}
+
+/// Day-to-day tracking destinations, split out from `SettingsView` so "Program & Body" and
+/// "Tracking & habits" are two clearly-named links instead of one opaque catch-all — see
+/// docs/DESIGN_IMPROVEMENT_PLAN.md §5.4. Notifications, Quotes, and Day layout live one tap
+/// away at the top level of Settings already, so they aren't repeated here.
+struct TrackingSettingsView: View {
+    @Bindable var settings: AppSettings
+
+    var body: some View {
+        Form {
+            Section {
+                NavigationLink {
+                    BodyCompositionListView(showsDismissButton: false)
+                } label: {
+                    Label("Body composition", systemImage: "list.clipboard")
+                }
+                NavigationLink {
+                    BodyMeasurementsListView(showsDismissButton: false)
+                } label: {
+                    Label("Body measurements", systemImage: "ruler")
+                }
+            } header: {
+                Text("Body")
+            }
+
+            Section {
+                NavigationLink {
+                    FastingSettingsView(settings: settings)
+                } label: {
+                    Label("Fasting", systemImage: "clock")
+                }
+                NavigationLink {
+                    SavedMealsListView(settings: settings)
+                } label: {
+                    Label("Saved meals", systemImage: "fork.knife")
+                }
+                NavigationLink {
+                    FoodPreferencesView(settings: settings)
+                } label: {
+                    Label("Food preferences", systemImage: "heart.slash")
+                }
+                NavigationLink {
+                    FoodLookupSettingsView(settings: settings)
+                } label: {
+                    Label("Food lookup", systemImage: "barcode.viewfinder")
+                }
+            } header: {
+                Text("Meals")
+            }
+
+            Section {
+                NavigationLink {
+                    SmokingSettingsForm(settings: settings)
+                } label: {
+                    Label("Smoking", systemImage: "smoke")
+                }
+                NavigationLink {
+                    DrinkingSettingsForm(settings: settings)
+                } label: {
+                    Label("Drinking", systemImage: "wineglass")
+                }
+                NavigationLink {
+                    HydrationSettingsForm(settings: settings)
+                } label: {
+                    Label("Hydration", systemImage: "drop.fill")
+                }
+                NavigationLink {
+                    SupplementsSettingsForm(settings: settings)
+                } label: {
+                    Label("Supplements", systemImage: "pills.fill")
+                }
+                NavigationLink {
+                    BathroomSettingsForm(settings: settings)
+                } label: {
+                    Label("Bathroom", systemImage: "toilet.fill")
+                }
+            } header: {
+                Text("Habits")
+            }
+        }
+        .navigationTitle("Tracking & Habits")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
 }
 
 struct SmokingSettingsForm: View {

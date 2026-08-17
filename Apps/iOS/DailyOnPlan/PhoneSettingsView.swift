@@ -31,7 +31,12 @@ struct PhoneSettingsView: View {
                     NavigationLink {
                         SettingsView()
                     } label: {
-                        Label("Program, body & tracking", systemImage: "slider.horizontal.3")
+                        Label("Program & body", systemImage: "slider.horizontal.3")
+                    }
+                    NavigationLink {
+                        TrackingSettingsView(settings: DataStore.settings(in: modelContext))
+                    } label: {
+                        Label("Tracking & habits", systemImage: "checklist")
                     }
                     NavigationLink {
                         NotificationsSettingsView(settings: DataStore.settings(in: modelContext))
