@@ -11,6 +11,7 @@ ARCHIVE="${DIST}/DailyOnPlaniOS.xcarchive"
 EXPORT="${DIST}/export"
 
 mkdir -p "${DIST}"
+rm -rf "${ARCHIVE}" "${EXPORT}"
 xcodegen generate
 
 echo "Archiving iOS Release (Watch + widgets embedded)…"

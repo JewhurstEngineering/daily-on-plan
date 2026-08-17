@@ -11,6 +11,7 @@ ARCHIVE="${DIST}/DailyOnPlan.xcarchive"
 EXPORT="${DIST}/export"
 
 mkdir -p "${DIST}"
+rm -rf "${ARCHIVE}" "${EXPORT}"
 xcodegen generate
 
 echo "Archiving Mac Release for App Store Connect…"
