@@ -45,6 +45,7 @@
 		1E0B4608E8DF29DF1F9AA444 /* SavedMealsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05CBB15D21225FA65836532 /* SavedMealsListView.swift */; };
 		20B9FB5E7FD9EBA54688246B /* FastingTrackerCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20B109551F6DA06A0509F650 /* FastingTrackerCard.swift */; };
 		20F37FEBBC20F7C133F1507D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C480E2C8F75826A33AB33F0A /* Assets.xcassets */; };
+		213282E1AE300439BD208DD7 /* SectionJumpBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F168579A4672B407567F6790 /* SectionJumpBar.swift */; };
 		23E7450EF84B7F493F937C7A /* DaySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06E0AF7C0E1724779B8D1AB /* DaySnapshotStore.swift */; };
 		2475E67688CCC1568E26015B /* RemoteFoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E922F8D209114BED45C298 /* RemoteFoodModels.swift */; };
 		24F7800860D3F691A260F524 /* ExportFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E298AD5B4D8F98CCC58E3B6 /* ExportFileStore.swift */; };
@@ -559,6 +560,7 @@
 		EB0F664F90148438403826CD /* MealSuggestor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSuggestor.swift; sourceTree = "<group>"; };
 		EBAE39C138B9FBB92752AD0A /* PhoneSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSettingsView.swift; sourceTree = "<group>"; };
 		EDC9CB8B19E74DB4D31EA27E /* ShareCardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardViews.swift; sourceTree = "<group>"; };
+		F168579A4672B407567F6790 /* SectionJumpBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionJumpBar.swift; sourceTree = "<group>"; };
 		F1DAF22F173CAD87FBF42944 /* DailyOnPlanWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyOnPlanWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2EFB63D104ACB232D90B346 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		F541A9FECF820290E9ED5A2C /* MacLifestyleSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLifestyleSettingsView.swift; sourceTree = "<group>"; };
@@ -753,6 +755,7 @@
 				20B109551F6DA06A0509F650 /* FastingTrackerCard.swift */,
 				A0716F9E37393B213498EB5D /* FoodPickers.swift */,
 				A356B40D6CFF47127EA5C87D /* HabitTrackingSupport.swift */,
+				F168579A4672B407567F6790 /* SectionJumpBar.swift */,
 				E7684781E24BAD2509F58870 /* SharedUI.swift */,
 			);
 			path = Components;
@@ -1613,6 +1616,7 @@
 				0DDD2DECC3DEE81468B271C2 /* ReportsView.swift in Sources */,
 				BD233BE04E2CF1E277FA8821 /* RootTabView.swift in Sources */,
 				2C0CAB633DA15BAC1B80990D /* SavedMealsListView.swift in Sources */,
+				213282E1AE300439BD208DD7 /* SectionJumpBar.swift in Sources */,
 				1C6EA37C63CD35EFC2CA1B31 /* SettingsView.swift in Sources */,
 				25A149D3FFC45E3CC6DE8F2E /* ShareCardViews.swift in Sources */,
 				7527E3510D56D4895E224DE1 /* SharedModelContainer.swift in Sources */,

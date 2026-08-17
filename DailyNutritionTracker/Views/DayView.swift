@@ -55,6 +55,10 @@ struct DayView: View {
                     recentLogs: recentLogs
                 )
             }
+            let jumpBar = SectionJumpBar(
+                sections: settings.sectionOrder.filter { settings.isSectionVisible($0) },
+                onSelect: { requestScroll(to: $0.rawValue) }
+            )
             Group {
                 if sizeClass == .regular {
                     HStack(alignment: .top, spacing: 16) {
@@ -66,6 +70,7 @@ struct DayView: View {
                         .frame(minWidth: 320, maxWidth: 420)
                         ScrollView {
                             VStack(alignment: .leading, spacing: 20) {
+                                jumpBar
                                 sections
                             }
                             .padding()
@@ -76,6 +81,7 @@ struct DayView: View {
                         VStack(alignment: .leading, spacing: 20) {
                             DayHeaderSection(selectedDate: $selectedDate, log: log, settings: settings)
                                 .id("header")
+                            jumpBar
                             sections
                         }
                         .padding()

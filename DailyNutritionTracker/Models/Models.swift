@@ -1969,6 +1969,19 @@ final class AppSettings {
         }
     }
 
+    /// Whether a reorderable section is currently shown, given its own show/hide setting.
+    /// Shared by Day layout's reorder list and the Today jump bar so they never disagree.
+    func isSectionVisible(_ section: DaySectionID) -> Bool {
+        switch section {
+        case .fasting: return fastingEnabled
+        case .smoking: return smokingMode.showsSection
+        case .drinking: return drinkingMode.showsSection
+        case .supplements: return showSupplementsSection
+        case .bathroom: return showBathroomSection
+        default: return true
+        }
+    }
+
     /// Presets + user customs, presets first, no duplicates.
     var allOffPlanReasonOptions: [String] {
         var seen = Set<String>()

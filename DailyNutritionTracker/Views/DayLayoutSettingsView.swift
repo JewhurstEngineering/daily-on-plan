@@ -19,7 +19,7 @@ struct DayLayoutSettingsView: View {
                     HStack {
                         Text(section.settingsTitle)
                         Spacer()
-                        if !isVisible(section) {
+                        if !settings.isSectionVisible(section) {
                             Text("Hidden")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
@@ -27,7 +27,7 @@ struct DayLayoutSettingsView: View {
                         Image(systemName: "line.3.horizontal")
                             .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(isVisible(section) ? .primary : .secondary)
+                    .foregroundStyle(settings.isSectionVisible(section) ? .primary : .secondary)
                 }
                 .onMove(perform: move)
             }
@@ -49,16 +49,6 @@ struct DayLayoutSettingsView: View {
         }
     }
 
-    private func isVisible(_ section: DaySectionID) -> Bool {
-        switch section {
-        case .fasting: return settings.fastingEnabled
-        case .smoking: return settings.smokingMode.showsSection
-        case .drinking: return settings.drinkingMode.showsSection
-        case .supplements: return settings.showSupplementsSection
-        case .bathroom: return settings.showBathroomSection
-        default: return true
-        }
-    }
 
     private func move(from source: IndexSet, to destination: Int) {
         order.move(fromOffsets: source, toOffset: destination)

@@ -40,6 +40,26 @@ enum DaySectionID: String, CaseIterable, Identifiable {
         [.goals, .weight, .smoking, .drinking, .feelings, .protein, .fasting, .checklist, .workouts, .hydration, .bathroom, .supplements]
     }
 
+    /// Mirrors the icon each section already passes to its own `SectionCard` — centralized here
+    /// so the Today jump bar doesn't need a third copy of this mapping.
+    var systemImage: String {
+        switch self {
+        case .dailyStatus: return "calendar"
+        case .goals: return "target"
+        case .weight: return "scalemass"
+        case .smoking: return "smoke"
+        case .drinking: return "wineglass"
+        case .feelings: return "heart.text.square"
+        case .protein: return "fork.knife.circle"
+        case .fasting: return "clock"
+        case .checklist: return "leaf"
+        case .workouts: return "figure.run"
+        case .hydration: return "drop.fill"
+        case .bathroom: return "toilet.fill"
+        case .supplements: return "pills"
+        }
+    }
+
     var collapsedMessage: String {
         switch self {
         case .weight, .smoking, .drinking, .bathroom:
