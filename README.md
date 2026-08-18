@@ -1,4 +1,8 @@
-# Daily On Plan
+# JamesWare Daily On Plan
+
+<p align="center">
+  <img src="OnPlan_Brand_Kit/Logos/PNG/onplan_horizontal_dark.png" width="360" style="padding: 1em;" alt="JamesWare AI Meter">
+</p>
 
 **Stay on plan. One day at a time.**
 
