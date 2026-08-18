@@ -25,3 +25,6 @@ xcuserdata/
 *.swp
 *~
 dist/
+
+# Local-only internal notes, PRD, sideload guide, raw captures
+docs/
