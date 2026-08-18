@@ -58,7 +58,8 @@ Brand assets live in [`OnPlan_Brand_Kit/`](OnPlan_Brand_Kit/). More device captu
 
 ## Privacy
 
-See [PRIVACY.md](PRIVACY.md). For App Store Connect, host that policy at a stable https URL (for example on [jamesware.dev](https://jamesware.dev)).
+See [PRIVACY.md](PRIVACY.md). App Store Connect URL:
+[https://jamesware.dev/daily-on-plan/privacy.html](https://jamesware.dev/daily-on-plan/privacy.html).
 
 ## License
 
