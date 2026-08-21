@@ -30,22 +30,22 @@ struct ChecklistSection: View {
                 chips: vegChips
             )
 
-            if settings.phase.allowsFatsAndFruits {
-                checklistGroup(
-                    title: "Fats",
-                    items: ChecklistStorage.fats(in: log),
-                    category: .fat,
-                    chips: fatChips
-                )
-                checklistGroup(
-                    title: "Fruits",
-                    items: log.checkedFruits,
-                    category: .fruit,
-                    chips: fruitChips
-                )
-            } else {
-                Text("Fats & fruits unlock in Week 2+. Change phase in Settings.")
-                    .font(.footnote)
+            checklistGroup(
+                title: "Fats",
+                items: ChecklistStorage.fats(in: log),
+                category: .fat,
+                chips: fatChips
+            )
+            checklistGroup(
+                title: "Fruits",
+                items: log.checkedFruits,
+                category: .fruit,
+                chips: fruitChips
+            )
+
+            if !settings.phase.allowsFatsAndFruits {
+                Text("Week 1 usually skips fats and fruit — logged here anyway if you had them.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -74,12 +74,12 @@ struct ChecklistSection: View {
             }
         }
         .sheet(item: $pickerCategory, onDismiss: { onWillPresentSheet?(scrollAnchor) }) { category in
-            FoodChecklistPicker(
+            ChecklistAddSheet(
                 category: category,
                 phase: settings.phase,
                 excludedNames: settings.excludedFoodNames,
-                onPick: { food in
-                    addFood(food, category: category)
+                onAdd: { name, amount in
+                    append(name: name, amount: amount, category: category)
                 }
             )
         }
@@ -182,10 +182,6 @@ struct ChecklistSection: View {
     private func addChip(_ item: SuggestionItem, category: FoodCategory) {
         let amount = item.amount ?? ChecklistStorage.defaultAmount(for: item.name, category: category)
         append(name: item.name, amount: amount, category: category)
-    }
-
-    private func addFood(_ food: CatalogFood, category: FoodCategory) {
-        append(name: food.name, amount: food.servingLabel, category: category)
     }
 
     private func append(name: String, amount: String, category: FoodCategory) {

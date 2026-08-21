@@ -303,6 +303,7 @@ struct WeightTrendCard: View {
                     .chartYScale(domain: domain)
                     .trendAxes(yPosition: .leading)
                     .frame(height: 150)
+                    .clipped()
                 } else {
                     ChartPlaceholder(text: "Log at least two weigh-ins to see a trend.")
                 }

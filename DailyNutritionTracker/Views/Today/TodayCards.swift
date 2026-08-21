@@ -25,7 +25,7 @@ struct CompactGoalRing: View {
     var caption: String
     /// Fractions of the full ring (0...1) drawn on top of the fill.
     var electrolyteSegments: [(start: Double, end: Double)] = []
-    var size: CGFloat = 64
+    var size: CGFloat = 56
 
     private var ratio: Double {
         guard goal > 0 else { return 0 }
@@ -163,7 +163,18 @@ struct TodayWeightCard: View {
                     .frame(width: 88, height: 40)
                 }
 
-                if weight == nil {
+                if masking.canHide {
+                    // Revealed for now — give the way back, next to the value it hides.
+                    Button(action: masking.hide) {
+                        Image(systemName: "eye.slash")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Hide weight again")
+                } else if weight == nil {
                     Button(action: onLog) {
                         Text("Log")
                             .font(.subheadline.weight(.semibold))
@@ -182,6 +193,25 @@ struct TodayWeightCard: View {
                     masking.reveal()
                 } else {
                     onOpen()
+                }
+            }
+            .contextMenu {
+                if masking.canHide {
+                    Button {
+                        masking.hide()
+                    } label: {
+                        Label("Hide weight", systemImage: "eye.slash")
+                    }
+                }
+                if masking.isMasked {
+                    Button {
+                        masking.reveal()
+                    } label: {
+                        Label("Show weight", systemImage: "eye")
+                    }
+                }
+                Button(action: onOpen) {
+                    Label("Open weight & BMI", systemImage: "scalemass")
                 }
             }
         }
@@ -546,7 +576,7 @@ struct TodayRitualCard: View {
                         .font(.body)
                 }
                 .tint(appTheme.ok)
-                .frame(minHeight: 44)
+                .frame(height: 40)
 
                 Divider()
 
@@ -555,7 +585,7 @@ struct TodayRitualCard: View {
                         .font(.body)
                 }
                 .tint(appTheme.tint)
-                .frame(minHeight: 44)
+                .frame(height: 40)
 
                 Divider()
 

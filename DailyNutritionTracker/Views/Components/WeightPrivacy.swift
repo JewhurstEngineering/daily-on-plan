@@ -18,10 +18,13 @@ final class WeightRevealState: ObservableObject {
         }
     }
 
-    /// Called when the app leaves the foreground.
+    /// Hide again on demand — the eye button on the weight card, or its long-press menu.
+    /// Also called when the app leaves the foreground.
     func hide() {
         guard isRevealed else { return }
-        isRevealed = false
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isRevealed = false
+        }
     }
 }
 
@@ -30,11 +33,18 @@ final class WeightRevealState: ObservableObject {
 @MainActor
 struct WeightMasking {
     let isMasked: Bool
+    /// True when masking is switched on but the viewer has revealed it for now — the only
+    /// state where a "hide again" affordance makes sense.
+    let canHide: Bool
     let reveal: @MainActor () -> Void
+    let hide: @MainActor () -> Void
 
     init(preferences: DisplayPreferences, state: WeightRevealState) {
-        isMasked = preferences.hideWeightUntilTapped && !state.isRevealed
+        let enabled = preferences.hideWeightUntilTapped
+        isMasked = enabled && !state.isRevealed
+        canHide = enabled && state.isRevealed
         reveal = { [weak state] in state?.reveal() }
+        hide = { [weak state] in state?.hide() }
     }
 }
 

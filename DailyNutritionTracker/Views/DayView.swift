@@ -53,7 +53,7 @@ struct DayView: View {
         let masking = WeightMasking(preferences: store.preferences, state: weightReveal)
 
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
                 TodayDateBar(selectedDate: $selectedDate)
 
                 TodayWeightCard(
@@ -212,45 +212,27 @@ struct DayView: View {
             onAction: { logWater(settings.defaultBottleOz, kind: .water, log: log, settings: settings) },
             onOpen: { path.append(.hydration) },
             actionMenu: {
-                ForEach(hydrationSizes(settings), id: \.self) { oz in
-                    Button {
-                        logWater(oz, kind: .water, log: log, settings: settings)
-                    } label: {
-                        Label("Water \(formatOz(oz)) oz", systemImage: "drop.fill")
-                    }
-                }
-                Divider()
-                Button {
-                    logWater(settings.defaultBottleOz, kind: .electrolyte, log: log, settings: settings)
-                } label: {
-                    Label("Electrolytes \(formatOz(settings.defaultBottleOz)) oz", systemImage: "bolt.fill")
-                }
-                Button {
-                    path.append(.hydration)
-                } label: {
-                    Label("More options…", systemImage: "slider.horizontal.3")
-                }
+                HydrationQuickAddMenu(onFill: { oz, kind, subtype in
+                    logWater(oz, kind: kind, otherSubtype: subtype, log: log, settings: settings)
+                })
             }
         )
-    }
-
-    private func hydrationSizes(_ settings: AppSettings) -> [Double] {
-        // The viewer's usual bottle first, then the standard presets, no repeats.
-        var sizes = [settings.defaultBottleOz]
-        for size in WatchQuickAdd.sizePresets where !sizes.contains(size) {
-            sizes.append(size)
-        }
-        return Array(sizes.prefix(5))
     }
 
     private func formatOz(_ oz: Double) -> String {
         oz.rounded() == oz ? String(Int(oz)) : String(format: "%.1f", oz)
     }
 
-    private func logWater(_ oz: Double, kind: HydrationDrinkKind, log: DailyLog, settings: AppSettings) {
+    private func logWater(
+        _ oz: Double,
+        kind: HydrationDrinkKind,
+        otherSubtype: HydrationOtherSubtype? = nil,
+        log: DailyLog,
+        settings: AppSettings
+    ) {
         let bottle = max(settings.defaultBottleOz, 1)
         let slots = max(1, Int(ceil(Double(settings.hydrationTargetOz) / bottle)))
-        log.fillNextWaterSlot(oz: oz, ensuringMinimumSlots: slots, kind: kind)
+        log.fillNextWaterSlot(oz: oz, ensuringMinimumSlots: slots, kind: kind, otherSubtype: otherSubtype)
         try? modelContext.save()
         WidgetReloader.reloadAll()
         Task { await healthKit.writeWater(ounces: Int(oz.rounded()), on: selectedDate) }

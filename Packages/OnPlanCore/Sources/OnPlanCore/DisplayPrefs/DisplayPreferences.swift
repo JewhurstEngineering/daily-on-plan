@@ -308,7 +308,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision: .typical,
         distinguishWithoutColor: false,
         highContrast: false,
-        hideWeightUntilTapped: false,
+        hideWeightUntilTapped: true,
         watchQuickAdd: .default
     )
 
@@ -327,7 +327,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision: ColorVision = .typical,
         distinguishWithoutColor: Bool = false,
         highContrast: Bool = false,
-        hideWeightUntilTapped: Bool = false,
+        hideWeightUntilTapped: Bool = true,
         watchQuickAdd: WatchQuickAdd = .default,
         notifyOnThisMac: Bool = true
     ) {
@@ -366,7 +366,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision = try c.decodeIfPresent(ColorVision.self, forKey: .colorVision) ?? .typical
         distinguishWithoutColor = try c.decodeIfPresent(Bool.self, forKey: .distinguishWithoutColor) ?? false
         highContrast = try c.decodeIfPresent(Bool.self, forKey: .highContrast) ?? false
-        hideWeightUntilTapped = try c.decodeIfPresent(Bool.self, forKey: .hideWeightUntilTapped) ?? false
+        hideWeightUntilTapped = try c.decodeIfPresent(Bool.self, forKey: .hideWeightUntilTapped) ?? true
         watchQuickAdd = try c.decodeIfPresent(WatchQuickAdd.self, forKey: .watchQuickAdd) ?? .default
         notifyOnThisMac = try c.decodeIfPresent(Bool.self, forKey: .notifyOnThisMac) ?? true
     }

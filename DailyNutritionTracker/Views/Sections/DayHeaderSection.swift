@@ -23,6 +23,8 @@ struct DayHeaderSection: View {
         return String(trimmed.prefix(40)) + "…"
     }
 
+    @Environment(\.sectionChrome) private var chrome
+
     var body: some View {
         SectionCard(
             title: "Daily Status",
@@ -30,31 +32,35 @@ struct DayHeaderSection: View {
             isCollapsed: settings.sectionCollapsedBinding(.dailyStatus, context: modelContext),
             collapsedMessage: DaySectionID.dailyStatus.collapsedMessage
         ) {
-            HStack {
-                Button {
-                    selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                } label: {
-                    Image(systemName: "chevron.left.circle.fill")
-                        .font(.title2)
-                }
-                Spacer()
-                VStack(spacing: 4) {
-                    Text(DateHelpers.formattedDay(selectedDate))
-                        .font(.title3.bold())
-                    if Calendar.current.isDateInToday(selectedDate) {
-                        Text("Today")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            // Today owns the date stepper now. On a pushed detail screen the binding is a
+            // constant, so showing arrows here would be dead controls.
+            if chrome == .card {
+                HStack {
+                    Button {
+                        selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                    } label: {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.title2)
                     }
+                    Spacer()
+                    VStack(spacing: 4) {
+                        Text(DateHelpers.formattedDay(selectedDate))
+                            .font(.title3.bold())
+                        if Calendar.current.isDateInToday(selectedDate) {
+                            Text("Today")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                    } label: {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.title2)
+                    }
+                    .disabled(Calendar.current.isDateInToday(selectedDate) || selectedDate > Date())
                 }
-                Spacer()
-                Button {
-                    selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                } label: {
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.title2)
-                }
-                .disabled(Calendar.current.isDateInToday(selectedDate) || selectedDate > Date())
             }
 
             VStack(alignment: .leading, spacing: 12) {

@@ -46,151 +46,30 @@ struct ProteinSection: View {
             isCollapsed: settings.sectionCollapsedBinding(.protein, context: modelContext),
             collapsedMessage: DaySectionID.protein.collapsedMessage
         ) {
+            progressHeader
+
+            // One primary action. Everything else is secondary and reads as such.
+            Button {
+                onWillPresentSheet?(scrollAnchor)
+                showAdd = true
+            } label: {
+                Label("Log food", systemImage: "plus")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+
             if !suggestionChips.isEmpty {
-                Text(hasHistory ? "Popular & recent" : "Suggestions")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                SuggestionChipRow(items: suggestionChips) { item in
-                    addSuggestion(item)
-                }
+                quickAddRow
             }
 
             if !presets.isEmpty {
-                Text("My presets")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(presets, id: \.id) { preset in
-                            Button(preset.name) { addPreset(preset) }
-                                .buttonStyle(.bordered)
-                        }
-                    }
-                }
+                presetRow
             }
 
-            if !recentMeals.isEmpty {
-                Text("Recent meals")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(recentMeals, id: \.id) { meal in
-                            Button(meal.name) {
-                                MealLogger.apply(components: meal.components, to: log, settings: settings)
-                                try? modelContext.save()
-                                refreshChips()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                }
-            }
+            secondaryActions
 
-            VStack(spacing: 10) {
-                Button {
-                    onWillPresentSheet?(scrollAnchor)
-                    showAdd = true
-                } label: {
-                    Label("Log meal", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                HStack(spacing: 10) {
-                    Button {
-                        onWillPresentSheet?(scrollAnchor)
-                        showSnack = true
-                    } label: {
-                        Label("Snack", systemImage: "carrot.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        onWillPresentSheet?(scrollAnchor)
-                        showMeals = true
-                    } label: {
-                        Label("Meals", systemImage: "square.stack.3d.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if canCopyYesterday {
-                    Button {
-                        copyYesterday()
-                    } label: {
-                        Label("Copy yesterday", systemImage: "arrow.uturn.backward")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            if log.sortedProteins.isEmpty {
-                Text("Log a meal with protein, sides, and hunger in one step. Snack, saved meals, and the checklist are still there for leftovers.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                DisclosureGroup("Log (\(log.sortedProteins.count))", isExpanded: $showLogList) {
-                    VStack(spacing: 0) {
-                        ForEach(log.sortedProteins, id: \.id) { entry in
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Button {
-                                        onWillPresentSheet?(scrollAnchor)
-                                        editingEntry = entry
-                                    } label: {
-                                        Text(entry.name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.primary)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    HStack(spacing: 4) {
-                                        Button(DateHelpers.formattedTime(entry.time)) {
-                                            editTimeEntry = entry
-                                        }
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(accentPrimary)
-                                        .buttonStyle(.plain)
-                                        Text("· \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
-                                        Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Text(settings.proteinDrinksCountTowardHydration
-                                         ? "Tap name to edit calories & fl oz"
-                                         : "Tap name to edit amount")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 8)
-                                Text("\(entry.calories) kcal")
-                                    .font(.subheadline.monospacedDigit())
-                                    .foregroundStyle(.primary)
-
-                                Button(role: .destructive) {
-                                    delete(entry)
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .font(.body)
-                                        .foregroundStyle(.red)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Delete \(entry.name)")
-                            }
-                            .padding(.vertical, 6)
-                            Divider()
-                        }
-                    }
-                }
-            }
+            logList
         }
         .sheet(isPresented: $showAdd, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
             AddProteinSheet(
@@ -240,6 +119,224 @@ struct ProteinSection: View {
             }
         }
         .onAppear { refreshChips() }
+    }
+
+    // MARK: - Layout
+
+    private var remaining: Int { max(0, log.proteinGoal - log.totalProteinCalories) }
+
+    private var progressHeader: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(log.totalProteinCalories)")
+                    .font(.system(size: 30, weight: .bold).monospacedDigit())
+                Text("/ \(log.proteinGoal) kcal")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: Spacing.s)
+                Text(log.totalProteinCalories > log.proteinGoal
+                     ? "\(log.totalProteinCalories - log.proteinGoal) over"
+                     : "\(remaining) left")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(log.totalProteinCalories > log.proteinGoal ? Color.orange : accentPrimary)
+            }
+
+            ProgressView(value: min(Double(log.totalProteinCalories) / Double(max(log.proteinGoal, 1)), 1))
+                .tint(log.totalProteinCalories > log.proteinGoal ? Color.orange : accentPrimary)
+
+            Text(subtitleLine)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var subtitleLine: String {
+        let count = log.sortedProteins.count
+        guard count > 0, let last = log.sortedProteins.last else {
+            return "Nothing logged yet today"
+        }
+        return "\(count) logged · last at \(DateHelpers.formattedTime(last.time))"
+    }
+
+    private var quickAddRow: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("QUICK ADD")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.s) {
+                    ForEach(suggestionChips) { item in
+                        Button {
+                            addSuggestion(item)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .lineLimit(1)
+                                Text(chipDetail(item))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 104, alignment: .leading)
+                            .padding(.horizontal, Spacing.m)
+                            .padding(.vertical, 10)
+                            .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private func chipDetail(_ item: SuggestionItem) -> String {
+        var parts: [String] = []
+        if let subtitle = item.subtitle, !subtitle.isEmpty { parts.append(subtitle) }
+        if let calories = item.calories { parts.append("\(calories) kcal") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var presetRow: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("MY PRESETS")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.s) {
+                    ForEach(presets, id: \.id) { preset in
+                        Button(preset.name) { addPreset(preset) }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private var secondaryActions: some View {
+        HStack(spacing: Spacing.s) {
+            secondaryTile(title: "Saved meals", systemImage: "square.stack.3d.up") {
+                onWillPresentSheet?(scrollAnchor)
+                showMeals = true
+            }
+            secondaryTile(title: "Snack", systemImage: "carrot.fill") {
+                onWillPresentSheet?(scrollAnchor)
+                showSnack = true
+            }
+            if canCopyYesterday {
+                secondaryTile(title: "Copy yesterday", systemImage: "arrow.uturn.backward") {
+                    copyYesterday()
+                }
+            }
+        }
+    }
+
+    private func secondaryTile(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.body)
+                Text(title)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 62)
+            .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(accentPrimary)
+    }
+
+    @ViewBuilder
+    private var logList: some View {
+        if log.sortedProteins.isEmpty {
+            Text("Log a meal with protein, sides, and hunger in one step. Snacks, saved meals and the checklist are still there for leftovers.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                HStack {
+                    Text("TODAY · \(log.sortedProteins.count) ITEM\(log.sortedProteins.count == 1 ? "" : "S")")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Hold a row for options")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(Array(log.sortedProteins.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 { Divider() }
+                        logRow(entry)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Tap edits, long-press deletes. The old row carried a permanent red trash icon,
+    /// which made a plain list of food look like a list of mistakes.
+    private func logRow(_ entry: ProteinEntry) -> some View {
+        Button {
+            onWillPresentSheet?(scrollAnchor)
+            editingEntry = entry
+        } label: {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                Text(DateHelpers.formattedTime(entry.time))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 58, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                    Text(rowDetail(entry))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: Spacing.s)
+
+                Text("\(entry.calories)")
+                    .font(.body.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.primary)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                onWillPresentSheet?(scrollAnchor)
+                editingEntry = entry
+            } label: {
+                Label("Edit amount", systemImage: "pencil")
+            }
+            Button {
+                editTimeEntry = entry
+            } label: {
+                Label("Change time", systemImage: "clock")
+            }
+            Button(role: .destructive) {
+                delete(entry)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func rowDetail(_ entry: ProteinEntry) -> String {
+        var parts = [entry.servingSize, "hunger \(entry.hungerBefore)→\(entry.hungerAfter)"]
+        if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
+            parts.append("+\(Int(entry.hydrationOz.rounded())) oz")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var hasHistory: Bool {
