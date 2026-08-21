@@ -78,13 +78,19 @@ struct SectionCard<Content: View, Trailing: View>: View {
         self.content = content()
     }
 
+    @Environment(\.sectionChrome) private var chrome
+
     private var collapsed: Bool {
-        isCollapsed?.wrappedValue ?? false
+        // A section that IS the screen has nothing to collapse into.
+        guard chrome == .card else { return false }
+        return isCollapsed?.wrappedValue ?? false
     }
 
     var body: some View {
         Card(emphasis: emphasis) {
             VStack(alignment: .leading, spacing: Spacing.m) {
+                // The nav bar already names a detail screen — no second title above the content.
+                if chrome == .card {
                 HStack(spacing: Spacing.s) {
                     if let systemImage {
                         Image(systemName: systemImage)
@@ -103,7 +109,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
                     }
                     Spacer(minLength: 8)
                     trailing()
-                    if let isCollapsed {
+                    if let isCollapsed, chrome == .card {
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 isCollapsed.wrappedValue.toggle()
@@ -118,6 +124,7 @@ struct SectionCard<Content: View, Trailing: View>: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(collapsed ? "Expand \(title)" : "Collapse \(title)")
                     }
+                }
                 }
 
                 if collapsed {
@@ -625,5 +632,25 @@ extension AppSettings {
                 try? context.save()
             }
         )
+    }
+}
+
+
+/// How a `SectionCard` presents itself. On a pushed detail screen the navigation bar
+/// already carries the title, and there is nothing above it to collapse into, so the
+/// header row and chevron are dropped.
+enum SectionChrome: Equatable {
+    case card
+    case detail
+}
+
+private struct SectionChromeKey: EnvironmentKey {
+    static let defaultValue: SectionChrome = .card
+}
+
+extension EnvironmentValues {
+    var sectionChrome: SectionChrome {
+        get { self[SectionChromeKey.self] }
+        set { self[SectionChromeKey.self] = newValue }
     }
 }

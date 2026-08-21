@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import OnPlanCore
 
 struct WeightBMISection: View {
     let selectedDate: Date
@@ -118,6 +119,8 @@ struct WeightBMISection: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Masking is a Today-screen affordance only: opening this screen is already the
+            // deliberate act of looking, so the figures show plainly here.
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Weight")

@@ -2,51 +2,86 @@ import SwiftUI
 import SwiftData
 import OnPlanCore
 
+/// Settings, regrouped so the things that change most often lead and carry their current
+/// value on the row, instead of a flat wall of identical navigation links.
+/// See the redesign canvas, "Settings".
 struct PhoneSettingsView: View {
     @EnvironmentObject private var store: OnPlanStore
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         NavigationStack {
+            let settings = DataStore.settings(in: modelContext)
+
             List {
+                Section("Goals") {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        SettingsValueRow(
+                            title: "Protein goal",
+                            systemImage: "fork.knife",
+                            value: "\(settings.defaultProteinGoal) kcal"
+                        )
+                    }
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        SettingsValueRow(
+                            title: "Hydration target",
+                            systemImage: "drop.fill",
+                            value: "\(settings.hydrationTargetOz) oz"
+                        )
+                    }
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        SettingsValueRow(
+                            title: "Goal weight & height",
+                            systemImage: "scalemass",
+                            value: goalBodyValue(settings)
+                        )
+                    }
+                }
+
+                Section {
+                    Toggle(isOn: hideWeightBinding) {
+                        Label("Hide weight until tapped", systemImage: "eye.slash")
+                    }
+                    NavigationLink {
+                        TrackingSettingsView(settings: settings)
+                    } label: {
+                        SettingsValueRow(
+                            title: "“Also today” sections",
+                            systemImage: "list.bullet",
+                            value: "\(alsoTodayCount(settings)) on"
+                        )
+                    }
+                    NavigationLink {
+                        DayLayoutSettingsView(settings: settings)
+                    } label: {
+                        Label("Day layout", systemImage: "list.bullet.rectangle")
+                    }
+                } header: {
+                    Text("Today screen")
+                } footer: {
+                    Text("Hiding weight masks it and your BMI on Today until you tap; it re-hides whenever you leave the app. Anything switched off leaves Today and the “Also today” list for good.")
+                }
+
                 Section("Look") {
                     NavigationLink {
                         PhoneThemeSettings()
                     } label: {
-                        Label("Theme", systemImage: "paintpalette")
+                        SettingsValueRow(
+                            title: "Theme",
+                            systemImage: "paintpalette",
+                            value: store.preferences.colorTheme.title
+                        )
                     }
                     NavigationLink {
                         PhoneAccessibilitySettings()
                     } label: {
                         Label("Accessibility", systemImage: "accessibility")
-                    }
-                    NavigationLink {
-                        DayLayoutSettingsView(settings: DataStore.settings(in: modelContext))
-                    } label: {
-                        Label("Day layout", systemImage: "list.bullet.rectangle")
-                    }
-                }
-
-                Section("Program") {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Label("Program & body", systemImage: "slider.horizontal.3")
-                    }
-                    NavigationLink {
-                        TrackingSettingsView(settings: DataStore.settings(in: modelContext))
-                    } label: {
-                        Label("Tracking & habits", systemImage: "checklist")
-                    }
-                    NavigationLink {
-                        NotificationsSettingsView(settings: DataStore.settings(in: modelContext))
-                    } label: {
-                        Label("Notifications", systemImage: "bell.badge")
-                    }
-                    NavigationLink {
-                        MotivationQuotesSettingsView(settings: DataStore.settings(in: modelContext))
-                    } label: {
-                        Label("Quotes", systemImage: "quote.closing")
                     }
                 }
 
@@ -54,22 +89,12 @@ struct PhoneSettingsView: View {
                     NavigationLink {
                         BackupRestoreView()
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label("Backup & restore", systemImage: "externaldrive.badge.icloud")
-                            Text("Full data backup for reinstalls or a new device")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("Backup & restore", systemImage: "externaldrive.badge.icloud")
                     }
                     NavigationLink {
                         ExportSheetView(selectedDate: Date())
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label("Export & share", systemImage: "square.and.arrow.up")
-                            Text("A day's report as CSV, PDF, or a share card")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("Export & share", systemImage: "square.and.arrow.up")
                     }
                 } header: {
                     Text("Data")
@@ -77,23 +102,75 @@ struct PhoneSettingsView: View {
                     Text("Backup is your whole journal, for moving devices. Export is a snapshot of one day's data to share.")
                 }
 
-                Section("App") {
+                Section("More") {
                     NavigationLink {
-                        PhoneAboutSettings()
+                        NotificationsSettingsView(settings: settings)
                     } label: {
-                        Label("About", systemImage: "info.circle")
+                        Label("Reminders", systemImage: "bell.badge")
+                    }
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Program & body", systemImage: "slider.horizontal.3")
+                    }
+                    NavigationLink {
+                        MotivationQuotesSettingsView(settings: settings)
+                    } label: {
+                        Label("Quotes", systemImage: "quote.closing")
                     }
                     NavigationLink {
                         PhoneWatchSettings()
                     } label: {
                         Label("Apple Watch", systemImage: "applewatch")
                     }
-                    Text("Configure the three Watch quick-add buttons. Logging still needs the iPhone reachable.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    NavigationLink {
+                        PhoneAboutSettings()
+                    } label: {
+                        Label("About & privacy", systemImage: "info.circle")
+                    }
                 }
             }
             .navigationTitle("Settings")
+        }
+    }
+
+    private func goalBodyValue(_ settings: AppSettings) -> String {
+        let unit = settings.usesMetricWeight ? "kg" : "lb"
+        guard let goal = settings.goalWeightLbs else {
+            return settings.hasHeight ? settings.heightDisplay : "Not set"
+        }
+        let value = settings.usesMetricWeight ? goal * 0.453592 : goal
+        return String(format: "%.0f %@", value, unit)
+    }
+
+    private func alsoTodayCount(_ settings: AppSettings) -> Int {
+        AlsoTodayCatalog.sections(for: settings).count
+    }
+
+    private var hideWeightBinding: Binding<Bool> {
+        Binding(
+            get: { store.preferences.hideWeightUntilTapped },
+            set: { newValue in
+                store.updatePreferences { $0.hideWeightUntilTapped = newValue }
+            }
+        )
+    }
+}
+
+/// A settings row that shows its current value, so the list answers questions without
+/// making you open every screen to find out what things are set to.
+struct SettingsValueRow: View {
+    let title: String
+    let systemImage: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: Spacing.s) {
+            Label(title, systemImage: systemImage)
+            Spacer(minLength: Spacing.s)
+            Text(value)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }

@@ -12,6 +12,7 @@ struct TodayTabView: View {
     @EnvironmentObject private var store: OnPlanStore
     var onOpenSettings: () -> Void = {}
     @State private var selectedDate = Date()
+    @State private var path: [TodayDestination] = []
     @State private var showExport = false
     @State private var showBodyComposition = false
     @State private var showBodyMeasurements = false
@@ -22,9 +23,10 @@ struct TodayTabView: View {
     private var accentProgress: Color { appTheme.protein }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             DayView(
                 selectedDate: $selectedDate,
+                path: $path,
                 onOpenSettings: onOpenSettings,
                 onOpenBodyComposition: { showBodyComposition = true },
                 onOpenBodyMeasurements: { showBodyMeasurements = true },
