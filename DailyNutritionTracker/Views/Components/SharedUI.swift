@@ -384,6 +384,9 @@ struct HydrationProgressBar: View {
     let current: Int
     let goal: Int
     var electrolyteSegments: [(start: Double, end: Double)] = []
+    /// Off where the surrounding layout already states the total and goal — otherwise
+    /// the same figures print twice, one above the other.
+    var showsCaption: Bool = true
     @Environment(\.accentProgress) private var progressColor
     @Environment(\.appTheme) private var appTheme
 
@@ -416,6 +419,7 @@ struct HydrationProgressBar: View {
             }
             .frame(height: 12)
 
+            if showsCaption {
             HStack {
                 Text("\(current) / \(goal) oz")
                     .font(.caption.weight(.semibold).monospacedDigit())
@@ -429,6 +433,7 @@ struct HydrationProgressBar: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
             }
         }
         .accessibilityElement(children: .ignore)

@@ -103,8 +103,9 @@ struct EatingReportView: View {
                 }
             }
         }
+        .background(Color.onPlanGroupedBackground)
         .navigationTitle("What I’ve Been Eating")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -309,32 +310,54 @@ private struct EatingDayPage: View {
 
     private var header: some View {
         Card {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(summary.formattedDay)
-                .font(.title3.bold())
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Text(summary.formattedDay)
+                    .font(.title3.bold())
 
-            ReportMetricRow(
-                title: "Protein",
-                value: "\(summary.proteinCalories) / \(summary.proteinGoal) kcal",
-                valueColor: proteinValueColor
-            )
-            ReportMetricRow(
-                title: "Water",
-                value: "\(summary.hydrationOz) / \(summary.hydrationTargetOz) oz",
-                valueColor: hydrationValueColor
-            )
-            if summary.vegetableCount > 0 || !summary.checklist.isEmpty {
-                ReportMetricRow(
-                    title: "Vegetables",
-                    value: "\(summary.vegetableCount) / \(EatingReportTargets.vegetablesPerDay)",
-                    valueColor: IntakeTargetColor.meetingMinimum(
-                        current: summary.vegetableCount,
-                        minimum: EatingReportTargets.vegetablesPerDay
+                HStack(spacing: Spacing.s) {
+                    headlineTile(
+                        value: "\(summary.proteinCalories)",
+                        caption: "of \(summary.proteinGoal) kcal",
+                        tint: proteinValueColor
                     )
-                )
+                    headlineTile(
+                        value: "\(summary.hydrationOz)",
+                        caption: "of \(summary.hydrationTargetOz) oz",
+                        tint: hydrationValueColor
+                    )
+                    if summary.vegetableCount > 0 || !summary.checklist.isEmpty {
+                        headlineTile(
+                            value: "\(summary.vegetableCount)",
+                            caption: "of \(EatingReportTargets.vegetablesPerDay) veg",
+                            tint: IntakeTargetColor.meetingMinimum(
+                                current: summary.vegetableCount,
+                                minimum: EatingReportTargets.vegetablesPerDay
+                            )
+                        )
+                    }
+                }
             }
         }
+    }
+
+    /// The day's three headline figures, sized to be read at a glance rather than
+    /// scanned as label/value pairs.
+    private func headlineTile(value: String, caption: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.title2.weight(.bold).monospacedDigit())
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.s)
+        .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var proteinValueColor: Color {

@@ -146,7 +146,8 @@ struct HydrationSection: View {
                 electrolyteSegments: HydrationRingSegments.electrolyteSegments(
                     slots: log.waterSlots,
                     goalOz: settings.hydrationTargetOz
-                )
+                ),
+                showsCaption: false
             )
 
             HStack(spacing: 6) {
