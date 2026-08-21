@@ -131,6 +131,8 @@ struct DayView: View {
             badge: total > goal ? "OVER" : nil,
             actionTitle: "Log",
             actionIsProminent: true,
+            weekValues: weekSeries { Double($0.totalProteinCalories) },
+            weekOverTint: appTheme.warn,
             onAction: { path.append(.protein) },
             onOpen: { path.append(.protein) },
             actionMenu: {
@@ -208,6 +210,8 @@ struct DayView: View {
             ),
             actionTitle: "\(formatOz(settings.defaultBottleOz))oz",
             actionIsProminent: false,
+            weekValues: weekSeries { Double($0.totalHydrationOz(settings: settings)) },
+            weekShortTint: appTheme.water.opacity(0.28),
             // Tap logs the usual bottle outright — the common case should not cost a screen.
             onAction: { logWater(settings.defaultBottleOz, kind: .water, log: log, settings: settings) },
             onOpen: { path.append(.hydration) },
@@ -236,6 +240,23 @@ struct DayView: View {
         try? modelContext.save()
         WidgetReloader.reloadAll()
         Task { await healthKit.writeWater(ounces: Int(oz.rounded()), on: selectedDate) }
+    }
+
+    /// The last fortnight ending on `selectedDate`, oldest first. Days with no log come
+    /// back as 0 so the strip shows the gap rather than silently compressing the run.
+    private func weekSeries(_ days: Int = 14, _ value: (DailyLog) -> Double) -> [Double] {
+        let calendar = Calendar.current
+        let end = DateHelpers.startOfDay(selectedDate)
+        guard let start = calendar.date(byAdding: .day, value: -(days - 1), to: end) else { return [] }
+        let logs = DataStore.logs(from: start, to: end, in: modelContext)
+        let byDay = Dictionary(
+            logs.map { (DateHelpers.startOfDay($0.date), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return (0..<days).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
+            return byDay[day].map(value) ?? 0
+        }
     }
 
     @ViewBuilder

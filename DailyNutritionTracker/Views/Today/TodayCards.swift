@@ -136,11 +136,16 @@ struct TodayWeightCard: View {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(weight.map { String(format: "%.1f", display($0.weightLbs)) } ?? "—")
                                 .font(.system(size: 34, weight: .bold, design: .default).monospacedDigit())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                                .layoutPriority(1)
                             Text(unitLabel)
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
+                                .fixedSize()
                             if let delta, !masking.isMasked {
                                 DeltaPill(value: delta, unit: unitLabel, good: appTheme.ok)
+                                    .fixedSize()
                             }
                         }
                     }
@@ -160,7 +165,7 @@ struct TodayWeightCard: View {
                         tint: masking.isMasked ? Color.secondary.opacity(0.25) : appTheme.tint,
                         showsEndpoint: !masking.isMasked
                     )
-                    .frame(width: 88, height: 40)
+                    .frame(width: 72, height: 38)
                 }
 
                 if masking.canHide {
@@ -314,6 +319,10 @@ struct TodayGoalCard<MenuContent: View>: View {
     var electrolyteSegments: [(start: Double, end: Double)] = []
     let actionTitle: String
     let actionIsProminent: Bool
+    /// Last seven days, oldest first. Empty hides the strip.
+    var weekValues: [Double] = []
+    var weekOverTint: Color?
+    var weekShortTint: Color?
     let onAction: () -> Void
     let onOpen: () -> Void
     /// Long-press menu on the action button: the quick options you would otherwise
@@ -322,6 +331,7 @@ struct TodayGoalCard<MenuContent: View>: View {
 
     var body: some View {
         Card {
+            VStack(spacing: Spacing.s) {
             HStack(spacing: Spacing.l) {
                 CompactGoalRing(
                     current: current,
@@ -378,6 +388,18 @@ struct TodayGoalCard<MenuContent: View>: View {
                 .foregroundStyle(actionIsProminent ? Color.white : tint)
                 .contextMenu { actionMenu() }
                 .accessibilityHint("Double tap to log. Touch and hold for more options.")
+            }
+
+            if !weekValues.isEmpty {
+                MiniTrendStrip(
+                    values: weekValues,
+                    goal: Double(goal),
+                    tint: tint,
+                    overTint: weekOverTint,
+                    shortTint: weekShortTint
+                )
+                .onTapGesture(perform: onOpen)
+            }
             }
         }
     }
@@ -614,5 +636,74 @@ struct TodayRitualCard: View {
     private var detailsSummary: String {
         let trimmed = log.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Notes, off-plan, ketones" : trimmed
+    }
+}
+
+// MARK: - Mini trend
+
+/// A one-week bar strip for a goal card, using the same rules as the matching Trends
+/// chart: bars against a threshold rule, coloured by whether the day cleared it.
+///
+/// Deliberately no axes or labels — at this size it answers "how has the week gone"
+/// at a glance, and the full chart is one tap away on Trends.
+struct MiniTrendStrip: View {
+    /// Oldest first, one entry per day, `0` for a day with nothing logged.
+    /// Fourteen days reads closest to the Trends chart at this size.
+    let values: [Double]
+    let goal: Double
+    let tint: Color
+    /// Set for a ceiling goal (protein): days above the line read as a warning.
+    var overTint: Color?
+    /// Set for a floor goal (hydration): days below the line read as short.
+    var shortTint: Color?
+    var height: CGFloat = 34
+
+    private var scaleMax: Double {
+        max(values.max() ?? goal, goal) * 1.15
+    }
+
+    private func color(for value: Double) -> Color {
+        if let overTint { return value > goal ? overTint : tint }
+        if let shortTint { return value >= goal ? tint : shortTint }
+        return tint
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: 2.5) {
+                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(value > 0 ? color(for: value) : Color.onPlanHairline)
+                        .frame(height: barHeight(for: value))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            // The threshold, drawn over the bars so it stays readable on a tall day.
+            GeometryReader { geo in
+                let y = geo.size.height - (goal / max(scaleMax, 0.001)) * geo.size.height
+                Rectangle()
+                    .fill((overTint ?? tint).opacity(0.7))
+                    .frame(height: 1)
+                    .offset(y: max(0, y))
+            }
+        }
+        .frame(height: height)
+        .accessibilityElement()
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func barHeight(for value: Double) -> CGFloat {
+        guard value > 0 else { return 2 }
+        let fraction = min(value / max(scaleMax, 0.001), 1)
+        return max(2, CGFloat(fraction) * height)
+    }
+
+    private var accessibilityLabel: String {
+        let logged = values.filter { $0 > 0 }.count
+        let cleared = overTint != nil
+            ? values.filter { $0 > 0 && $0 <= goal }.count
+            : values.filter { $0 >= goal }.count
+        return "Last \(values.count) days: \(cleared) of \(logged) logged days on target"
     }
 }
