@@ -641,14 +641,14 @@ struct TodayRitualCard: View {
 
 // MARK: - Mini trend
 
-/// A one-week bar strip for a goal card, using the same rules as the matching Trends
-/// chart: bars against a threshold rule, coloured by whether the day cleared it.
+/// A fortnight meter for a goal card: one equal block per day, coloured by whether that
+/// day met its goal. Height carries no meaning — the colour is the whole message.
 ///
-/// Deliberately no axes or labels — at this size it answers "how has the week gone"
-/// at a glance, and the full chart is one tap away on Trends.
+/// Deliberately not a bar chart. The full magnitudes live on Trends; here the question is
+/// only "how many of the last fourteen days went well", which reads faster as a run of
+/// blocks than as a row of differing heights.
 struct MiniTrendStrip: View {
     /// Oldest first, one entry per day, `0` for a day with nothing logged.
-    /// Fourteen days reads closest to the Trends chart at this size.
     let values: [Double]
     let goal: Double
     let tint: Color
@@ -656,47 +656,26 @@ struct MiniTrendStrip: View {
     var overTint: Color?
     /// Set for a floor goal (hydration): days below the line read as short.
     var shortTint: Color?
-    var height: CGFloat = 34
-
-    private var scaleMax: Double {
-        max(values.max() ?? goal, goal) * 1.15
-    }
+    var height: CGFloat = 20
 
     private func color(for value: Double) -> Color {
+        guard value > 0 else { return Color.onPlanHairline.opacity(0.6) }
         if let overTint { return value > goal ? overTint : tint }
         if let shortTint { return value >= goal ? tint : shortTint }
-        return tint
+        return value >= goal ? tint : tint.opacity(0.3)
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            HStack(alignment: .bottom, spacing: 2.5) {
-                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
-                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                        .fill(value > 0 ? color(for: value) : Color.onPlanHairline)
-                        .frame(height: barHeight(for: value))
-                        .frame(maxWidth: .infinity)
-                }
-            }
-
-            // The threshold, drawn over the bars so it stays readable on a tall day.
-            GeometryReader { geo in
-                let y = geo.size.height - (goal / max(scaleMax, 0.001)) * geo.size.height
-                Rectangle()
-                    .fill((overTint ?? tint).opacity(0.7))
-                    .frame(height: 1)
-                    .offset(y: max(0, y))
+        HStack(spacing: 3) {
+            ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(color(for: value))
+                    .frame(maxWidth: .infinity)
             }
         }
         .frame(height: height)
         .accessibilityElement()
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private func barHeight(for value: Double) -> CGFloat {
-        guard value > 0 else { return 2 }
-        let fraction = min(value / max(scaleMax, 0.001), 1)
-        return max(2, CGFloat(fraction) * height)
     }
 
     private var accessibilityLabel: String {
