@@ -39,6 +39,26 @@ enum DataStore {
         return created
     }
 
+    /// Clamps and writes the default protein goal, and updates today's log if it
+    /// already exists. Today's ring reads `DailyLog.proteinGoal`, which is copied
+    /// from settings when the day is first created and otherwise stays stale.
+    static func setDefaultProteinGoal(_ goal: Int, in context: ModelContext) {
+        let clamped = min(max(goal, AppLimits.proteinGoalMin), AppLimits.proteinGoalMax)
+        settings(in: context).defaultProteinGoal = clamped
+        if let today = existingLog(for: Date(), in: context) {
+            today.proteinGoal = clamped
+        }
+    }
+
+    /// Keep today's protein ring in sync with the current default. Past days are left alone.
+    static func syncTodayProteinGoalFromSettings(in context: ModelContext) {
+        let goal = settings(in: context).defaultProteinGoal
+        guard let today = existingLog(for: Date(), in: context) else { return }
+        guard today.proteinGoal != goal else { return }
+        today.proteinGoal = goal
+        try? context.save()
+    }
+
     /// Returns an existing day log without creating one.
     /// If CloudKit has more than one row for the same calendar day (Mac used to
     /// insert an empty "today"), pick the row with the most activity.

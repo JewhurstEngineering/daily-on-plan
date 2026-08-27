@@ -234,10 +234,7 @@ struct DayHeaderSection: View {
     }
 
     private func syncProteinGoalFromSettings() {
-        guard Calendar.current.isDateInToday(selectedDate) else { return }
-        guard log.proteinGoal != settings.defaultProteinGoal else { return }
-        log.proteinGoal = settings.defaultProteinGoal
-        try? modelContext.save()
+        DataStore.syncTodayProteinGoalFromSettings(in: modelContext)
     }
 
     private var offPlanReasonsBlock: some View {

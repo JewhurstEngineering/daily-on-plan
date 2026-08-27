@@ -90,8 +90,12 @@ struct DayView: View {
         }
         .onAppear {
             recentWeights = DataStore.recentWeights(limit: 30, in: modelContext)
+            DataStore.syncTodayProteinGoalFromSettings(in: modelContext)
             syncHealthIfNeeded(log: log, todayWeight: todayWeight)
             consumePendingSection()
+        }
+        .onChange(of: settings.defaultProteinGoal) { _, _ in
+            DataStore.syncTodayProteinGoalFromSettings(in: modelContext)
         }
         .onChange(of: pendingScrollSection) { _, _ in
             consumePendingSection()
@@ -99,6 +103,7 @@ struct DayView: View {
         .onChange(of: selectedDate) { _, _ in
             didSyncHealth = false
             recentWeights = DataStore.recentWeights(limit: 30, in: modelContext)
+            DataStore.syncTodayProteinGoalFromSettings(in: modelContext)
             let settings = DataStore.settings(in: modelContext)
             let log = DataStore.log(for: selectedDate, in: modelContext, defaultGoal: settings.defaultProteinGoal)
             let todayWeight = DataStore.weight(for: selectedDate, in: modelContext)

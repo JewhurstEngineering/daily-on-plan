@@ -2,6 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct SettingsView: View {
+    /// When true (sheet from the old day screen), wrap in a `NavigationStack` and show Done.
+    /// Phone Settings already has a stack, so Program & Body is pushed with this off.
+    var presentedAsSheet: Bool = true
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var settings: AppSettings?
@@ -13,30 +17,39 @@ struct SettingsView: View {
     @FocusState private var todayWeightFocused: Bool
     @Query(sort: \CustomFoodPreset.name) private var presets: [CustomFoodPreset]
 
+    @ViewBuilder
     var body: some View {
-        NavigationStack {
-            Group {
-                if let settings {
-                    settingsForm(settings)
-                } else {
-                    ProgressView()
+        if presentedAsSheet {
+            NavigationStack { settingsContent }
+        } else {
+            settingsContent
+        }
+    }
+
+    private var settingsContent: some View {
+        Group {
+            if let settings {
+                settingsForm(settings)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle(Self.screenTitle)
+        .toolbar {
+            #if os(iOS)
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    goalWeightFocused = false
+                    todayWeightFocused = false
+                    if let settings {
+                        commitGoalWeight(settings)
+                        commitTodayWeight(settings)
+                    }
+                    Keyboard.dismiss()
                 }
             }
-            .navigationTitle(Self.screenTitle)
-            .toolbar {
-                #if os(iOS)
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        goalWeightFocused = false
-                        todayWeightFocused = false
-                        if let settings {
-                            commitGoalWeight(settings)
-                            commitTodayWeight(settings)
-                        }
-                        Keyboard.dismiss()
-                    }
-                }
+            if presentedAsSheet {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         if let settings {
@@ -47,23 +60,23 @@ struct SettingsView: View {
                         dismiss()
                     }
                 }
-                #endif
             }
-            .onAppear {
-                let s = DataStore.settings(in: modelContext)
-                settings = s
-                if let goal = s.goalWeightLbs {
-                    let value = s.usesMetricWeight ? goal * 0.453592 : goal
-                    goalWeightText = String(format: "%.1f", value)
-                } else {
-                    goalWeightText = ""
-                }
-                loadTodayWeight(s)
-                let total = Int(s.heightInches)
-                if total > 0 {
-                    heightFeet = total / 12
-                    heightInchesPart = total % 12
-                }
+            #endif
+        }
+        .onAppear {
+            let s = DataStore.settings(in: modelContext)
+            settings = s
+            if let goal = s.goalWeightLbs {
+                let value = s.usesMetricWeight ? goal * 0.453592 : goal
+                goalWeightText = String(format: "%.1f", value)
+            } else {
+                goalWeightText = ""
+            }
+            loadTodayWeight(s)
+            let total = Int(s.heightInches)
+            if total > 0 {
+                heightFeet = total / 12
+                heightInchesPart = total % 12
             }
         }
     }
@@ -100,7 +113,7 @@ struct SettingsView: View {
                 value: Binding(
                     get: { settings.defaultProteinGoal },
                     set: {
-                        settings.defaultProteinGoal = $0
+                        DataStore.setDefaultProteinGoal($0, in: modelContext)
                         save(settings)
                     }
                 ),

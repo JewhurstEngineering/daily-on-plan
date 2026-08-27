@@ -16,7 +16,7 @@ struct PhoneSettingsView: View {
             List {
                 Section("Goals") {
                     NavigationLink {
-                        SettingsView()
+                        ProteinGoalSettingsForm(settings: settings)
                     } label: {
                         SettingsValueRow(
                             title: "Protein goal",
@@ -25,7 +25,7 @@ struct PhoneSettingsView: View {
                         )
                     }
                     NavigationLink {
-                        SettingsView()
+                        HydrationSettingsForm(settings: settings)
                     } label: {
                         SettingsValueRow(
                             title: "Hydration target",
@@ -34,7 +34,7 @@ struct PhoneSettingsView: View {
                         )
                     }
                     NavigationLink {
-                        SettingsView()
+                        BodyMetricsSettingsForm(settings: settings)
                     } label: {
                         SettingsValueRow(
                             title: "Goal weight & height",
@@ -109,7 +109,7 @@ struct PhoneSettingsView: View {
                         Label("Reminders", systemImage: "bell.badge")
                     }
                     NavigationLink {
-                        SettingsView()
+                        SettingsView(presentedAsSheet: false)
                     } label: {
                         Label("Program & body", systemImage: "slider.horizontal.3")
                     }

@@ -134,12 +134,12 @@ struct BodyCompositionEditView: View {
             }
 
             Section {
-                labeledField("Protein goal", placeholder: "e.g. 130-236", text: $proteinGoalText, field: .protein)
+                labeledField("Protein goal", placeholder: "e.g. 1210 kcal", text: $proteinGoalText, field: .protein)
                 labeledField("Water target", placeholder: "e.g. 180+1 OZ", text: $waterTargetText, field: .water)
             } header: {
                 Text("Goals")
             } footer: {
-                Text("Labels stay visible so you always know which field is protein vs water.")
+                Text("Protein is kcal, same as Today. A range uses the last number between \(AppLimits.proteinGoalMin) and \(AppLimits.proteinGoalMax). Saving can copy both onto your defaults.")
             }
 
             Section {
@@ -466,7 +466,7 @@ struct BodyCompositionEditView: View {
         let settings = DataStore.settings(in: modelContext)
         let protein = proteinGoalText.trimmingCharacters(in: .whitespacesAndNewlines)
         if let goal = parseProteinGoal(protein) {
-            settings.defaultProteinGoal = goal
+            DataStore.setDefaultProteinGoal(goal, in: modelContext)
         }
         let water = waterTargetText.trimmingCharacters(in: .whitespacesAndNewlines)
         if let oz = parseWaterTarget(water) {
@@ -474,17 +474,20 @@ struct BodyCompositionEditView: View {
         }
     }
 
+    /// Receipt text is messy: "1210", "1,210", "130-236". Prefer a number already in
+    /// the kcal range so a decimal like "1210.5" doesn't collapse to the trailing 5.
     private func parseProteinGoal(_ text: String) -> Int? {
-        let numbers = text.components(separatedBy: CharacterSet.decimalDigits.inverted)
+        let normalized = text.replacingOccurrences(of: ",", with: "")
+        let numbers = normalized.components(separatedBy: CharacterSet.decimalDigits.inverted)
             .compactMap { Int($0) }
-            .filter { $0 > 0 }
-        return numbers.last
+        return numbers.last { $0 >= AppLimits.proteinGoalMin && $0 <= AppLimits.proteinGoalMax }
     }
 
     private func parseWaterTarget(_ text: String) -> Int? {
         let numbers = text.components(separatedBy: CharacterSet.decimalDigits.inverted)
             .compactMap { Int($0) }
             .filter { $0 > 0 }
-        return numbers.first
+        guard let oz = numbers.first else { return nil }
+        return min(max(oz, 16), 400)
     }
 }

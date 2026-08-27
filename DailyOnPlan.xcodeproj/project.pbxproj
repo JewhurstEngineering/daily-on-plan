@@ -104,6 +104,7 @@
 		5516797950C7778CB6D8CA9E /* AddProteinSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE7ED365F78C767768341D8 /* AddProteinSheet.swift */; };
 		557A30B38E5A5B3F9442B7A5 /* DailyOnPlanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EBCBA4A2FE912994C406BB /* DailyOnPlanApp.swift */; };
 		57127E389CBA94DD01D1B683 /* SettingsOpenLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2172EC34798008FE059D8D5E /* SettingsOpenLink.swift */; };
+		57E28DB0C6ACFAB5A26BFD7A /* PhoneGoalSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E8A34594AE6D96ED05498CE /* PhoneGoalSettings.swift */; };
 		5859AC51EF68596481DD030D /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10F9626A539DA00D1E3573D2 /* DataStore.swift */; };
 		5A8EC4ABE12888534AC52C31 /* DayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3B3614275463806BFDCAAF /* DayView.swift */; };
 		5B37EF50B0BDE33146B61BC5 /* AccentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7BC21E38542FD83BA9C871B /* AccentTheme.swift */; };
@@ -505,6 +506,7 @@
 		89EB340174D9EAE3762C47DA /* HydrationDrinkConfirmSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HydrationDrinkConfirmSheet.swift; sourceTree = "<group>"; };
 		8D523AB9E9DC4335668390FB /* WidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetIntents.swift; sourceTree = "<group>"; };
 		8E824FFC49D6DE834C010806 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8E8A34594AE6D96ED05498CE /* PhoneGoalSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneGoalSettings.swift; sourceTree = "<group>"; };
 		8EE3D00BBC402D8170F904E8 /* ReportChartGuides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportChartGuides.swift; sourceTree = "<group>"; };
 		9175F36A7B3E1B9DFE61396D /* TodayScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayScreens.swift; sourceTree = "<group>"; };
 		93BC2DC98155846BB96D647A /* DailyOnPlanShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyOnPlanShortcuts.swift; sourceTree = "<group>"; };
@@ -921,6 +923,7 @@
 				6063BE3962F6E215DA20E2EB /* FirstLaunchImportView.swift */,
 				DF2E3A0D1A664A202FADF0D9 /* PhoneAboutSettings.swift */,
 				15EBC23318E5CAB4DE6A4580 /* PhoneAccessibilitySettings.swift */,
+				8E8A34594AE6D96ED05498CE /* PhoneGoalSettings.swift */,
 				EBAE39C138B9FBB92752AD0A /* PhoneSettingsView.swift */,
 				959024CD23A68EB25AE9C4BA /* PhoneThemeSettings.swift */,
 				228F2910BD0BBC23B01A8FFA /* PhoneWatchSettings.swift */,
@@ -1637,6 +1640,7 @@
 				711BE1B1704873C39BB8B4AE /* OpenFoodFactsClient.swift in Sources */,
 				131091DB68B31E8E16D97591 /* PhoneAboutSettings.swift in Sources */,
 				36CC398D7664A4DDF09D9AED /* PhoneAccessibilitySettings.swift in Sources */,
+				57E28DB0C6ACFAB5A26BFD7A /* PhoneGoalSettings.swift in Sources */,
 				91F4B60957843E48CF770141 /* PhoneSettingsView.swift in Sources */,
 				6D8C6DC18229E20EEA7A1A0A /* PhoneThemeSettings.swift in Sources */,
 				B4D146765575188F5B751708 /* PhoneWatchBridge.swift in Sources */,
