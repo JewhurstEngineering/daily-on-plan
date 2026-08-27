@@ -662,8 +662,9 @@ enum JournalSchemaV2: VersionedSchema {
     }
 }
 
-enum JournalSchemaV4: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(4, 0, 0) }
+/// Live types: per-entry macros (`macrosJSON`) plus the protein-grams floor.
+enum JournalSchemaV5: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(5, 0, 0) }
 
     static var models: [any PersistentModel.Type] {
         [
@@ -683,11 +684,17 @@ enum JournalSchemaV4: VersionedSchema {
 
 enum JournalMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [JournalSchemaV1.self, JournalSchemaV2.self, JournalSchemaV3.self, JournalSchemaV4.self]
+        [
+            JournalSchemaV1.self,
+            JournalSchemaV2.self,
+            JournalSchemaV3.self,
+            JournalSchemaV4.self,
+            JournalSchemaV5.self
+        ]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3, migrateV3toV4]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5]
     }
 
     private static let payloadURL: URL = {
@@ -742,6 +749,13 @@ enum JournalMigrationPlan: SchemaMigrationPlan {
     static let migrateV3toV4 = MigrationStage.lightweight(
         fromVersion: JournalSchemaV3.self,
         toVersion: JournalSchemaV4.self
+    )
+
+    /// Every field added in V5 is optional, so existing rows migrate untouched: entries logged
+    /// before macros existed simply read back with `macros == nil`, and their kcal is unchanged.
+    static let migrateV4toV5 = MigrationStage.lightweight(
+        fromVersion: JournalSchemaV4.self,
+        toVersion: JournalSchemaV5.self
     )
 }
 

@@ -244,6 +244,7 @@ targets:
       - path: DailyNutritionTracker/Models/Models.swift
       - path: DailyNutritionTracker/Models/JournalMigration.swift
       - path: DailyNutritionTracker/Models/JournalSchemaV3.swift
+      - path: DailyNutritionTracker/Models/JournalSchemaV4.swift
       - path: DailyNutritionTracker/Models/Enums.swift
       - path: DailyNutritionTracker/Utilities/FastingMath.swift
       - path: DailyNutritionTracker/Models/AccentTheme.swift

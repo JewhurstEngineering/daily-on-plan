@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 
 enum MealSuggestor {
     /// Builds a draft meal from prefers (if any) else catalog, respecting phase + excludes + remaining protein budget.
@@ -97,7 +98,8 @@ enum MealLogger {
                     hydrationOz: settings.suggestedHydrationOz(
                         forProteinCategory: category,
                         servings: component.servings
-                    )
+                    ),
+                    macros: component.totalMacros
                 )
                 log.proteins.append(entry)
             case .vegetable:

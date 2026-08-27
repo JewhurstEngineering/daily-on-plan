@@ -51,7 +51,7 @@ struct MacProgramSettingsView: View {
                         value: Binding(
                             get: { settings.defaultProteinGoal },
                             set: {
-                                settings.defaultProteinGoal = $0
+                                DataStore.setDefaultProteinGoal($0, in: modelContext)
                                 save()
                             }
                         ),

@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 
 struct DrinkScanCandidate: Identifiable, Hashable {
     let id: String
@@ -49,7 +50,9 @@ enum OpenFoodFactsClient {
             caloriesPerServing: max(0, calories),
             source: .openFoodFacts,
             barcode: product.code ?? barcode,
-            fdcId: nil
+            fdcId: nil,
+            macros: product.macrosPerServing,
+            carbBasisWasGuessed: product.carbBasis.wasGuessed
         )
     }
 
@@ -94,7 +97,7 @@ enum OpenFoodFactsClient {
         components.queryItems = [
             URLQueryItem(
                 name: "fields",
-                value: "code,product_name,brands,serving_size,serving_quantity,quantity,product_quantity,nutriments"
+                value: "code,product_name,brands,serving_size,serving_quantity,quantity,product_quantity,countries_tags,nutriments"
             )
         ]
         guard let url = components.url else { throw RemoteFoodError.invalidResponse }
@@ -130,7 +133,7 @@ enum OpenFoodFactsClient {
             URLQueryItem(name: "page_size", value: "\(limit)"),
             URLQueryItem(
                 name: "fields",
-                value: "code,product_name,brands,serving_size,serving_quantity,quantity,product_quantity,nutriments"
+                value: "code,product_name,brands,serving_size,serving_quantity,quantity,product_quantity,countries_tags,nutriments"
             )
         ]
         guard let url = components.url else { throw RemoteFoodError.invalidResponse }
@@ -162,7 +165,9 @@ enum OpenFoodFactsClient {
                 caloriesPerServing: max(0, calories),
                 source: .openFoodFacts,
                 barcode: product.code,
-                fdcId: nil
+                fdcId: nil,
+                macros: product.macrosPerServing,
+                carbBasisWasGuessed: product.carbBasis.wasGuessed
             )
         }
     }
@@ -278,6 +283,7 @@ private struct OFFProduct: Decodable {
     let servingQuantity: Double?
     let quantity: String?
     let productQuantity: String?
+    let countriesTags: [String]?
     let nutriments: OFFNutriments?
 
     enum CodingKeys: String, CodingKey {
@@ -288,6 +294,7 @@ private struct OFFProduct: Decodable {
         case servingQuantity = "serving_quantity"
         case quantity
         case productQuantity = "product_quantity"
+        case countriesTags = "countries_tags"
         case nutriments
     }
 
@@ -303,14 +310,127 @@ private struct OFFProduct: Decodable {
         }
         return nil
     }
+
+    /// Which carbohydrate convention this product's figures follow.
+    ///
+    /// Open Food Facts copies whatever the package declared into a single `carbohydrates` field
+    /// and does not record the convention, so it has to be inferred. Getting this wrong subtracts
+    /// fibre twice on every European product.
+    var carbBasis: (basis: Macros.CarbBasis, wasGuessed: Bool) {
+        LabelConventions.carbBasis(
+            hasExplicitTotalCarb: nutriments?.carbohydratesTotal100g != nil
+                || nutriments?.carbohydratesTotalServing != nil,
+            countryTags: countriesTags ?? []
+        )
+    }
+
+    /// Macros for one serving, scaling from per-100g when no per-serving figure was published.
+    var macrosPerServing: Macros? {
+        guard let n = nutriments else { return nil }
+        let basis = carbBasis
+
+        /// Serving figure if present, else the 100 g figure scaled to the serving size.
+        func value(_ serving: Double?, _ per100: Double?) -> Double? {
+            LabelConventions.perServing(
+                servingValue: serving,
+                per100Value: per100,
+                servingQuantity: servingQuantity
+            )
+        }
+
+        /// Mass nutrients arrive in grams even when the label printed milligrams.
+        func milligrams(_ serving: Double?, _ per100: Double?) -> Double? {
+            guard let grams = value(serving, per100) else { return nil }
+            return grams * 1000
+        }
+
+        let carbs = basis.basis == .total
+            ? value(n.carbohydratesTotalServing, n.carbohydratesTotal100g)
+                ?? value(n.carbohydratesServing, n.carbohydrates100g)
+            : value(n.carbohydratesServing, n.carbohydrates100g)
+
+        let macros = Macros(
+            protein: value(n.proteinsServing, n.proteins100g),
+            totalCarb: carbs,
+            fiber: value(n.fiberServing, n.fiber100g),
+            sugars: value(n.sugarsServing, n.sugars100g),
+            addedSugars: value(n.addedSugarsServing, n.addedSugars100g),
+            sugarAlcohols: value(n.polyolsServing, n.polyols100g),
+            fat: value(n.fatServing, n.fat100g),
+            saturatedFat: value(n.saturatedFatServing, n.saturatedFat100g),
+            transFat: value(n.transFatServing, n.transFat100g),
+            cholesterolMg: milligrams(n.cholesterolServing, n.cholesterol100g),
+            sodiumMg: milligrams(n.sodiumServing, n.sodium100g),
+            alcohol: value(n.alcoholServing, n.alcohol100g),
+            carbBasis: basis.basis,
+            source: .scan,
+            labelKcal: caloriesPerServing
+        )
+        return macros.isEmpty ? nil : macros
+    }
 }
 
+/// Nutriments are normalised by Open Food Facts to grams (and kcal), whatever unit the package
+/// printed — a label saying "150 mg sodium" comes back as `sodium_serving = 0.15`.
 private struct OFFNutriments: Decodable {
     let energyKcalServing: Double?
     let energyKcal100g: Double?
+    let proteinsServing: Double?
+    let proteins100g: Double?
+    let carbohydratesServing: Double?
+    let carbohydrates100g: Double?
+    /// Present only when the source label was US-style, where the declared figure includes fibre.
+    let carbohydratesTotalServing: Double?
+    let carbohydratesTotal100g: Double?
+    let fiberServing: Double?
+    let fiber100g: Double?
+    let sugarsServing: Double?
+    let sugars100g: Double?
+    let addedSugarsServing: Double?
+    let addedSugars100g: Double?
+    let polyolsServing: Double?
+    let polyols100g: Double?
+    let fatServing: Double?
+    let fat100g: Double?
+    let saturatedFatServing: Double?
+    let saturatedFat100g: Double?
+    let transFatServing: Double?
+    let transFat100g: Double?
+    let cholesterolServing: Double?
+    let cholesterol100g: Double?
+    let sodiumServing: Double?
+    let sodium100g: Double?
+    let alcoholServing: Double?
+    let alcohol100g: Double?
 
     enum CodingKeys: String, CodingKey {
         case energyKcalServing = "energy-kcal_serving"
         case energyKcal100g = "energy-kcal_100g"
+        case proteinsServing = "proteins_serving"
+        case proteins100g = "proteins_100g"
+        case carbohydratesServing = "carbohydrates_serving"
+        case carbohydrates100g = "carbohydrates_100g"
+        case carbohydratesTotalServing = "carbohydrates-total_serving"
+        case carbohydratesTotal100g = "carbohydrates-total_100g"
+        case fiberServing = "fiber_serving"
+        case fiber100g = "fiber_100g"
+        case sugarsServing = "sugars_serving"
+        case sugars100g = "sugars_100g"
+        case addedSugarsServing = "added-sugars_serving"
+        case addedSugars100g = "added-sugars_100g"
+        case polyolsServing = "polyols_serving"
+        case polyols100g = "polyols_100g"
+        case fatServing = "fat_serving"
+        case fat100g = "fat_100g"
+        case saturatedFatServing = "saturated-fat_serving"
+        case saturatedFat100g = "saturated-fat_100g"
+        case transFatServing = "trans-fat_serving"
+        case transFat100g = "trans-fat_100g"
+        case cholesterolServing = "cholesterol_serving"
+        case cholesterol100g = "cholesterol_100g"
+        case sodiumServing = "sodium_serving"
+        case sodium100g = "sodium_100g"
+        case alcoholServing = "alcohol_serving"
+        case alcohol100g = "alcohol_100g"
     }
 }

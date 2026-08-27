@@ -16,6 +16,9 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
     public var colorVision: ColorVision
     public var distinguishWithoutColor: Bool
     public var highContrast: Bool
+    /// Masks the weight figure, BMI and weight trend until the viewer taps to reveal.
+    /// Reveal is session-scoped — see `WeightRevealState`.
+    public var hideWeightUntilTapped: Bool
     /// iPhone-configured Watch quick-add (pushed to Watch in the day snapshot).
     public var watchQuickAdd: WatchQuickAdd
     /// Per-Mac mute. Reminder times still live in CloudKit `AppSettings`.
@@ -305,6 +308,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision: .typical,
         distinguishWithoutColor: false,
         highContrast: false,
+        hideWeightUntilTapped: true,
         watchQuickAdd: .default
     )
 
@@ -323,6 +327,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision: ColorVision = .typical,
         distinguishWithoutColor: Bool = false,
         highContrast: Bool = false,
+        hideWeightUntilTapped: Bool = true,
         watchQuickAdd: WatchQuickAdd = .default,
         notifyOnThisMac: Bool = true
     ) {
@@ -340,6 +345,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         self.colorVision = colorVision
         self.distinguishWithoutColor = distinguishWithoutColor
         self.highContrast = highContrast
+        self.hideWeightUntilTapped = hideWeightUntilTapped
         self.watchQuickAdd = watchQuickAdd
         self.notifyOnThisMac = notifyOnThisMac
     }
@@ -360,6 +366,7 @@ public struct DisplayPreferences: Codable, Sendable, Equatable {
         colorVision = try c.decodeIfPresent(ColorVision.self, forKey: .colorVision) ?? .typical
         distinguishWithoutColor = try c.decodeIfPresent(Bool.self, forKey: .distinguishWithoutColor) ?? false
         highContrast = try c.decodeIfPresent(Bool.self, forKey: .highContrast) ?? false
+        hideWeightUntilTapped = try c.decodeIfPresent(Bool.self, forKey: .hideWeightUntilTapped) ?? true
         watchQuickAdd = try c.decodeIfPresent(WatchQuickAdd.self, forKey: .watchQuickAdd) ?? .default
         notifyOnThisMac = try c.decodeIfPresent(Bool.self, forKey: .notifyOnThisMac) ?? true
     }

@@ -11,20 +11,28 @@ struct SnapshotReportView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
                 if snapshot.logs.isEmpty {
                     EmptyReportHint()
                 } else {
                     header
                     averageDayCard
+                    // The Trends feed already owns these charts — reuse them rather than
+                    // maintaining a second, differently-styled copy here.
+                    WeightTrendCard(snapshot: snapshot)
+                    ProteinTrendCard(snapshot: snapshot)
+                    HydrationTrendCard(snapshot: snapshot)
+                    PlanTrendCard(snapshot: snapshot)
+                    offPlanCard
                     weeklySection
                     callouts
                 }
             }
             .padding()
         }
+        .background(Color.onPlanGroupedBackground)
         .navigationTitle("Snapshot")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPlanInlineNav()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -90,251 +98,101 @@ struct SnapshotReportView: View {
 
     private var averageDayCard: some View {
         Card {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Average day", systemImage: "sun.max")
-                .font(.headline)
-
-            metricGrid
-
-            if !snapshot.proteinSeries.isEmpty {
-                Text("Protein vs goal")
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Label("Average day", systemImage: "sun.max")
                     .font(.subheadline.weight(.semibold))
-                Chart {
-                    ForEach(snapshot.proteinSeries) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("kcal", point.value),
-                            series: .value("Series", "Actual")
-                        )
-                        .foregroundStyle(Color.accentColor)
-                    }
-                    ForEach(snapshot.proteinGoalSeries) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("kcal", point.value),
-                            series: .value("Series", "Goal")
-                        )
-                        .foregroundStyle(.orange)
-                        .lineStyle(StrokeStyle(dash: [4, 3]))
-                    }
-                }
-                    .frame(height: 160)
-                    .chartPaddedYScale(
-                        values: snapshot.proteinSeries.map(\.value) + snapshot.proteinGoalSeries.map(\.value),
-                        pad: ChartValueScale.proteinPadKcal,
-                        floorAtZero: true
-                    )
+                metricGrid
             }
-
-            if !snapshot.offPlanReasonCounts.isEmpty {
-                Text("Off-plan reasons")
-                    .font(.subheadline.weight(.semibold))
-                Text("Tagged on days you didn’t follow the plan. A day can count toward more than one reason.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                ForEach(snapshot.offPlanReasonCounts.prefix(8)) { item in
-                    ReportMetricRow(title: item.name, value: "\(item.count)×")
-                }
-            }
-
-            if !snapshot.hydrationSeries.isEmpty {
-                Text("Water intake")
-                    .font(.subheadline.weight(.semibold))
-                Chart {
-                    ForEach(snapshot.hydrationSeries) { point in
-                        LineMark(
-                            x: .value("Day", point.date),
-                            y: .value("oz", point.value)
-                        )
-                        .foregroundStyle(Color.accentColor)
-                    }
-                    RuleMark(y: .value("Target", snapshot.hydrationTarget))
-                        .foregroundStyle(.orange)
-                        .lineStyle(StrokeStyle(dash: [4, 3]))
-                }
-                .frame(height: 140)
-                .chartPaddedYScale(
-                    values: snapshot.hydrationSeries.map(\.value),
-                    goal: snapshot.hydrationTarget,
-                    pad: ChartValueScale.waterPadOz,
-                    floorAtZero: true
-                )
-            }
-
-            if snapshot.weightSeries.count > 1 {
-                Text("Weight")
-                    .font(.subheadline.weight(.semibold))
-                ReportChartGuideToggles(
-                    showGoal: $showGoal,
-                    showStart: $showStart,
-                    showTrend: $showTrend,
-                    hasGoal: snapshot.goalWeightDisplay != nil
-                )
-                Chart {
-                    ReportSeriesGuides.marks(
-                        series: snapshot.weightSeries,
-                        yLabel: "Weight",
-                        goal: snapshot.goalWeightDisplay,
-                        showGoal: showGoal,
-                        showStart: showStart,
-                        showTrend: showTrend
-                    )
-                }
-                .frame(height: 140)
-                .chartYAxisLabel(snapshot.settings.usesMetricWeight ? "kg" : "lb")
-                .chartLegend(.hidden)
-                .chartPaddedYScale(
-                    values: ReportSeriesGuides.domainValues(
-                        series: snapshot.weightSeries,
-                        showTrend: showTrend
-                    ),
-                    goal: snapshot.goalWeightDisplay,
-                    pad: ChartValueScale.weightPad(usesMetric: snapshot.settings.usesMetricWeight)
-                )
-            }
-
-            if snapshot.showsSmokingReport, !snapshot.cigaretteSeries.isEmpty {
-                Text("Cigarettes")
-                    .font(.subheadline.weight(.semibold))
-                Chart {
-                    ForEach(snapshot.cigaretteSeries) { point in
-                        BarMark(
-                            x: .value("Day", point.date),
-                            y: .value("Cigs", point.value)
-                        )
-                        .foregroundStyle(Color.accentColor)
-                    }
-                    if let limit = snapshot.settings.effectiveDailyCigaretteLimit {
-                        RuleMark(y: .value("Max", Double(limit)))
-                            .foregroundStyle(.orange)
-                            .lineStyle(StrokeStyle(dash: [4, 3]))
-                    }
-                }
-                .frame(height: 140)
-                .chartPaddedYScale(
-                    values: snapshot.cigaretteSeries.map(\.value),
-                    goal: snapshot.settings.effectiveDailyCigaretteLimit.map(Double.init),
-                    pad: ChartValueScale.countPad,
-                    floorAtZero: true
-                )
-            }
-
-            if snapshot.showsDrinkingReport, !snapshot.drinkSeries.isEmpty {
-                Text("Drinks")
-                    .font(.subheadline.weight(.semibold))
-                Chart {
-                    ForEach(snapshot.drinkSeries) { point in
-                        BarMark(
-                            x: .value("Day", point.date),
-                            y: .value("Drinks", point.value)
-                        )
-                        .foregroundStyle(Color.accentColor)
-                    }
-                    if let limit = snapshot.settings.effectiveDailyDrinkLimit {
-                        RuleMark(y: .value("Max", Double(limit)))
-                            .foregroundStyle(.orange)
-                            .lineStyle(StrokeStyle(dash: [4, 3]))
-                    }
-                }
-                .frame(height: 140)
-                .chartPaddedYScale(
-                    values: snapshot.drinkSeries.map(\.value),
-                    goal: snapshot.settings.effectiveDailyDrinkLimit.map(Double.init),
-                    pad: ChartValueScale.countPad,
-                    floorAtZero: true
-                )
-            }
-        }
         }
     }
 
-    private var metricGrid: some View {
-        let unit = snapshot.settings.usesMetricWeight ? "kg" : "lb"
-        return VStack(spacing: 10) {
-            ReportMetricRow(
-                title: "Avg protein",
-                value: String(format: "%.0f / %.0f kcal", snapshot.avgProteinCalories, snapshot.avgProteinGoal)
-            )
-            ReportMetricRow(
-                title: "Days ≤ protein goal",
-                value: "\(snapshot.daysOnProteinGoal)/\(snapshot.logs.count)"
-            )
-            ReportMetricRow(
-                title: "Avg water",
-                value: String(format: "%.0f oz (%.0f%% hit target)", snapshot.avgWaterOz, snapshot.hydrationHitRate)
-            )
-            ReportMetricRow(
-                title: "Avg feelings / day",
-                value: String(format: "%.1f%@", snapshot.avgFeelingsPerDay, snapshot.feelingCounts.first.map { " · top: \($0.name)" } ?? "")
-            )
-            ReportMetricRow(
-                title: "Avg veggies logged",
-                value: String(format: "%.1f / day", snapshot.avgVeggiesPerDay)
-            )
-            ReportMetricRow(
-                title: "Avg workout minutes",
-                value: String(format: "%.0f / day", snapshot.avgWorkoutMinutesPerDay)
-            )
-            ReportMetricRow(
-                title: "Supplement adherence",
-                value: String(format: "%.0f%%", snapshot.overallSupplementAdherencePercent)
-            )
-            ReportMetricRow(
-                title: "Followed plan",
-                value: String(format: "%.0f%% of days", snapshot.planFollowRate)
-            )
-            if snapshot.offPlanDays > 0 {
-                ReportMetricRow(
-                    title: "Off-plan days",
-                    value: "\(snapshot.offPlanDays)/\(snapshot.logs.count)"
-                )
-            }
-            ReportMetricRow(
-                title: "Ketosis",
-                value: String(format: "%.0f%% of days", snapshot.ketosisRate)
-            )
-            if let delta = snapshot.weightDelta {
-                ReportMetricRow(
-                    title: "Weight change",
-                    value: String(format: "%@%.1f %@", delta >= 0 ? "+" : "", delta, unit)
-                )
-            }
-            if let goal = snapshot.goalWeightDisplay {
-                ReportMetricRow(
-                    title: "Goal weight",
-                    value: String(format: "%.1f %@", goal, unit)
-                )
-            }
-            if let toGo = snapshot.weightToGoDisplay {
-                ReportMetricRow(title: "Vs goal", value: weightToGoLabel(toGo, unit: unit))
-            }
-            if snapshot.showsSmokingReport {
-                ReportMetricRow(
-                    title: "Avg cigarettes / day",
-                    value: String(format: "%.1f (%@)", snapshot.avgCigarettesPerDay, CigarettePackMath.packsLabel(cigarettes: Int(snapshot.avgCigarettesPerDay.rounded())))
-                )
-                ReportMetricRow(
-                    title: "Smoke-free days",
-                    value: "\(snapshot.smokeFreeDaysInRange)/\(snapshot.logs.count)"
-                )
-            }
-            if snapshot.showsDrinkingReport {
-                ReportMetricRow(
-                    title: "Avg drinks / day",
-                    value: String(format: "%.1f", snapshot.avgDrinksPerDay)
-                )
-                ReportMetricRow(
-                    title: "Alcohol-free days",
-                    value: "\(snapshot.alcoholFreeDaysInRange)/\(snapshot.logs.count)"
-                )
-            }
-            if let bmi = snapshot.latestBMI {
-                ReportMetricRow(
-                    title: "Latest BMI",
-                    value: String(format: "%.1f (%@)", bmi, BMICalculator.category(for: bmi))
-                )
+    @ViewBuilder
+    private var offPlanCard: some View {
+        if !snapshot.offPlanReasonCounts.isEmpty {
+            Card {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Text("Off-plan reasons")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Tagged on days you didn't follow the plan. A day can count toward more than one reason.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(snapshot.offPlanReasonCounts.prefix(8)) { item in
+                        Divider()
+                        HStack {
+                            Text(item.name)
+                                .font(.subheadline)
+                            Spacer()
+                            Text("\(item.count)×")
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                        }
+                        .frame(minHeight: 30)
+                    }
+                }
             }
         }
+    }
+
+    /// Two-up tiles: the same figures as before, but scannable instead of a column of
+    /// twenty label/value rows.
+    private var metricGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: Spacing.s), GridItem(.flexible(), spacing: Spacing.s)],
+            spacing: Spacing.s
+        ) {
+            ForEach(Array(averageDayStats.enumerated()), id: \.offset) { _, stat in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(stat.value)
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(stat.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 52, alignment: .topLeading)
+                .padding(Spacing.s)
+                .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            }
+        }
+    }
+
+    private var averageDayStats: [(title: String, value: String)] {
+        let unit = snapshot.settings.usesMetricWeight ? "kg" : "lb"
+        var stats: [(String, String)] = [
+            ("Avg protein", String(format: "%.0f kcal", snapshot.avgProteinCalories)),
+            ("Days ≤ protein goal", "\(snapshot.daysOnProteinGoal)/\(snapshot.logs.count)"),
+            ("Avg water", String(format: "%.0f oz", snapshot.avgWaterOz)),
+            ("Hit water target", String(format: "%.0f%%", snapshot.hydrationHitRate)),
+            ("Followed plan", String(format: "%.0f%%", snapshot.planFollowRate)),
+            ("Ketosis", String(format: "%.0f%%", snapshot.ketosisRate)),
+            ("Avg veggies / day", String(format: "%.1f", snapshot.avgVeggiesPerDay)),
+            ("Avg workout min", String(format: "%.0f", snapshot.avgWorkoutMinutesPerDay)),
+            ("Avg feelings / day", String(format: "%.1f", snapshot.avgFeelingsPerDay)),
+            ("Supplement adherence", String(format: "%.0f%%", snapshot.overallSupplementAdherencePercent))
+        ]
+        if snapshot.offPlanDays > 0 {
+            stats.append(("Off-plan days", "\(snapshot.offPlanDays)/\(snapshot.logs.count)"))
+        }
+        if let delta = snapshot.weightDelta {
+            stats.append(("Weight change", String(format: "%@%.1f %@", delta >= 0 ? "+" : "−", abs(delta), unit)))
+        }
+        if let goal = snapshot.goalWeightDisplay {
+            stats.append(("Goal weight", String(format: "%.0f %@", goal, unit)))
+        }
+        if let toGo = snapshot.weightToGoDisplay {
+            stats.append(("Vs goal", weightToGoLabel(toGo, unit: unit)))
+        }
+        if snapshot.showsSmokingReport {
+            stats.append(("Avg cigs / day", String(format: "%.1f", snapshot.avgCigarettesPerDay)))
+            stats.append(("Smoke-free days", "\(snapshot.smokeFreeDaysInRange)/\(snapshot.logs.count)"))
+        }
+        if snapshot.showsDrinkingReport {
+            stats.append(("Avg drinks / day", String(format: "%.1f", snapshot.avgDrinksPerDay)))
+            stats.append(("Alcohol-free days", "\(snapshot.alcoholFreeDaysInRange)/\(snapshot.logs.count)"))
+        }
+        return stats
     }
 
     private func weightToGoLabel(_ toGo: Double, unit: String) -> String {

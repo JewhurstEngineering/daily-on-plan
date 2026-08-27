@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OnPlanCore
 
 enum JSONStringList {
     static func decode(_ json: String?) -> [String] {
@@ -100,6 +101,8 @@ final class DailyLog {
     var offPlanExtraCarbGramsStored: Double?
     var offPlanExtraFatGramsStored: Double?
     var offPlanExtraKcalStored: Int?
+    /// Protein floor in grams for the day. Nil falls back to the settings default.
+    var proteinGramsGoalStored: Int?
 
     init(date: Date = Date(), proteinGoal: Int = 500) {
         self.id = UUID()
@@ -184,8 +187,59 @@ final class DailyLog {
         set { offPlanExtraKcalStored = newValue > 0 ? newValue : nil }
     }
 
+    /// Protein floor for the day. Unlike `proteinGoal` — a kcal ceiling to stay under — this is a
+    /// target to reach. Falls back to the app default until the day sets its own.
+    func proteinGramsGoal(settings: AppSettings) -> Int {
+        proteinGramsGoalStored ?? settings.defaultProteinGramsGoal
+    }
+
     var totalProteinCalories: Int {
         proteins.reduce(0) { $0 + $1.calories }
+    }
+
+    // MARK: - Macros
+
+    /// Everything known about what was eaten today, summed. Nil when no entry carries macros.
+    var dayMacros: Macros? {
+        proteins.compactMap(\.macros).total()
+    }
+
+    /// Grams of protein logged today — the floor the day is measured against.
+    var totalProteinGrams: Double {
+        proteins.compactMap { $0.macros?.protein }.reduce(0, +)
+    }
+
+    var totalNetCarbGrams: Double {
+        proteins.compactMap { $0.macros?.netCarb }.reduce(0, +)
+    }
+
+    var totalSugarGrams: Double {
+        proteins.compactMap { $0.macros?.sugars }.reduce(0, +)
+    }
+
+    var totalAddedSugarGrams: Double {
+        proteins.compactMap { $0.macros?.addedSugars }.reduce(0, +)
+    }
+
+    var totalFatGrams: Double {
+        proteins.compactMap { $0.macros?.fat }.reduce(0, +)
+    }
+
+    var totalFiberGrams: Double {
+        proteins.compactMap { $0.macros?.fiber }.reduce(0, +)
+    }
+
+    var totalSodiumMg: Double {
+        proteins.compactMap { $0.macros?.sodiumMg }.reduce(0, +)
+    }
+
+    /// Entries still missing macros, for the backfill screen and the "partial data" hints.
+    var proteinsMissingMacros: [ProteinEntry] {
+        proteins.filter { $0.macros == nil }
+    }
+
+    var hasAnyMacros: Bool {
+        proteins.contains { $0.macros != nil }
     }
 
     var sortedFeelings: [FeelingEntry] {
@@ -701,6 +755,9 @@ final class ProteinEntry {
     var servings: Double = 1
     /// Fluid ounces counted toward hydration when the setting is on (shakes, RTDs, etc.).
     var hydrationOzStored: Double?
+    /// Label macros for the whole logged amount, matching how `calories` is already a total.
+    /// JSON rather than a dozen columns, following `waterDrinksJSON` and `componentsJSON`.
+    var macrosJSON: String?
     var log: DailyLog?
 
     init(
@@ -712,7 +769,8 @@ final class ProteinEntry {
         hungerAfter: Int = 6,
         proteinCategory: String = "other",
         servings: Double = 1,
-        hydrationOz: Double? = nil
+        hydrationOz: Double? = nil,
+        macros: Macros? = nil
     ) {
         self.id = UUID()
         self.name = name
@@ -724,12 +782,22 @@ final class ProteinEntry {
         self.proteinCategory = proteinCategory
         self.servings = servings
         self.hydrationOzStored = hydrationOz
+        self.macrosJSON = macros?.encodedJSON
     }
 
     var hydrationOz: Double {
         get { max(0, hydrationOzStored ?? 0) }
         set { hydrationOzStored = newValue > 0 ? newValue : nil }
     }
+
+    /// Macros for the amount logged. Nil means never recorded — not zero.
+    var macros: Macros? {
+        get { Macros.decode(json: macrosJSON) }
+        set { macrosJSON = newValue?.encodedJSON }
+    }
+
+    /// Grams of protein in this entry, or nil when macros were never recorded.
+    var proteinGrams: Double? { macros?.protein }
 }
 
 @Model
@@ -1241,6 +1309,8 @@ final class CustomFoodPreset {
     var category: String = "protein"
     var proteinCategory: String = "other"
     var servingsPerUnit: Double = 1
+    /// Macros for **one** serving, so re-logging a known food fills itself in.
+    var macrosJSON: String?
 
     init(
         name: String,
@@ -1248,7 +1318,8 @@ final class CustomFoodPreset {
         calories: Int,
         category: String = "protein",
         proteinCategory: String = "other",
-        servingsPerUnit: Double = 1
+        servingsPerUnit: Double = 1,
+        macros: Macros? = nil
     ) {
         self.id = UUID()
         self.name = name
@@ -1257,6 +1328,13 @@ final class CustomFoodPreset {
         self.category = category
         self.proteinCategory = proteinCategory
         self.servingsPerUnit = servingsPerUnit
+        self.macrosJSON = macros?.encodedJSON
+    }
+
+    /// Per-serving macros. Multiply by servings to get what was actually eaten.
+    var macros: Macros? {
+        get { Macros.decode(json: macrosJSON) }
+        set { macrosJSON = newValue?.encodedJSON }
     }
 }
 
@@ -1318,6 +1396,8 @@ final class AppSettings {
     var heightInches: Double = 0
     var usesMetricWeight: Bool = false
     var defaultProteinGoal: Int = 500
+    /// Default protein floor in grams. Optional so existing stores migrate lightweight.
+    var defaultProteinGramsGoalStored: Int?
     var waterReminderEnabled: Bool = false
     var waterReminderIntervalHours: Int = 3
     var eveningCheckInEnabled: Bool = true
@@ -1579,6 +1659,13 @@ final class AppSettings {
     var showBathroomSection: Bool {
         get { showBathroomSectionStored ?? true }
         set { showBathroomSectionStored = newValue }
+    }
+
+    /// Protein floor in grams, the counterpart to `defaultProteinGoal`'s kcal ceiling.
+    /// 100 g/day is the starting point until it is set explicitly.
+    var defaultProteinGramsGoal: Int {
+        get { defaultProteinGramsGoalStored ?? 100 }
+        set { defaultProteinGramsGoalStored = max(0, newValue) }
     }
 
     /// When on, protein shakes / RTDs with hydration oz add to the day’s water total.

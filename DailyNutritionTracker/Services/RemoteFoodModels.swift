@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 
 enum RemoteFoodSource: String, Hashable {
     case openFoodFacts
@@ -21,12 +22,20 @@ struct RemoteFoodCandidate: Identifiable, Hashable {
     let source: RemoteFoodSource
     let barcode: String?
     let fdcId: Int?
+    /// Label macros for one serving, when the source published them.
+    var macros: Macros?
+    /// True when the carbohydrate convention was inferred rather than stated, so the confirm
+    /// sheet can offer to correct it.
+    var carbBasisWasGuessed: Bool = false
 
     var subtitle: String {
         var parts: [String] = []
         if let brand, !brand.isEmpty { parts.append(brand) }
         parts.append(servingLabel)
         parts.append("\(caloriesPerServing) kcal")
+        if let protein = Macros.gramsText(macros?.protein) {
+            parts.append("\(protein) g protein")
+        }
         parts.append(source.title)
         return parts.joined(separator: " · ")
     }

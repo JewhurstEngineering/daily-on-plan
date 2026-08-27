@@ -1,4 +1,5 @@
 import SwiftUI
+import OnPlanCore
 import SwiftData
 
 struct ProteinSection: View {
@@ -46,151 +47,30 @@ struct ProteinSection: View {
             isCollapsed: settings.sectionCollapsedBinding(.protein, context: modelContext),
             collapsedMessage: DaySectionID.protein.collapsedMessage
         ) {
+            progressHeader
+
+            // One primary action. Everything else is secondary and reads as such.
+            Button {
+                onWillPresentSheet?(scrollAnchor)
+                showAdd = true
+            } label: {
+                Label("Log food", systemImage: "plus")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+
             if !suggestionChips.isEmpty {
-                Text(hasHistory ? "Popular & recent" : "Suggestions")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                SuggestionChipRow(items: suggestionChips) { item in
-                    addSuggestion(item)
-                }
+                quickAddRow
             }
 
             if !presets.isEmpty {
-                Text("My presets")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(presets, id: \.id) { preset in
-                            Button(preset.name) { addPreset(preset) }
-                                .buttonStyle(.bordered)
-                        }
-                    }
-                }
+                presetRow
             }
 
-            if !recentMeals.isEmpty {
-                Text("Recent meals")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(recentMeals, id: \.id) { meal in
-                            Button(meal.name) {
-                                MealLogger.apply(components: meal.components, to: log, settings: settings)
-                                try? modelContext.save()
-                                refreshChips()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                }
-            }
+            secondaryActions
 
-            VStack(spacing: 10) {
-                Button {
-                    onWillPresentSheet?(scrollAnchor)
-                    showAdd = true
-                } label: {
-                    Label("Log meal", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                HStack(spacing: 10) {
-                    Button {
-                        onWillPresentSheet?(scrollAnchor)
-                        showSnack = true
-                    } label: {
-                        Label("Snack", systemImage: "carrot.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        onWillPresentSheet?(scrollAnchor)
-                        showMeals = true
-                    } label: {
-                        Label("Meals", systemImage: "square.stack.3d.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if canCopyYesterday {
-                    Button {
-                        copyYesterday()
-                    } label: {
-                        Label("Copy yesterday", systemImage: "arrow.uturn.backward")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            if log.sortedProteins.isEmpty {
-                Text("Log a meal with protein, sides, and hunger in one step. Snack, saved meals, and the checklist are still there for leftovers.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                DisclosureGroup("Log (\(log.sortedProteins.count))", isExpanded: $showLogList) {
-                    VStack(spacing: 0) {
-                        ForEach(log.sortedProteins, id: \.id) { entry in
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Button {
-                                        onWillPresentSheet?(scrollAnchor)
-                                        editingEntry = entry
-                                    } label: {
-                                        Text(entry.name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.primary)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    HStack(spacing: 4) {
-                                        Button(DateHelpers.formattedTime(entry.time)) {
-                                            editTimeEntry = entry
-                                        }
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(accentPrimary)
-                                        .buttonStyle(.plain)
-                                        Text("· \(entry.servingSize) · hunger \(entry.hungerBefore)→\(entry.hungerAfter)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
-                                        Text("+\(Int(entry.hydrationOz.rounded())) oz hydration")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Text(settings.proteinDrinksCountTowardHydration
-                                         ? "Tap name to edit calories & fl oz"
-                                         : "Tap name to edit amount")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 8)
-                                Text("\(entry.calories) kcal")
-                                    .font(.subheadline.monospacedDigit())
-                                    .foregroundStyle(.primary)
-
-                                Button(role: .destructive) {
-                                    delete(entry)
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .font(.body)
-                                        .foregroundStyle(.red)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Delete \(entry.name)")
-                            }
-                            .padding(.vertical, 6)
-                            Divider()
-                        }
-                    }
-                }
-            }
+            logList
         }
         .sheet(isPresented: $showAdd, onDismiss: { onWillPresentSheet?(scrollAnchor) }) {
             AddProteinSheet(
@@ -217,8 +97,14 @@ struct ProteinSection: View {
             EditProteinAmountSheet(
                 entry: entry,
                 allowHydrationEdit: settings.proteinDrinksCountTowardHydration,
-                onSave: { multiplier, calories, hydrationOz in
-                    applyAmount(to: entry, multiplier: multiplier, calories: calories, hydrationOz: hydrationOz)
+                onSave: { multiplier, calories, hydrationOz, macros in
+                    applyAmount(
+                        to: entry,
+                        multiplier: multiplier,
+                        calories: calories,
+                        hydrationOz: hydrationOz,
+                        macros: macros
+                    )
                     editingEntry = nil
                     refreshChips()
                 },
@@ -240,6 +126,229 @@ struct ProteinSection: View {
             }
         }
         .onAppear { refreshChips() }
+    }
+
+    // MARK: - Layout
+
+    private var remaining: Int { max(0, log.proteinGoal - log.totalProteinCalories) }
+
+    private var progressHeader: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(log.totalProteinCalories)")
+                    .font(.system(size: 30, weight: .bold).monospacedDigit())
+                Text("/ \(log.proteinGoal) kcal")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: Spacing.s)
+                Text(log.totalProteinCalories > log.proteinGoal
+                     ? "\(log.totalProteinCalories - log.proteinGoal) over"
+                     : "\(remaining) left")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(log.totalProteinCalories > log.proteinGoal ? Color.orange : accentPrimary)
+            }
+
+            ProgressView(value: min(Double(log.totalProteinCalories) / Double(max(log.proteinGoal, 1)), 1))
+                .tint(log.totalProteinCalories > log.proteinGoal ? Color.orange : accentPrimary)
+
+            Text(subtitleLine)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var subtitleLine: String {
+        let count = log.sortedProteins.count
+        guard count > 0, let last = log.sortedProteins.last else {
+            return "Nothing logged yet today"
+        }
+        return "\(count) logged · last at \(DateHelpers.formattedTime(last.time))"
+    }
+
+    private var quickAddRow: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("QUICK ADD")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.s) {
+                    ForEach(suggestionChips) { item in
+                        Button {
+                            addSuggestion(item)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .lineLimit(1)
+                                Text(chipDetail(item))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 104, alignment: .leading)
+                            .padding(.horizontal, Spacing.m)
+                            .padding(.vertical, 10)
+                            .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private func chipDetail(_ item: SuggestionItem) -> String {
+        var parts: [String] = []
+        if let subtitle = item.subtitle, !subtitle.isEmpty { parts.append(subtitle) }
+        if let calories = item.calories { parts.append("\(calories) kcal") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var presetRow: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("MY PRESETS")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.s) {
+                    ForEach(presets, id: \.id) { preset in
+                        Button(preset.name) { addPreset(preset) }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private var secondaryActions: some View {
+        HStack(spacing: Spacing.s) {
+            secondaryTile(title: "Saved meals", systemImage: "square.stack.3d.up") {
+                onWillPresentSheet?(scrollAnchor)
+                showMeals = true
+            }
+            secondaryTile(title: "Snack", systemImage: "carrot.fill") {
+                onWillPresentSheet?(scrollAnchor)
+                showSnack = true
+            }
+            if canCopyYesterday {
+                secondaryTile(title: "Copy yesterday", systemImage: "arrow.uturn.backward") {
+                    copyYesterday()
+                }
+            }
+        }
+    }
+
+    private func secondaryTile(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.body)
+                Text(title)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 62)
+            .background(Color.onPlanTertiaryFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(accentPrimary)
+    }
+
+    @ViewBuilder
+    private var logList: some View {
+        if log.sortedProteins.isEmpty {
+            Text("Log a meal with protein, sides, and hunger in one step. Snacks, saved meals and the checklist are still there for leftovers.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                HStack {
+                    Text("TODAY · \(log.sortedProteins.count) ITEM\(log.sortedProteins.count == 1 ? "" : "S")")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Hold a row for options")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(Array(log.sortedProteins.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 { Divider() }
+                        logRow(entry)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Tap edits, long-press deletes. The old row carried a permanent red trash icon,
+    /// which made a plain list of food look like a list of mistakes.
+    private func logRow(_ entry: ProteinEntry) -> some View {
+        Button {
+            onWillPresentSheet?(scrollAnchor)
+            editingEntry = entry
+        } label: {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                Text(DateHelpers.formattedTime(entry.time))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 58, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                    Text(rowDetail(entry))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                    if let summary = entry.macros?.compactSummary, !summary.isEmpty {
+                        Text(summary)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer(minLength: Spacing.s)
+
+                Text("\(entry.calories)")
+                    .font(.body.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.primary)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                onWillPresentSheet?(scrollAnchor)
+                editingEntry = entry
+            } label: {
+                Label("Edit amount", systemImage: "pencil")
+            }
+            Button {
+                editTimeEntry = entry
+            } label: {
+                Label("Change time", systemImage: "clock")
+            }
+            Button(role: .destructive) {
+                delete(entry)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func rowDetail(_ entry: ProteinEntry) -> String {
+        var parts = [entry.servingSize, "hunger \(entry.hungerBefore)→\(entry.hungerAfter)"]
+        if entry.hydrationOz > 0, settings.proteinDrinksCountTowardHydration {
+            parts.append("+\(Int(entry.hydrationOz.rounded())) oz")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var hasHistory: Bool {
@@ -270,9 +379,16 @@ struct ProteinSection: View {
         refreshChips()
     }
 
-    private func applyAmount(to entry: ProteinEntry, multiplier: Double, calories: Int, hydrationOz: Double?) {
+    private func applyAmount(
+        to entry: ProteinEntry,
+        multiplier: Double,
+        calories: Int,
+        hydrationOz: Double?,
+        macros: Macros?
+    ) {
         entry.servings = multiplier
         entry.calories = max(calories, 1)
+        entry.macros = macros
         if let hydrationOz {
             entry.hydrationOz = hydrationOz
         }
@@ -305,7 +421,8 @@ struct ProteinSection: View {
             hydrationOz: settings.suggestedHydrationOz(
                 forProteinCategory: category,
                 servings: servings
-            )
+            ),
+            macros: item.macros
         )
         modelContext.insert(entry)
         log.proteins.append(entry)
@@ -323,7 +440,8 @@ struct ProteinSection: View {
             hydrationOz: settings.suggestedHydrationOz(
                 forProteinCategory: preset.proteinCategory,
                 servings: preset.servingsPerUnit
-            )
+            ),
+            macros: preset.macros?.scaled(by: preset.servingsPerUnit)
         )
         modelContext.insert(entry)
         log.proteins.append(entry)
@@ -345,7 +463,8 @@ struct ProteinSection: View {
                 hungerAfter: 6,
                 proteinCategory: protein.proteinCategory,
                 servings: protein.servings,
-                hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil
+                hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil,
+                macros: protein.macros
             )
             modelContext.insert(entry)
             log.proteins.append(entry)
@@ -388,7 +507,7 @@ extension SavedMeal: Identifiable {}
 struct EditProteinAmountSheet: View {
     let entry: ProteinEntry
     var allowHydrationEdit: Bool = false
-    var onSave: (Double, Int, Double?) -> Void
+    var onSave: (Double, Int, Double?, Macros?) -> Void
     var onDelete: () -> Void
     var onCancel: () -> Void
 
@@ -397,6 +516,8 @@ struct EditProteinAmountSheet: View {
     @State private var totalCalories = 0
     @State private var countTowardHydration = false
     @State private var hydrationOz: Double = 8
+    /// Per-serving macros, so changing the multiplier rescales them instead of invalidating them.
+    @State private var macroDraft = MacroDraft()
     @FocusState private var caloriesFocused: Bool
     @FocusState private var hydrationFocused: Bool
 
@@ -408,6 +529,11 @@ struct EditProteinAmountSheet: View {
             return per
         }
         return max(entry.calories, 1)
+    }
+
+    /// Macros for the amount now being logged.
+    private var scaledMacros: Macros? {
+        macroDraft.macros?.scaled(by: servings)
     }
 
     private var looksLikeDrink: Bool {
@@ -443,29 +569,46 @@ struct EditProteinAmountSheet: View {
                         }
                     }
 
-                    HStack {
-                        Text("Total calories")
-                        Spacer()
-                        TextField("kcal", text: $caloriesText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .focused($caloriesFocused)
-                            .frame(maxWidth: 100)
-                            .onChange(of: caloriesText) { _, newValue in
-                                let filtered = newValue.filter(\.isNumber)
-                                if filtered != newValue { caloriesText = filtered }
-                                if let value = Int(filtered), value > 0 {
-                                    totalCalories = value
+                    if macroDraft.canDeriveCalories {
+                        HStack {
+                            Text("Total calories")
+                            Spacer()
+                            Text("\(totalCalories) kcal")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        HStack {
+                            Text("Total calories")
+                            Spacer()
+                            TextField("kcal", text: $caloriesText)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .focused($caloriesFocused)
+                                .frame(maxWidth: 100)
+                                .onChange(of: caloriesText) { _, newValue in
+                                    let filtered = newValue.filter(\.isNumber)
+                                    if filtered != newValue { caloriesText = filtered }
+                                    if let value = Int(filtered), value > 0 {
+                                        totalCalories = value
+                                    }
                                 }
-                            }
-                        Text("kcal")
-                            .foregroundStyle(.secondary)
+                            Text("kcal")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } header: {
                     Text(entry.name)
                 } footer: {
-                    Text("Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
+                    Text(macroDraft.canDeriveCalories
+                         ? "Calories come from the nutrition numbers below, scaled by the servings."
+                         : "Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
                 }
+
+                MacroFieldsSection(
+                    draft: $macroDraft,
+                    derivedKcal: macroDraft.macros?.resolvedKcal
+                )
 
                 if allowHydrationEdit {
                     Section {
@@ -521,14 +664,19 @@ struct EditProteinAmountSheet: View {
                         let hydration: Double? = allowHydrationEdit
                             ? (countTowardHydration ? max(hydrationOz, 0) : 0)
                             : nil
-                        onSave(servings, max(totalCalories, 1), hydration)
+                        onSave(servings, max(totalCalories, 1), hydration, scaledMacros)
                     }
                 }
+            }
+            .onChange(of: macroDraft) { _, _ in
+                if !caloriesFocused { syncCaloriesFromServings() }
             }
             .onAppear {
                 servings = max(entry.servings, 0.5)
                 totalCalories = max(entry.calories, 1)
                 caloriesText = "\(totalCalories)"
+                // Stored macros are totals; the form works in per-serving terms.
+                macroDraft = MacroDraft(entry.macros?.scaled(by: 1 / max(entry.servings, 0.01)))
                 if entry.hydrationOz > 0 {
                     countTowardHydration = true
                     hydrationOz = entry.hydrationOz
@@ -544,7 +692,11 @@ struct EditProteinAmountSheet: View {
     }
 
     private func syncCaloriesFromServings() {
-        totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        if let derived = scaledMacros?.resolvedKcal, derived > 0 {
+            totalCalories = derived
+        } else {
+            totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        }
         caloriesText = "\(totalCalories)"
     }
 }

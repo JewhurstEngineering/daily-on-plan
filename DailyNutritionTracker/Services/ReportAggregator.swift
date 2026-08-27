@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import OnPlanCore
 
 enum ReportRange: String, CaseIterable, Identifiable {
     case week7 = "7d"
@@ -117,6 +118,100 @@ struct ReportSnapshot {
 
     var topProteins: [NamedCount] {
         ranked(logs.flatMap(\.proteins).map(\.name))
+    }
+
+    // MARK: Macros
+
+    /// Days in range that carry at least one entry with macros. Everything below is scoped to
+    /// these, so a chart never averages a logged-but-macro-less day in as a zero.
+    var macroLogs: [DailyLog] {
+        logs.filter(\.hasAnyMacros)
+    }
+
+    var hasMacroData: Bool { !macroLogs.isEmpty }
+
+    /// How much of the range actually carries macros — shown so a sparse chart is read correctly.
+    var macroCoverage: (days: Int, total: Int) {
+        (macroLogs.count, logs.count)
+    }
+
+    var proteinGramsSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalProteinGrams) }
+    }
+
+    var proteinGramsGoalSeries: [DailyMetricPoint] {
+        macroLogs.map {
+            DailyMetricPoint(date: $0.date, value: Double($0.proteinGramsGoal(settings: settings)))
+        }
+    }
+
+    var netCarbSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalNetCarbGrams) }
+    }
+
+    var sugarSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalSugarGrams) }
+    }
+
+    var addedSugarSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalAddedSugarGrams) }
+    }
+
+    var fatSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalFatGrams) }
+    }
+
+    var fiberSeries: [DailyMetricPoint] {
+        macroLogs.map { DailyMetricPoint(date: $0.date, value: $0.totalFiberGrams) }
+    }
+
+    var avgProteinGrams: Double { average(proteinGramsSeries) }
+    var avgNetCarbGrams: Double { average(netCarbSeries) }
+    var avgSugarGrams: Double { average(sugarSeries) }
+    var avgFatGrams: Double { average(fatSeries) }
+    var avgFiberGrams: Double { average(fiberSeries) }
+
+    /// Days that reached the protein floor.
+    var daysHittingProteinFloor: Int {
+        macroLogs.filter { $0.totalProteinGrams >= Double($0.proteinGramsGoal(settings: settings)) }.count
+    }
+
+    /// Share of calories from each macro across the range, for the split readout.
+    /// Nil when nothing in range carries enough to work it out.
+    var macroSplit: (protein: Double, carb: Double, fat: Double)? {
+        let totals = macroLogs.compactMap(\.dayMacros).total()
+        guard let totals,
+              let kcal = totals.computedKcal, kcal > 0 else { return nil }
+        let proteinKcal = (totals.protein ?? 0) * NutritionMath.kcalPerGramProtein
+        let fatKcal = (totals.fat ?? 0) * NutritionMath.kcalPerGramFat
+        let carbKcal = max(0, Double(kcal) - proteinKcal - fatKcal)
+        return (proteinKcal / Double(kcal), carbKcal / Double(kcal), fatKcal / Double(kcal))
+    }
+
+    /// What kind of food is being eaten, inferred from entry names — no tagging required.
+    var foodTypeBreakdown: [(type: FoodType, count: Int)] {
+        FoodTypeHeuristic.breakdown(of: logs.flatMap(\.proteins).map(\.name))
+    }
+
+    /// The names the classifier didn't recognise, ranked. Surfaced in the card so an oversized
+    /// Unclassified bucket is something you can look inside and fix, not just a shrug.
+    var unclassifiedFoodNames: [NamedCount] {
+        ranked(
+            logs.flatMap(\.proteins)
+                .map(\.name)
+                .filter { FoodTypeHeuristic.classify($0) == .unclassified },
+            limit: 40
+        )
+    }
+
+    /// Entries still missing macros, newest first — what the backfill screen works through.
+    var entriesMissingMacros: [ProteinEntry] {
+        logs.flatMap(\.proteinsMissingMacros).sorted { $0.time > $1.time }
+    }
+
+    private func average(_ points: [DailyMetricPoint]) -> Double {
+        guard !points.isEmpty else { return 0 }
+        return points.reduce(0) { $0 + $1.value } / Double(points.count)
     }
 
     // MARK: Feelings

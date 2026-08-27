@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OnPlanCore
 
 /// Unified catalog + saved-preset row for search-first protein logging.
 private struct ProteinSearchItem: Identifiable, Hashable {
@@ -14,6 +15,8 @@ private struct ProteinSearchItem: Identifiable, Hashable {
     let unitCalories: Int
     let proteinCategory: ProteinCategory
     let source: Source
+    /// Per-serving macros remembered from a previous log of this food.
+    let macros: Macros?
 
     var subtitle: String {
         let cat = proteinCategory == .other ? "Custom" : proteinCategory.title
@@ -29,7 +32,8 @@ private struct ProteinSearchItem: Identifiable, Hashable {
             servingLabel: food.servingLabel,
             unitCalories: unit,
             proteinCategory: category,
-            source: .catalog
+            source: .catalog,
+            macros: nil
         )
     }
 
@@ -47,7 +51,8 @@ private struct ProteinSearchItem: Identifiable, Hashable {
             servingLabel: preset.servingLabel.isEmpty ? "1 serving" : preset.servingLabel,
             unitCalories: unit,
             proteinCategory: category,
-            source: .preset
+            source: .preset,
+            macros: preset.macros
         )
     }
 }
@@ -73,6 +78,9 @@ struct AddProteinSheet: View {
     @State private var servings: Double = 1
     @State private var totalCalories: Int = 35
     @State private var caloriesText = "35"
+    /// Macros for one serving. Scaled by `servings` on save, so editing the multiplier never
+    /// forces the label numbers to be retyped.
+    @State private var macroDraft = MacroDraft()
     @State private var hungerBefore = 4
     @State private var hungerAfter = 6
     @State private var time = Date()
@@ -194,6 +202,7 @@ struct AddProteinSheet: View {
                 if let selected, !showCustomForm {
                     selectedFoodSection(selected)
                     amountSection
+                    macroSection
                     detailsSection
                     hydrationSection
                     if includesMealSides { mealSidesSection }
@@ -201,6 +210,7 @@ struct AddProteinSheet: View {
                 } else if showCustomForm {
                     customFoodSection
                     amountSection
+                    macroSection
                     detailsSection
                     hydrationSection
                     if includesMealSides { mealSidesSection }
@@ -275,6 +285,9 @@ struct AddProteinSheet: View {
                 if showCustomForm, !caloriesFocused {
                     syncCaloriesFromServings()
                 }
+            }
+            .onChange(of: macroDraft) { _, _ in
+                syncCaloriesFromServings()
             }
             .onChange(of: search) { _, newValue in
                 scheduleRemoteSearch(for: newValue)
@@ -546,6 +559,15 @@ struct AddProteinSheet: View {
                 Text(String(format: "Servings: %.1f×", servings))
             }
 
+            if macroDraft.canDeriveCalories {
+                HStack {
+                    Text("Total calories")
+                    Spacer()
+                    Text("\(totalCalories) kcal")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            } else {
             HStack {
                 Text("Total calories")
                 Spacer()
@@ -577,11 +599,24 @@ struct AddProteinSheet: View {
                 in: 5...4000,
                 step: 5
             )
+            }
         } header: {
             Text("Amount")
         } footer: {
-            Text("Multipliers are shortcuts. Use +/− for ±5 kcal, or tap the number to type an exact amount.")
+            Text(macroDraft.canDeriveCalories
+                 ? "Calories come from the nutrition numbers below, scaled by the servings above."
+                 : "Multipliers are shortcuts. Use +/− for ±5 kcal, or tap the number to type an exact amount.")
         }
+    }
+
+    /// Macros for one serving; the calorie readout shows the amount actually being logged.
+    private var macroSection: some View {
+        MacroFieldsSection(draft: $macroDraft, derivedKcal: macroDraft.macros?.resolvedKcal)
+    }
+
+    /// What is actually being eaten: one serving's macros times the multiplier.
+    private var scaledMacros: Macros? {
+        macroDraft.macros?.scaled(by: servings)
     }
 
     private var detailsSection: some View {
@@ -693,6 +728,9 @@ struct AddProteinSheet: View {
         showCustomForm = false
         search = ""
         servings = 1
+        // A food logged with macros before comes back filled in.
+        macroDraft = MacroDraft(item.macros)
+        if item.macros != nil { macroDraft.source = .preset }
         syncCaloriesFromServings()
         refreshHydrationDefaults()
         searchFocused = false
@@ -703,6 +741,7 @@ struct AddProteinSheet: View {
         selected = nil
         showCustomForm = false
         servings = 1
+        macroDraft = MacroDraft()
         searchFocused = true
     }
 
@@ -713,6 +752,7 @@ struct AddProteinSheet: View {
         customUnitCalories = 100
         customCategory = .other
         servings = 1
+        macroDraft = MacroDraft()
         syncCaloriesFromServings()
         refreshHydrationDefaults()
         searchFocused = false
@@ -759,13 +799,20 @@ struct AddProteinSheet: View {
     }
 
     private func syncCaloriesFromServings() {
-        totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        // Macros win: the whole point is not having to work the calories out by hand.
+        if let derived = scaledMacros?.resolvedKcal, derived > 0 {
+            totalCalories = derived
+        } else {
+            totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        }
         caloriesText = "\(totalCalories)"
     }
 
     private func save() {
         Keyboard.dismiss()
-        if let typed = Int(caloriesText.filter(\.isNumber)), typed > 0 {
+        if let derived = scaledMacros?.resolvedKcal, derived > 0 {
+            totalCalories = derived
+        } else if let typed = Int(caloriesText.filter(\.isNumber)), typed > 0 {
             totalCalories = typed
         }
 
@@ -791,15 +838,18 @@ struct AddProteinSheet: View {
 
         // Remember per-serving calories from what was actually logged (e.g. 45 total at 1× → 45).
         let rememberedUnit = max(1, Int((Double(totalCalories) / max(servings, 0.5)).rounded()))
+        // Remembering the macros too is what makes the next log of this food fill itself in.
         let shouldRemember = showCustomForm
             || selected?.source == .preset
             || rememberedUnit != baseUnitCalories
+            || macroDraft.macros != nil
         if shouldRemember {
             upsertPreset(
                 name: name,
                 servingLabel: labelForPreset,
                 unitCalories: rememberedUnit,
-                proteinCategory: category
+                proteinCategory: category,
+                macros: macroDraft.macros
             )
         }
 
@@ -814,7 +864,8 @@ struct AddProteinSheet: View {
             servings: servings,
             hydrationOz: (settings.proteinDrinksCountTowardHydration && countTowardHydration)
                 ? hydrationOz
-                : nil
+                : nil,
+            macros: scaledMacros
         )
         modelContext.insert(entry)
         log.proteins.append(entry)
@@ -842,7 +893,8 @@ struct AddProteinSheet: View {
         name: String,
         servingLabel: String,
         unitCalories: Int,
-        proteinCategory: ProteinCategory
+        proteinCategory: ProteinCategory,
+        macros: Macros? = nil
     ) {
         let key = name.lowercased()
         if let existing = presets.first(where: { $0.name.lowercased() == key }) {
@@ -851,6 +903,8 @@ struct AddProteinSheet: View {
             existing.proteinCategory = proteinCategory.rawValue
             existing.servingsPerUnit = 1
             existing.category = FoodCategory.protein.rawValue
+            // Only overwrite remembered macros with something better, never with nothing.
+            if let macros { existing.macros = macros }
         } else {
             let preset = CustomFoodPreset(
                 name: name,
@@ -858,7 +912,8 @@ struct AddProteinSheet: View {
                 calories: unitCalories,
                 category: FoodCategory.protein.rawValue,
                 proteinCategory: proteinCategory.rawValue,
-                servingsPerUnit: 1
+                servingsPerUnit: 1,
+                macros: macros
             )
             modelContext.insert(preset)
         }

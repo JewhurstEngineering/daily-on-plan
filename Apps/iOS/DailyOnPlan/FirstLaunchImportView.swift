@@ -218,7 +218,7 @@ struct FirstLaunchImportView: View {
         let settings = DataStore.settings(in: modelContext)
         settings.phase = phase
         settings.usesMetricWeight = usesMetric
-        settings.defaultProteinGoal = proteinGoal
+        DataStore.setDefaultProteinGoal(proteinGoal, in: modelContext)
         settings.hydrationTargetOz = waterTarget
         try? modelContext.save()
         markOffered()

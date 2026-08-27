@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 
 enum DaySectionID: String, CaseIterable, Identifiable {
     case dailyStatus
@@ -540,6 +541,8 @@ struct MealComponent: Identifiable, Hashable, Codable {
     var proteinCategory: String?
     var servings: Double
     var amount: String?
+    /// Macros for **one** serving; scaled by `servings` when the component is logged.
+    var unitMacros: Macros?
 
     init(
         id: String = UUID().uuidString,
@@ -549,7 +552,8 @@ struct MealComponent: Identifiable, Hashable, Codable {
         unitCalories: Int,
         proteinCategory: String? = nil,
         servings: Double = 1,
-        amount: String? = nil
+        amount: String? = nil,
+        unitMacros: Macros? = nil
     ) {
         self.id = id
         self.name = name
@@ -559,6 +563,7 @@ struct MealComponent: Identifiable, Hashable, Codable {
         self.proteinCategory = proteinCategory
         self.servings = servings
         self.amount = amount
+        self.unitMacros = unitMacros
     }
 
     init(from food: CatalogFood, servings: Double = 1, amount: String? = nil) {
@@ -582,6 +587,11 @@ struct MealComponent: Identifiable, Hashable, Codable {
 
     var totalCalories: Int {
         Int((Double(unitCalories) * servings).rounded())
+    }
+
+    /// Macros for the amount actually eaten.
+    var totalMacros: Macros? {
+        unitMacros?.scaled(by: servings)
     }
 
     var displayAmount: String {

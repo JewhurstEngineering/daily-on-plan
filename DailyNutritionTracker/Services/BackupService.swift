@@ -268,6 +268,7 @@ struct DailyLogDTO: Codable {
     var offPlanExtraCarbGramsStored: Double?
     var offPlanExtraFatGramsStored: Double?
     var offPlanExtraKcalStored: Int?
+    var proteinGramsGoalStored: Int?
     var proteinEntries: [ProteinEntryDTO]
     var workoutEntries: [WorkoutEntryDTO]
     var feelingEntries: [FeelingEntryDTO]
@@ -299,6 +300,7 @@ struct DailyLogDTO: Codable {
         offPlanExtraCarbGramsStored = log.offPlanExtraCarbGramsStored
         offPlanExtraFatGramsStored = log.offPlanExtraFatGramsStored
         offPlanExtraKcalStored = log.offPlanExtraKcalStored
+        proteinGramsGoalStored = log.proteinGramsGoalStored
         proteinEntries = log.proteins.map(ProteinEntryDTO.init(from:))
         workoutEntries = log.workouts.map(WorkoutEntryDTO.init(from:))
         feelingEntries = log.feelings.map(FeelingEntryDTO.init(from:))
@@ -333,6 +335,7 @@ struct DailyLogDTO: Codable {
         log.offPlanExtraCarbGramsStored = offPlanExtraCarbGramsStored
         log.offPlanExtraFatGramsStored = offPlanExtraFatGramsStored
         log.offPlanExtraKcalStored = offPlanExtraKcalStored
+        log.proteinGramsGoalStored = proteinGramsGoalStored
         log.proteinEntries = []
         log.workoutEntries = []
         log.feelingEntries = []
@@ -371,6 +374,7 @@ struct ProteinEntryDTO: Codable {
     var proteinCategory: String
     var servings: Double
     var hydrationOzStored: Double?
+    var macrosJSON: String?
 
     init(from entry: ProteinEntry) {
         id = entry.id
@@ -383,6 +387,7 @@ struct ProteinEntryDTO: Codable {
         proteinCategory = entry.proteinCategory
         servings = entry.servings
         hydrationOzStored = entry.hydrationOzStored
+        macrosJSON = entry.macrosJSON
     }
 
     func makeModel() -> ProteinEntry {
@@ -399,6 +404,7 @@ struct ProteinEntryDTO: Codable {
         )
         entry.id = id
         entry.hydrationOzStored = hydrationOzStored
+        entry.macrosJSON = macrosJSON
         return entry
     }
 }
@@ -582,6 +588,7 @@ struct CustomFoodPresetDTO: Codable {
     var category: String
     var proteinCategory: String
     var servingsPerUnit: Double
+    var macrosJSON: String?
 
     init(from preset: CustomFoodPreset) {
         id = preset.id
@@ -591,6 +598,7 @@ struct CustomFoodPresetDTO: Codable {
         category = preset.category
         proteinCategory = preset.proteinCategory
         servingsPerUnit = preset.servingsPerUnit
+        macrosJSON = preset.macrosJSON
     }
 
     func makeModel() -> CustomFoodPreset {
@@ -603,6 +611,7 @@ struct CustomFoodPresetDTO: Codable {
             servingsPerUnit: servingsPerUnit
         )
         preset.id = id
+        preset.macrosJSON = macrosJSON
         return preset
     }
 }
@@ -634,6 +643,7 @@ struct AppSettingsDTO: Codable {
     var heightInches: Double
     var usesMetricWeight: Bool
     var defaultProteinGoal: Int
+    var defaultProteinGramsGoalStored: Int?
     var waterReminderEnabled: Bool
     var waterReminderIntervalHours: Int
     var eveningCheckInEnabled: Bool
@@ -712,6 +722,7 @@ struct AppSettingsDTO: Codable {
         heightInches = settings.heightInches
         usesMetricWeight = settings.usesMetricWeight
         defaultProteinGoal = settings.defaultProteinGoal
+        defaultProteinGramsGoalStored = settings.defaultProteinGramsGoalStored
         waterReminderEnabled = settings.waterReminderEnabled
         waterReminderIntervalHours = settings.waterReminderIntervalHours
         eveningCheckInEnabled = settings.eveningCheckInEnabled
@@ -792,6 +803,7 @@ struct AppSettingsDTO: Codable {
         settings.heightInches = heightInches
         settings.usesMetricWeight = usesMetricWeight
         settings.defaultProteinGoal = defaultProteinGoal
+        settings.defaultProteinGramsGoalStored = defaultProteinGramsGoalStored
         settings.waterReminderEnabled = waterReminderEnabled
         settings.waterReminderIntervalHours = waterReminderIntervalHours
         settings.eveningCheckInEnabled = eveningCheckInEnabled

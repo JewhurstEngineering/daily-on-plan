@@ -12,6 +12,21 @@ struct TodayTabView: View {
     @EnvironmentObject private var store: OnPlanStore
     var onOpenSettings: () -> Void = {}
     @State private var selectedDate = Date()
+    @State private var path: [TodayDestination] = {
+        #if DEBUG
+        // Screenshot runs can open straight onto a pushed screen: `-dop.startSection protein`.
+        switch UserDefaults.standard.string(forKey: "dop.startSection") {
+        case "protein": return [.protein]
+        case "hydration": return [.hydration]
+        case "weight": return [.weight]
+        case "alsoToday": return [.alsoToday]
+        case "checklist": return [.section(.checklist)]
+        default: return []
+        }
+        #else
+        []
+        #endif
+    }()
     @State private var showExport = false
     @State private var showBodyComposition = false
     @State private var showBodyMeasurements = false
@@ -22,9 +37,10 @@ struct TodayTabView: View {
     private var accentProgress: Color { appTheme.protein }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             DayView(
                 selectedDate: $selectedDate,
+                path: $path,
                 onOpenSettings: onOpenSettings,
                 onOpenBodyComposition: { showBodyComposition = true },
                 onOpenBodyMeasurements: { showBodyMeasurements = true },
