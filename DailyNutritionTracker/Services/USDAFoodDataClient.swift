@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 
 enum USDAFoodDataClient {
     private static let baseURL = URL(string: "https://api.nal.usda.gov/fdc/v1")!
@@ -101,7 +102,9 @@ enum USDAFoodDataClient {
                 caloriesPerServing: calories,
                 source: .usda,
                 barcode: food.gtinUpc,
-                fdcId: fdcId
+                fdcId: fdcId,
+                macros: food.macrosPerServing,
+                carbBasisWasGuessed: false
             )
         }
     }
@@ -138,25 +141,68 @@ private struct USDAFood: Decodable {
 
     /// Energy nutrient number 1008 is kcal. Search results often include it inline.
     var caloriesPerServing: Int? {
+        guard let value = nutrientValue(id: 1008, nameContains: "Energy", unit: "kcal"), value > 0 else {
+            return nil
+        }
+        return max(1, Int(scaledToServing(value).rounded()))
+    }
+
+    /// Looks a nutrient up by FoodData Central id, falling back to a name match.
+    ///
+    /// The id is matched against both `nutrientId` and `nutrientNumber` because the search and
+    /// detail endpoints disagree about which they populate, and the name fallback covers ids that
+    /// shift between dataset releases.
+    private func nutrientValue(id: Int, nameContains name: String, unit: String? = nil) -> Double? {
         guard let nutrients = foodNutrients else { return nil }
         for nutrient in nutrients {
-            let isEnergy =
-                nutrient.nutrientId == 1008
-                || nutrient.nutrientNumber == "1008"
-                || (nutrient.nutrientName?.localizedCaseInsensitiveContains("Energy") == true
-                    && (nutrient.unitName?.localizedCaseInsensitiveCompare("kcal") == .orderedSame
-                        || nutrient.unitName?.localizedCaseInsensitiveCompare("KCAL") == .orderedSame))
-            guard isEnergy, let value = nutrient.value ?? nutrient.amount, value > 0 else { continue }
-
-            // Foundation/SR Legacy are typically per 100g; branded often per household serving.
-            if let size = servingSize, size > 0, size != 100,
-               householdServingFullText == nil,
-               brandOwner == nil, brandName == nil {
-                return max(1, Int((value * size / 100.0).rounded()))
-            }
-            return max(1, Int(value.rounded()))
+            let matchesID = nutrient.nutrientId == id || nutrient.nutrientNumber == String(id)
+            let matchesName = nutrient.nutrientName?.localizedCaseInsensitiveContains(name) == true
+                && (unit == nil
+                    || nutrient.unitName?.localizedCaseInsensitiveCompare(unit!) == .orderedSame)
+            guard matchesID || matchesName else { continue }
+            if let value = nutrient.value ?? nutrient.amount { return value }
         }
         return nil
+    }
+
+    /// USDA figures are per 100 g for Foundation and SR Legacy; branded rows are per serving.
+    private func scaledToServing(_ value: Double) -> Double {
+        if let size = servingSize, size > 0, size != 100,
+           householdServingFullText == nil,
+           brandOwner == nil, brandName == nil {
+            return value * size / 100.0
+        }
+        return value
+    }
+
+    /// Macros for one serving.
+    ///
+    /// Nutrient 1005 is "Carbohydrate, by difference", which always includes fibre — USDA has no
+    /// EU-style available-carbohydrate ambiguity to resolve.
+    var macrosPerServing: Macros? {
+        func grams(_ id: Int, _ name: String) -> Double? {
+            guard let value = nutrientValue(id: id, nameContains: name) else { return nil }
+            return scaledToServing(value)
+        }
+
+        let macros = Macros(
+            protein: grams(1003, "Protein"),
+            totalCarb: grams(1005, "Carbohydrate, by difference"),
+            fiber: grams(1079, "Fiber, total dietary"),
+            sugars: grams(2000, "Sugars, total"),
+            addedSugars: grams(1235, "Sugars, added"),
+            sugarAlcohols: grams(1086, "Sugar alcohol"),
+            fat: grams(1004, "Total lipid"),
+            saturatedFat: grams(1258, "Fatty acids, total saturated"),
+            transFat: grams(1257, "Fatty acids, total trans"),
+            cholesterolMg: grams(1253, "Cholesterol"),
+            sodiumMg: grams(1093, "Sodium"),
+            alcohol: grams(1018, "Alcohol, ethyl"),
+            carbBasis: .total,
+            source: .scan,
+            labelKcal: caloriesPerServing
+        )
+        return macros.isEmpty ? nil : macros
     }
 }
 

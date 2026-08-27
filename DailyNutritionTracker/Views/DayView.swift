@@ -121,6 +121,16 @@ struct DayView: View {
         let subtitle = total > goal
             ? "\(total - goal) kcal over · \(meals) logged"
             : "\(remaining) kcal left · \(meals) logged"
+        // The grams bar only appears once something logged today carries macros — an empty bar
+        // would just be a reproach for days logged before this existed.
+        let proteinFloor: FloorGoal? = log.hasAnyMacros
+            ? FloorGoal(
+                label: "Protein",
+                current: log.totalProteinGrams,
+                goal: log.proteinGramsGoal(settings: settings),
+                unit: "g"
+            )
+            : nil
 
         return TodayGoalCard(
             title: "Protein",
@@ -136,6 +146,7 @@ struct DayView: View {
             badge: total > goal ? "OVER" : nil,
             actionTitle: "Log",
             actionIsProminent: true,
+            floor: proteinFloor,
             weekValues: weekSeries { Double($0.totalProteinCalories) },
             weekOverTint: appTheme.warn,
             onAction: { path.append(.protein) },
@@ -179,7 +190,8 @@ struct DayView: View {
             hydrationOz: settings(for: log).suggestedHydrationOz(
                 forProteinCategory: category,
                 servings: item.servings
-            )
+            ),
+            macros: item.macros
         )
         modelContext.insert(entry)
         log.proteins.append(entry)

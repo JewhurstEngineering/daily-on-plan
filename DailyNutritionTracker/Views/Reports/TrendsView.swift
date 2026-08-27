@@ -1,4 +1,5 @@
 import SwiftUI
+import OnPlanCore
 import SwiftData
 import Charts
 
@@ -38,6 +39,11 @@ struct TrendsView: View {
                     } else {
                         WeightTrendCard(snapshot: snap)
                         ProteinTrendCard(snapshot: snap)
+                        if snap.hasMacroData {
+                            MacroTrendCard(snapshot: snap)
+                            CarbSugarTrendCard(snapshot: snap)
+                        }
+                        FoodTypeTrendCard(snapshot: snap)
                         HydrationTrendCard(snapshot: snap)
                         PlanTrendCard(snapshot: snap)
                         moreCard(snapshot: snap)
@@ -190,9 +196,13 @@ struct TrendCard<Chart: View, Table: View>: View {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                     Text(heroValue)
                         .font(.system(size: 28, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .layoutPriority(1)
                     Text(heroCaption)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                     Spacer(minLength: Spacing.xs)
                     if let trailing {
                         Text(trailing)
@@ -400,6 +410,305 @@ struct ProteinTrendCard: View {
                 ($0.label, "\(Int($0.value)) kcal")
             })
         }
+    }
+}
+
+
+// MARK: - Macros
+
+/// Protein grams against the floor. Unlike the kcal card above, reaching the line is the win.
+struct MacroTrendCard: View {
+    let snapshot: ReportSnapshot
+    @Environment(\.appTheme) private var appTheme
+
+    private var series: [DailyMetricPoint] { snapshot.proteinGramsSeries }
+    private var goal: Double {
+        let goals = snapshot.proteinGramsGoalSeries.map(\.value)
+        guard !goals.isEmpty else { return Double(snapshot.settings.defaultProteinGramsGoal) }
+        return goals.reduce(0, +) / Double(goals.count)
+    }
+
+    var body: some View {
+        TrendCard(
+            title: "Protein grams",
+            heroValue: "\(Int(snapshot.avgProteinGrams.rounded()))",
+            heroCaption: "g/day average",
+            trailing: "\(snapshot.daysHittingProteinFloor) of \(series.count) days at goal",
+            trailingTint: snapshot.daysHittingProteinFloor > 0 ? appTheme.ok : nil
+        ) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Chart {
+                    ForEach(series) { point in
+                        BarMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("g", point.value)
+                        )
+                        .foregroundStyle(point.value >= goal ? appTheme.ok : appTheme.protein)
+                        .cornerRadius(2)
+                    }
+                    RuleMark(y: .value("Goal", goal))
+                        .foregroundStyle(appTheme.ok)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .annotation(position: .top, alignment: .leading) {
+                            Text("Goal \(Int(goal.rounded())) g")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(appTheme.ok)
+                        }
+                }
+                .trendAxes()
+                .frame(height: 130)
+
+                if let split = snapshot.macroSplit {
+                    MacroSplitBar(split: split)
+                }
+
+                Text(coverageCaption)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        } table: {
+            TrendTable(rows: series.reversed().map {
+                ($0.label, "\(Int($0.value.rounded())) g")
+            })
+        }
+    }
+
+    /// Says plainly how much of the range this chart actually covers, so a short bar is read as
+    /// "not recorded" rather than "ate nothing".
+    private var coverageCaption: String {
+        let coverage = snapshot.macroCoverage
+        if coverage.days == coverage.total {
+            return "Every logged day in this range has macros."
+        }
+        return "\(coverage.days) of \(coverage.total) logged days have macros — "
+            + "days without them are left out."
+    }
+}
+
+/// Where the calories came from, as one stacked bar.
+private struct MacroSplitBar: View {
+    let split: (protein: Double, carb: Double, fat: Double)
+    @Environment(\.appTheme) private var appTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            GeometryReader { proxy in
+                HStack(spacing: 1) {
+                    segment(split.protein, appTheme.protein, width: proxy.size.width)
+                    segment(split.carb, appTheme.water, width: proxy.size.width)
+                    segment(split.fat, appTheme.weight, width: proxy.size.width)
+                }
+            }
+            .frame(height: 8)
+            .clipShape(Capsule())
+
+            ChartLegend(items: [
+                (appTheme.protein, "Protein \(percent(split.protein))"),
+                (appTheme.water, "Carbs \(percent(split.carb))"),
+                (appTheme.weight, "Fat \(percent(split.fat))")
+            ])
+        }
+    }
+
+    private func segment(_ fraction: Double, _ color: Color, width: CGFloat) -> some View {
+        Rectangle()
+            .fill(color)
+            .frame(width: max(0, width * fraction))
+    }
+
+    private func percent(_ fraction: Double) -> String {
+        "\(Int((fraction * 100).rounded()))%"
+    }
+}
+
+/// Net carbs and sugar together — the pair worth watching for habits.
+struct CarbSugarTrendCard: View {
+    let snapshot: ReportSnapshot
+    @Environment(\.appTheme) private var appTheme
+
+    var body: some View {
+        TrendCard(
+            title: "Carbs & sugar",
+            heroValue: "\(Int(snapshot.avgSugarGrams.rounded()))",
+            heroCaption: "g sugar/day average",
+            trailing: "net carbs avg \(Int(snapshot.avgNetCarbGrams.rounded())) g"
+        ) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Chart {
+                    ForEach(snapshot.netCarbSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("g", point.value),
+                            series: .value("Series", "Net carbs")
+                        )
+                        .foregroundStyle(appTheme.water)
+                        .interpolationMethod(.monotone)
+                    }
+                    ForEach(snapshot.sugarSeries) { point in
+                        LineMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("g", point.value),
+                            series: .value("Series", "Sugar")
+                        )
+                        .foregroundStyle(appTheme.warn)
+                        .interpolationMethod(.monotone)
+                    }
+                }
+                .trendAxes()
+                .frame(height: 130)
+
+                ChartLegend(items: [
+                    (appTheme.water, "Net carbs"),
+                    (appTheme.warn, "Sugar")
+                ])
+
+                if snapshot.avgFiberGrams > 0 {
+                    Text("Fiber averages \(Int(snapshot.avgFiberGrams.rounded())) g/day "
+                         + "and is already subtracted from net carbs.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        } table: {
+            TrendTable(rows: snapshot.sugarSeries.reversed().map {
+                ($0.label, "\(Int($0.value.rounded())) g sugar")
+            })
+        }
+    }
+}
+
+/// What kind of food is being logged, worked out from entry names — nothing to tag.
+struct FoodTypeTrendCard: View {
+    let snapshot: ReportSnapshot
+    @Environment(\.appTheme) private var appTheme
+
+    @State private var showsUnclassified = false
+
+    private var rows: [(type: FoodType, count: Int)] { snapshot.foodTypeBreakdown }
+    private var total: Int { rows.reduce(0) { $0 + $1.count } }
+
+    /// The biggest bucket that actually names a kind of food — "Unclassified" leading is a fact
+    /// about the keyword list, not about what he ate.
+    private var topKnown: (type: FoodType, count: Int)? {
+        rows.first { $0.type != .unclassified }
+    }
+
+    private var unclassifiedCount: Int {
+        rows.first { $0.type == .unclassified }?.count ?? 0
+    }
+
+    var body: some View {
+        TrendCard(
+            title: "What kind of food",
+            heroValue: topKnown.map { "\($0.count)" } ?? "—",
+            heroCaption: topKnown.map { "× \($0.type.title), most logged" } ?? "nothing logged yet",
+            trailing: total > 0 ? "\(total) entries" : nil
+        ) {
+            if rows.isEmpty {
+                ChartPlaceholder(text: "No meals logged in this range.")
+            } else {
+                VStack(spacing: Spacing.xs) {
+                    ForEach(rows, id: \.type) { row in
+                        FoodTypeRow(
+                            type: row.type,
+                            count: row.count,
+                            fraction: total > 0 ? Double(row.count) / Double(total) : 0,
+                            tint: row.type == .unclassified ? Color.secondary : appTheme.protein
+                        )
+                    }
+
+                    if unclassifiedCount > 0 {
+                        unclassifiedDisclosure
+                    }
+                }
+            }
+        } table: {
+            TrendTable(rows: rows.map { ($0.type.title, "\($0.count)") })
+        }
+    }
+
+    /// Names are matched by keyword, so an unrecognised food is a gap in a list rather than a
+    /// mystery. Showing which names fell through makes the gap fixable.
+    private var unclassifiedDisclosure: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Divider()
+                .padding(.vertical, 2)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showsUnclassified.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(showsUnclassified ? "Hide unrecognised names" : "Which ones weren't recognised?")
+                        .font(.caption.weight(.semibold))
+                    Image(systemName: showsUnclassified ? "chevron.up" : "chevron.down")
+                        .font(.caption2.weight(.bold))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.secondary)
+                .frame(minHeight: 32)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if showsUnclassified {
+                ForEach(snapshot.unclassifiedFoodNames) { row in
+                    HStack {
+                        Text(row.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: Spacing.s)
+                        Text("\(row.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(minHeight: 24)
+                }
+
+                Text("These are matched on the food's name. Anything here just needs its word "
+                     + "adding to the list — nothing you logged is wrong.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
+            }
+        }
+    }
+}
+
+private struct FoodTypeRow: View {
+    let type: FoodType
+    let count: Int
+    let fraction: Double
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: Spacing.s) {
+            Image(systemName: type.symbolName)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            Text(type.title)
+                .font(.subheadline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 96, alignment: .leading)
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.14))
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: max(2, proxy.size.width * fraction))
+                }
+            }
+            .frame(height: 8)
+            Text("\(count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 28, alignment: .trailing)
+        }
+        .frame(minHeight: 26)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(type.title): \(count) entries")
     }
 }
 

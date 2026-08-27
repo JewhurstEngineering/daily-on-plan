@@ -7,7 +7,9 @@ struct ProteinGoalSettingsForm: View {
     @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @State private var goalText = ""
+    @State private var gramsText = ""
     @FocusState private var goalFocused: Bool
+    @FocusState private var gramsFocused: Bool
 
     var body: some View {
         Form {
@@ -33,17 +35,51 @@ struct ProteinGoalSettingsForm: View {
                     step: AppLimits.proteinGoalStep
                 )
             } header: {
-                Text("Protein")
+                Text("Calorie ceiling")
             } footer: {
                 Text("Today’s protein ring uses this goal. Past days keep whatever they were saved with.")
+            }
+
+            Section {
+                HStack {
+                    Text("Daily target")
+                    Spacer()
+                    TextField("g", text: $gramsText)
+                        .onPlanKeyboard(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($gramsFocused)
+                        .frame(maxWidth: 100)
+                    Text("g")
+                        .foregroundStyle(.secondary)
+                }
+                Stepper(
+                    "Adjust: \(settings.defaultProteinGramsGoal) g",
+                    value: Binding(
+                        get: { settings.defaultProteinGramsGoal },
+                        set: { applyGrams($0) }
+                    ),
+                    in: AppLimits.proteinGramsGoalMin...AppLimits.proteinGramsGoalMax,
+                    step: AppLimits.proteinGramsGoalStep
+                )
+            } header: {
+                Text("Protein floor")
+            } footer: {
+                Text("Grams of protein to reach each day — a floor, not a ceiling. It shows on "
+                     + "Today once something you log carries macros.")
             }
         }
         .navigationTitle("Protein goal")
         .onPlanInlineNav()
         .keyboardDoneToolbar(focus: $goalFocused)
-        .onAppear { goalText = "\(settings.defaultProteinGoal)" }
+        .onAppear {
+            goalText = "\(settings.defaultProteinGoal)"
+            gramsText = "\(settings.defaultProteinGramsGoal)"
+        }
         .onChange(of: goalFocused) { _, focused in
             if !focused { commitText() }
+        }
+        .onChange(of: gramsFocused) { _, focused in
+            if !focused { commitGramsText() }
         }
     }
 
@@ -51,6 +87,21 @@ struct ProteinGoalSettingsForm: View {
         DataStore.setDefaultProteinGoal(goal, in: modelContext)
         goalText = "\(settings.defaultProteinGoal)"
         modelContext.saveAndNotifyJournal()
+    }
+
+    private func applyGrams(_ grams: Int) {
+        let clamped = min(max(grams, AppLimits.proteinGramsGoalMin), AppLimits.proteinGramsGoalMax)
+        settings.defaultProteinGramsGoal = clamped
+        gramsText = "\(clamped)"
+        modelContext.saveAndNotifyJournal()
+    }
+
+    private func commitGramsText() {
+        if let value = Int(gramsText.filter(\.isNumber)) {
+            applyGrams(value)
+        } else {
+            gramsText = "\(settings.defaultProteinGramsGoal)"
+        }
     }
 
     private func commitText() {

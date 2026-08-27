@@ -1,4 +1,5 @@
 import Foundation
+import OnPlanCore
 import SwiftData
 
 /// Encodes checklist rows as `name|||amount` (legacy plain names still parse).
@@ -86,6 +87,8 @@ struct SuggestionItem: Identifiable, Hashable {
     let proteinCategory: String?
     let servings: Double
     let amount: String?
+    /// Macros for the whole suggested amount, carried over from the last time it was logged.
+    let macros: Macros?
 
     init(
         name: String,
@@ -93,7 +96,8 @@ struct SuggestionItem: Identifiable, Hashable {
         calories: Int? = nil,
         proteinCategory: String? = nil,
         servings: Double = 1,
-        amount: String? = nil
+        amount: String? = nil,
+        macros: Macros? = nil
     ) {
         self.name = name
         self.subtitle = subtitle
@@ -101,6 +105,7 @@ struct SuggestionItem: Identifiable, Hashable {
         self.proteinCategory = proteinCategory
         self.servings = servings
         self.amount = amount
+        self.macros = macros
     }
 }
 
@@ -270,7 +275,8 @@ enum UsageSuggestions {
             subtitle: subtitle,
             calories: total,
             proteinCategory: entry.proteinCategory,
-            servings: servings
+            servings: servings,
+            macros: entry.macros
         )
     }
 

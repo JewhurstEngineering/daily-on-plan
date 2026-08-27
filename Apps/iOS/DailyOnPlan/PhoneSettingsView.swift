@@ -8,6 +8,7 @@ import OnPlanCore
 struct PhoneSettingsView: View {
     @EnvironmentObject private var store: OnPlanStore
     @Environment(\.modelContext) private var modelContext
+    @State private var missingMacroCount = 0
 
     var body: some View {
         NavigationStack {
@@ -102,6 +103,23 @@ struct PhoneSettingsView: View {
                     Text("Backup is your whole journal, for moving devices. Export is a snapshot of one day's data to share.")
                 }
 
+                Section {
+                    NavigationLink {
+                        MacroBackfillView()
+                    } label: {
+                        SettingsValueRow(
+                            title: "Fill in macros",
+                            systemImage: "square.and.pencil",
+                            value: missingMacroCount > 0 ? "\(missingMacroCount) foods" : "All done"
+                        )
+                    }
+                } header: {
+                    Text("Nutrition")
+                } footer: {
+                    Text("Meals logged before the app tracked macros. Fill a food in once and "
+                         + "every day you logged it catches up.")
+                }
+
                 Section("More") {
                     NavigationLink {
                         NotificationsSettingsView(settings: settings)
@@ -131,7 +149,20 @@ struct PhoneSettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .onAppear(perform: refreshMissingMacroCount)
         }
+    }
+
+    /// Distinct food names still without macros — the size of the backfill job.
+    /// Computed on appear rather than per render: it fetches every log.
+    private func refreshMissingMacroCount() {
+        let logs = (try? modelContext.fetch(FetchDescriptor<DailyLog>())) ?? []
+        let names = logs
+            .flatMap(\.proteins)
+            .filter { $0.macros == nil }
+            .map { $0.name.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        missingMacroCount = Set(names).count
     }
 
     private func goalBodyValue(_ settings: AppSettings) -> String {

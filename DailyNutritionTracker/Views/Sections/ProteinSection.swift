@@ -1,4 +1,5 @@
 import SwiftUI
+import OnPlanCore
 import SwiftData
 
 struct ProteinSection: View {
@@ -96,8 +97,14 @@ struct ProteinSection: View {
             EditProteinAmountSheet(
                 entry: entry,
                 allowHydrationEdit: settings.proteinDrinksCountTowardHydration,
-                onSave: { multiplier, calories, hydrationOz in
-                    applyAmount(to: entry, multiplier: multiplier, calories: calories, hydrationOz: hydrationOz)
+                onSave: { multiplier, calories, hydrationOz, macros in
+                    applyAmount(
+                        to: entry,
+                        multiplier: multiplier,
+                        calories: calories,
+                        hydrationOz: hydrationOz,
+                        macros: macros
+                    )
                     editingEntry = nil
                     refreshChips()
                 },
@@ -299,6 +306,11 @@ struct ProteinSection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
+                    if let summary = entry.macros?.compactSummary, !summary.isEmpty {
+                        Text(summary)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
                 Spacer(minLength: Spacing.s)
@@ -367,9 +379,16 @@ struct ProteinSection: View {
         refreshChips()
     }
 
-    private func applyAmount(to entry: ProteinEntry, multiplier: Double, calories: Int, hydrationOz: Double?) {
+    private func applyAmount(
+        to entry: ProteinEntry,
+        multiplier: Double,
+        calories: Int,
+        hydrationOz: Double?,
+        macros: Macros?
+    ) {
         entry.servings = multiplier
         entry.calories = max(calories, 1)
+        entry.macros = macros
         if let hydrationOz {
             entry.hydrationOz = hydrationOz
         }
@@ -402,7 +421,8 @@ struct ProteinSection: View {
             hydrationOz: settings.suggestedHydrationOz(
                 forProteinCategory: category,
                 servings: servings
-            )
+            ),
+            macros: item.macros
         )
         modelContext.insert(entry)
         log.proteins.append(entry)
@@ -420,7 +440,8 @@ struct ProteinSection: View {
             hydrationOz: settings.suggestedHydrationOz(
                 forProteinCategory: preset.proteinCategory,
                 servings: preset.servingsPerUnit
-            )
+            ),
+            macros: preset.macros?.scaled(by: preset.servingsPerUnit)
         )
         modelContext.insert(entry)
         log.proteins.append(entry)
@@ -442,7 +463,8 @@ struct ProteinSection: View {
                 hungerAfter: 6,
                 proteinCategory: protein.proteinCategory,
                 servings: protein.servings,
-                hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil
+                hydrationOz: protein.hydrationOz > 0 ? protein.hydrationOz : nil,
+                macros: protein.macros
             )
             modelContext.insert(entry)
             log.proteins.append(entry)
@@ -485,7 +507,7 @@ extension SavedMeal: Identifiable {}
 struct EditProteinAmountSheet: View {
     let entry: ProteinEntry
     var allowHydrationEdit: Bool = false
-    var onSave: (Double, Int, Double?) -> Void
+    var onSave: (Double, Int, Double?, Macros?) -> Void
     var onDelete: () -> Void
     var onCancel: () -> Void
 
@@ -494,6 +516,8 @@ struct EditProteinAmountSheet: View {
     @State private var totalCalories = 0
     @State private var countTowardHydration = false
     @State private var hydrationOz: Double = 8
+    /// Per-serving macros, so changing the multiplier rescales them instead of invalidating them.
+    @State private var macroDraft = MacroDraft()
     @FocusState private var caloriesFocused: Bool
     @FocusState private var hydrationFocused: Bool
 
@@ -505,6 +529,11 @@ struct EditProteinAmountSheet: View {
             return per
         }
         return max(entry.calories, 1)
+    }
+
+    /// Macros for the amount now being logged.
+    private var scaledMacros: Macros? {
+        macroDraft.macros?.scaled(by: servings)
     }
 
     private var looksLikeDrink: Bool {
@@ -540,29 +569,46 @@ struct EditProteinAmountSheet: View {
                         }
                     }
 
-                    HStack {
-                        Text("Total calories")
-                        Spacer()
-                        TextField("kcal", text: $caloriesText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .focused($caloriesFocused)
-                            .frame(maxWidth: 100)
-                            .onChange(of: caloriesText) { _, newValue in
-                                let filtered = newValue.filter(\.isNumber)
-                                if filtered != newValue { caloriesText = filtered }
-                                if let value = Int(filtered), value > 0 {
-                                    totalCalories = value
+                    if macroDraft.canDeriveCalories {
+                        HStack {
+                            Text("Total calories")
+                            Spacer()
+                            Text("\(totalCalories) kcal")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        HStack {
+                            Text("Total calories")
+                            Spacer()
+                            TextField("kcal", text: $caloriesText)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .focused($caloriesFocused)
+                                .frame(maxWidth: 100)
+                                .onChange(of: caloriesText) { _, newValue in
+                                    let filtered = newValue.filter(\.isNumber)
+                                    if filtered != newValue { caloriesText = filtered }
+                                    if let value = Int(filtered), value > 0 {
+                                        totalCalories = value
+                                    }
                                 }
-                            }
-                        Text("kcal")
-                            .foregroundStyle(.secondary)
+                            Text("kcal")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } header: {
                     Text(entry.name)
                 } footer: {
-                    Text("Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
+                    Text(macroDraft.canDeriveCalories
+                         ? "Calories come from the nutrition numbers below, scaled by the servings."
+                         : "Multipliers are shortcuts. Edit total calories to log exactly what you ate.")
                 }
+
+                MacroFieldsSection(
+                    draft: $macroDraft,
+                    derivedKcal: macroDraft.macros?.resolvedKcal
+                )
 
                 if allowHydrationEdit {
                     Section {
@@ -618,14 +664,19 @@ struct EditProteinAmountSheet: View {
                         let hydration: Double? = allowHydrationEdit
                             ? (countTowardHydration ? max(hydrationOz, 0) : 0)
                             : nil
-                        onSave(servings, max(totalCalories, 1), hydration)
+                        onSave(servings, max(totalCalories, 1), hydration, scaledMacros)
                     }
                 }
+            }
+            .onChange(of: macroDraft) { _, _ in
+                if !caloriesFocused { syncCaloriesFromServings() }
             }
             .onAppear {
                 servings = max(entry.servings, 0.5)
                 totalCalories = max(entry.calories, 1)
                 caloriesText = "\(totalCalories)"
+                // Stored macros are totals; the form works in per-serving terms.
+                macroDraft = MacroDraft(entry.macros?.scaled(by: 1 / max(entry.servings, 0.01)))
                 if entry.hydrationOz > 0 {
                     countTowardHydration = true
                     hydrationOz = entry.hydrationOz
@@ -641,7 +692,11 @@ struct EditProteinAmountSheet: View {
     }
 
     private func syncCaloriesFromServings() {
-        totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        if let derived = scaledMacros?.resolvedKcal, derived > 0 {
+            totalCalories = derived
+        } else {
+            totalCalories = max(1, Int((Double(unitCalories) * servings).rounded()))
+        }
         caloriesText = "\(totalCalories)"
     }
 }

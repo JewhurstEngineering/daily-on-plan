@@ -319,6 +319,9 @@ struct TodayGoalCard<MenuContent: View>: View {
     var electrolyteSegments: [(start: Double, end: Double)] = []
     let actionTitle: String
     let actionIsProminent: Bool
+    /// A second measure under the main one — the protein floor beside the calorie ceiling.
+    /// Nil keeps the card to a single number.
+    var floor: FloorGoal?
     /// Last seven days, oldest first. Empty hides the strip.
     var weekValues: [Double] = []
     var weekOverTint: Color?
@@ -390,6 +393,11 @@ struct TodayGoalCard<MenuContent: View>: View {
                 .accessibilityHint("Double tap to log. Touch and hold for more options.")
             }
 
+            if let floor {
+                FloorGoalBar(goal: floor, tint: tint, metTint: metTint)
+                    .onTapGesture(perform: onOpen)
+            }
+
             if !weekValues.isEmpty {
                 MiniTrendStrip(
                     values: weekValues,
@@ -402,6 +410,58 @@ struct TodayGoalCard<MenuContent: View>: View {
             }
             }
         }
+    }
+}
+
+/// A target to reach rather than stay under — reaching it is the win, so it never reads as an
+/// overage the way the calorie ceiling does.
+struct FloorGoal: Equatable {
+    let label: String
+    let current: Double
+    let goal: Int
+    let unit: String
+
+    var fraction: Double {
+        guard goal > 0 else { return 0 }
+        return min(1, max(0, current / Double(goal)))
+    }
+
+    var isMet: Bool { goal > 0 && current >= Double(goal) }
+
+    var currentText: String {
+        current == current.rounded() ? String(format: "%.0f", current) : String(format: "%.1f", current)
+    }
+}
+
+private struct FloorGoalBar: View {
+    let goal: FloorGoal
+    let tint: Color
+    let metTint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(goal.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(goal.currentText) / \(goal.goal) \(goal.unit)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(goal.isMet ? metTint : .secondary)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.18))
+                    Capsule()
+                        .fill(goal.isMet ? metTint : tint)
+                        .frame(width: max(2, proxy.size.width * goal.fraction))
+                }
+            }
+            .frame(height: 5)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(goal.label): \(goal.currentText) of \(goal.goal) \(goal.unit)")
     }
 }
 

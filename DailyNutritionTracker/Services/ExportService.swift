@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import OnPlanCore
 
 enum ExportService {
     static func csv(
@@ -16,6 +17,16 @@ enum ExportService {
             let day = log.date.formatted(.iso8601.year().month().day())
             lines.append(csvRow(["day", day, "", "proteinGoal", "\(log.proteinGoal)", ""]))
             lines.append(csvRow(["day", day, "", "proteinCalories", "\(log.totalProteinCalories)", ""]))
+            if let dayMacros = log.dayMacros {
+                lines.append(csvRow([
+                    "day",
+                    day,
+                    "",
+                    "macros",
+                    Macros.gramsText(dayMacros.protein) ?? "",
+                    dayMacros.fullSummary
+                ]))
+            }
             lines.append(csvRow(["day", day, "", "ketosis", "\(log.ketosis)", ""]))
             if let ketone = log.ketoneMmol {
                 lines.append(csvRow(["day", day, "", "ketoneMmol", String(format: "%.1f", ketone), ""]))
@@ -132,6 +143,16 @@ enum ExportService {
                     "\(protein.calories)",
                     "\(protein.servingSize);hunger \(protein.hungerBefore)->\(protein.hungerAfter)"
                 ]))
+                if let macros = protein.macros {
+                    lines.append(csvRow([
+                        "proteinMacros",
+                        day,
+                        DateHelpers.formattedTime(protein.time),
+                        protein.name,
+                        Macros.gramsText(macros.protein) ?? "",
+                        macros.fullSummary
+                    ]))
+                }
                 if protein.hydrationOz > 0 {
                     lines.append(csvRow([
                         "proteinHydration",
@@ -374,6 +395,9 @@ enum ExportService {
                     drawLine("Protein Log", font: .boldSystemFont(ofSize: 12))
                     for protein in log.sortedProteins {
                         var line = "\(DateHelpers.formattedTime(protein.time)) — \(protein.name) \(protein.servingSize) · \(protein.calories) kcal · hunger \(protein.hungerBefore)→\(protein.hungerAfter)"
+                        if let macros = protein.macros, !macros.compactSummary.isEmpty {
+                            line += " · \(macros.compactSummary)"
+                        }
                         if protein.hydrationOz > 0 {
                             line += String(format: " · +%.0f oz hydration", protein.hydrationOz)
                         }

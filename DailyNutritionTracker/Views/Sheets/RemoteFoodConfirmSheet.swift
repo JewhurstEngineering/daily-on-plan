@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OnPlanCore
 
 struct RemoteFoodConfirmSheet: View {
     let candidate: RemoteFoodCandidate
@@ -18,6 +19,8 @@ struct RemoteFoodConfirmSheet: View {
     @State private var proteinCategory: ProteinCategory = .other
     @State private var saveAsPreset = true
     @State private var logNow = true
+    /// Prefilled from the lookup, editable before saving.
+    @State private var macroDraft = MacroDraft()
     @FocusState private var focused: Bool
 
     private var canConfirm: Bool {
@@ -57,11 +60,17 @@ struct RemoteFoodConfirmSheet: View {
                     }
                 }
 
+                MacroFieldsSection(
+                    draft: $macroDraft,
+                    derivedKcal: macroDraft.macros?.resolvedKcal
+                )
+
                 Section {
                     Toggle("Save as preset", isOn: $saveAsPreset)
                     Toggle("Log now", isOn: $logNow)
                 } footer: {
-                    Text("Presets show up in protein search and chips next time.")
+                    Text("Presets show up in protein search and chips next time — with these "
+                         + "macros already filled in.")
                 }
             }
             .navigationTitle("Confirm food")
@@ -76,7 +85,15 @@ struct RemoteFoodConfirmSheet: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { focused = false }
+                    Button("Done") {
+                        focused = false
+                        Keyboard.dismiss()
+                    }
+                }
+            }
+            .onChange(of: macroDraft) { _, _ in
+                if let derived = macroDraft.macros?.resolvedKcal, derived > 0 {
+                    unitCalories = derived
                 }
             }
             .onAppear {
@@ -85,6 +102,9 @@ struct RemoteFoodConfirmSheet: View {
                 unitCalories = max(candidate.caloriesPerServing, 0)
                 if unitCalories == 0 { unitCalories = 100 }
                 proteinCategory = defaultProteinCategory
+                macroDraft = MacroDraft(candidate.macros)
+                macroDraft.source = .scan
+                macroDraft.carbBasisWasGuessed = candidate.carbBasisWasGuessed
             }
         }
     }
@@ -99,6 +119,7 @@ struct RemoteFoodConfirmSheet: View {
         if saveAsPreset {
             upsertPreset(name: trimmed, servingLabel: label, unitCalories: unitCalories)
         }
+        let macros = macroDraft.macros
 
         if logNow {
             let entry = ProteinEntry(
@@ -110,7 +131,8 @@ struct RemoteFoodConfirmSheet: View {
                 hydrationOz: settings.suggestedHydrationOz(
                     forProteinCategory: proteinCategory.rawValue,
                     servings: 1
-                )
+                ),
+                macros: macros
             )
             modelContext.insert(entry)
             log.proteins.append(entry)
@@ -129,6 +151,7 @@ struct RemoteFoodConfirmSheet: View {
             existing.proteinCategory = proteinCategory.rawValue
             existing.servingsPerUnit = 1
             existing.category = FoodCategory.protein.rawValue
+            if let macros = macroDraft.macros { existing.macros = macros }
         } else {
             let preset = CustomFoodPreset(
                 name: name,
@@ -136,7 +159,8 @@ struct RemoteFoodConfirmSheet: View {
                 calories: unitCalories,
                 category: FoodCategory.protein.rawValue,
                 proteinCategory: proteinCategory.rawValue,
-                servingsPerUnit: 1
+                servingsPerUnit: 1,
+                macros: macroDraft.macros
             )
             modelContext.insert(preset)
         }
