@@ -325,7 +325,6 @@ struct TodayGoalCard<MenuContent: View>: View {
     /// Last seven days, oldest first. Empty hides the strip.
     var weekValues: [Double] = []
     var weekOverTint: Color?
-    var weekShortTint: Color?
     let onAction: () -> Void
     let onOpen: () -> Void
     /// Long-press menu on the action button: the quick options you would otherwise
@@ -403,8 +402,7 @@ struct TodayGoalCard<MenuContent: View>: View {
                     values: weekValues,
                     goal: Double(goal),
                     tint: tint,
-                    overTint: weekOverTint,
-                    shortTint: weekShortTint
+                    overTint: weekOverTint
                 )
                 .onTapGesture(perform: onOpen)
             }
@@ -701,8 +699,10 @@ struct TodayRitualCard: View {
 
 // MARK: - Mini trend
 
-/// A fortnight meter for a goal card: one equal block per day, coloured by whether that
-/// day met its goal. Height carries no meaning — the colour is the whole message.
+/// A fortnight meter for a goal card: one equal block per day, coloured by how much of
+/// that day's goal was met — red up to half, amber to eighty-five, the card's own tint for
+/// a near miss, green for a day that got there. Height carries no meaning; colour is the
+/// whole message.
 ///
 /// Deliberately not a bar chart. The full magnitudes live on Trends; here the question is
 /// only "how many of the last fourteen days went well", which reads faster as a run of
@@ -711,18 +711,50 @@ struct MiniTrendStrip: View {
     /// Oldest first, one entry per day, `0` for a day with nothing logged.
     let values: [Double]
     let goal: Double
+    /// The card's own colour, used for the 86–99% band — aqua on hydration, blue on protein.
     let tint: Color
     /// Set for a ceiling goal (protein): days above the line read as a warning.
     var overTint: Color?
-    /// Set for a floor goal (hydration): days below the line read as short.
-    var shortTint: Color?
     var height: CGFloat = 20
+
+    @Environment(\.appTheme) private var appTheme
 
     private func color(for value: Double) -> Color {
         guard value > 0 else { return Color.onPlanHairline.opacity(0.6) }
-        if let overTint { return value > goal ? overTint : tint }
-        if let shortTint { return value >= goal ? tint : shortTint }
-        return value >= goal ? tint : tint.opacity(0.3)
+        // A ceiling goal answers a different question: past the line is an overage, not a win.
+        if let overTint, value > goal { return overTint }
+        guard goal > 0 else { return tint }
+        return band(forPercent: value / goal * 100).color(tint: tint, theme: appTheme)
+    }
+
+    private func band(forPercent percent: Double) -> Band {
+        switch percent {
+        case ..<50.5: return .short
+        case ..<85.5: return .halfway
+        case ..<99.5: return .close
+        default: return .met
+        }
+    }
+
+    /// Distance to the goal as a colour ramp rather than one tint fading out — at a block this
+    /// small a difference in shade alone is hard to read, so each step also changes hue. Four
+    /// steps, not six: the point is to sort the fortnight at a glance, not to read a percentage
+    /// off it. The bands below the goal stay under full strength, so only a day that got there
+    /// is solid.
+    enum Band {
+        case short, halfway, close, met
+
+        func color(tint: Color, theme: ThemePalette) -> Color {
+            switch self {
+            case .short: return theme.danger.opacity(0.55)
+            case .halfway: return Self.amber.opacity(0.72)
+            case .close: return tint.opacity(0.85)
+            case .met: return theme.ok
+            }
+        }
+
+        /// The palette has no yellow slot of its own; this sits between `warn` and `ok`.
+        private static let amber = Color(red: 0.91, green: 0.80, blue: 0.24)
     }
 
     var body: some View {

@@ -228,7 +228,6 @@ struct DayView: View {
             actionTitle: "\(formatOz(settings.defaultBottleOz))oz",
             actionIsProminent: false,
             weekValues: weekSeries { Double($0.totalHydrationOz(settings: settings)) },
-            weekShortTint: appTheme.water.opacity(0.28),
             // Tap logs the usual bottle outright — the common case should not cost a screen.
             onAction: { logWater(settings.defaultBottleOz, kind: .water, log: log, settings: settings) },
             onOpen: { path.append(.hydration) },
